@@ -1745,6 +1745,8 @@
       "periodWeekly": "Hebdomadaire",
       "noDataTitle": "Aucune donnée disponible",
       "noDataSubtitle": "Revenez plus tard pour les mises à jour d'activité",
+      "emptyChartTitle": "Pas encore de données dans le graphique",
+      "emptyChartSubtitle": "Tirez pour actualiser lorsque l'activité augmente",
       "chartFootnote": "Les lignes utilisent des échelles séparées. Faites glisser le graphique sur le côté lorsque les points sont trop serrés."
     },
     "dragonflyModal": {
@@ -2542,6 +2544,8 @@
     "totalValueHoldings": "Valeur totale des avoirs",
     "postCredits": "Publications Mission",
     "creditsRemaining": "{{count}} / 5 restants",
+    "subscriptionHits": "Crédits d'abonnement",
+    "purchasedHits": "Crédits achetés",
     "buyCredits": "Obtenir une publication Mission (1,99 $ chacune)",
     "referralPoints": "Points de parrainage",
     "referralPts": "{{count}} pts",
@@ -5585,6 +5589,8 @@
     "paymentFailedMsg": "Impossible de créer la session de paiement. Veuillez réessayer.",
     "paymentError": "Erreur de paiement",
     "paymentErrorMsg": "Une erreur est survenue lors du paiement. Veuillez réessayer.",
+    "paymentNotCompleted": "Paiement non terminé",
+    "paymentNotCompletedMsg": "Cet e-book n'a pas été acheté. Terminez le paiement pour continuer.",
     "price": "Prix",
     "total": "Total",
     "paymentMethod": "Moyen de paiement",
