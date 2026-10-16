@@ -248,6 +248,8 @@ const resolveActivityLabel = (item, timestamp, range) => {
   return formatActivityBucketLabel(timestamp, range);
 };
 
+console.log('WalletDashboardScreen loaded');
+
 const HexStarIcon = ({ size = 36, starSize = 16, starColor = '#ffffff', bgColor = '#5a2d82' }) => {
   const cx = size / 2;
   const cy = size / 2;
@@ -267,6 +269,7 @@ const HexStarIcon = ({ size = 36, starSize = 16, starColor = '#ffffff', bgColor 
     </View>
   );
 };
+
 /** Subscription / support earnings graph → `{ timestamp, value }[]` */
 const mapSubscriptionGraphPoints = (response, range = 'weekly') => {
   const root = response?.data?.data ?? response?.data ?? response;
