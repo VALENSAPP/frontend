@@ -2610,7 +2610,7 @@ const InstagramPostCreator = () => {
         onClose={() => setFlipStickerModal(false)}
         onSelectSticker={addStickerItem}
         isDarkMode={isDarkMode}
-        accentColor="#5a2d82"
+        accentColor={accent || '#5a2d82'}
       />
 
       <PostMusicGalleryModal

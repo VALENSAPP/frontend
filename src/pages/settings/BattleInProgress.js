@@ -59,6 +59,7 @@ import { normalizeProfileType } from '../../utils/supportEligibility';
 import HexAvatar from '../../components/home/story.js/HexAvatar';
 import { Vsbanner } from '../../assets/icons';
 import { useLanguage } from '../../i18n';
+import { moderateBattleComment } from '../../utils/battleModeration';
 import { BASE_URL } from '../../config/urls';
 
 const isMeaningfulValue = value => {
@@ -670,7 +671,7 @@ const isSuccessfulResponse = response =>
 export default function BattleInProgress() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
   const { profile, profileType, entryPoint } = route.params || {};
   const routeBattle = useMemo(() => route?.params?.battle || {}, [route?.params?.battle]);
   const hasInitialBattleData = Object.keys(routeBattle || {}).length > 0;
@@ -1735,11 +1736,39 @@ export default function BattleInProgress() {
     }
   };
 
+  const gateBattleComment = async ({ text, contentId, replyToContentId, contextIds }) => {
+    try {
+      return await moderateBattleComment({
+        text,
+        contentId,
+        replyToContentId,
+        contextIds,
+        language: currentLanguage,
+        t,
+      });
+    } catch (error) {
+      console.error('Battle comment moderation check error:', error);
+      Alert.alert(
+        t('battleInProgress.moderationBlockTitle'),
+        t('battleInProgress.moderationCheckFailed'),
+      );
+      return null;
+    }
+  };
+
   const handlePostComment = async () => {
     const message = commentText.trim();
     if (!message || !battleId) return;
     setSubmittingComment(true);
     try {
+      const moderationDecision = await gateBattleComment({
+        text: message,
+        contentId: `temp_bcmt_${Date.now()}`,
+        replyToContentId: battleId,
+        contextIds: [battleId],
+      });
+      if (!moderationDecision) return;
+
       const response = await commentUpload({ battleId, comment: message, message });
       if (!isSuccessfulResponse(response)) {
         Alert.alert(t('battleInProgress.commentNotPosted'), response?.message || t('battleInProgress.tryAgain'));
@@ -1747,6 +1776,9 @@ export default function BattleInProgress() {
       }
       setCommentText('');
       await fetchBattle(true);
+      if (moderationDecision === 'REVIEW') {
+        Alert.alert(t('battleInProgress.moderationReview'));
+      }
     } catch (error) {
       Alert.alert(
         t('battleInProgress.commentNotPosted'),
@@ -1763,6 +1795,14 @@ export default function BattleInProgress() {
     const parentCommentId = replyingToComment.id;
     setSubmittingComment(true);
     try {
+      const moderationDecision = await gateBattleComment({
+        text: message,
+        contentId: `temp_bcmt_${Date.now()}`,
+        replyToContentId: parentCommentId,
+        contextIds: [battleId, parentCommentId],
+      });
+      if (!moderationDecision) return;
+
       const response = await replyCommentBattle({ battleId, comment: message, parentCommentId });
       if (!isSuccessfulResponse(response)) {
         Alert.alert(t('battleInProgress.replyNotPosted'), response?.message || t('battleInProgress.tryAgain'));
@@ -1772,6 +1812,9 @@ export default function BattleInProgress() {
       setReplyingToComment(null);
       setExpandedReplies(prev => ({ ...prev, [parentCommentId]: false }));
       await fetchBattle(true);
+      if (moderationDecision === 'REVIEW') {
+        Alert.alert(t('battleInProgress.moderationReview'));
+      }
     } catch (error) {
       Alert.alert(
         t('battleInProgress.replyNotPosted'),
@@ -1890,6 +1933,14 @@ export default function BattleInProgress() {
 
     setSubmittingCommentEdit(true);
     try {
+      const moderationDecision = await gateBattleComment({
+        text: textToSubmit,
+        contentId: commentId,
+        replyToContentId: finalBattleId,
+        contextIds: [finalBattleId],
+      });
+      if (!moderationDecision) return;
+
       const response = await editBattleComment({
         battleId: finalBattleId,
         commentId,

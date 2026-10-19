@@ -560,7 +560,16 @@
     "communityTrustTitle": "Post de confiança da comunidade",
     "communityTrustSubtitle": "Permita que a comunidade verifique este post com base no conhecimento dela.",
     "communityTrustLearnMore": "Saiba mais sobre Confiança da Comunidade",
-    "openProfileError": "Não foi possível abrir o perfil deste usuário."
+    "openProfileError": "Não foi possível abrir o perfil deste usuário.",
+    "moderationWarnTitle": "Aviso",
+    "moderationWarnMessage": "Sua publicação contém linguagem sensível ou gíria leve. Tem certeza de que deseja publicar?",
+    "moderationYes": "Sim",
+    "moderationNo": "Não",
+    "moderationReview": "Publicação enviada. Ela está aguardando revisão antes de aparecer no feed.",
+    "moderationBlockTitle": "Não é possível publicar",
+    "moderationBlockReason": "Não é possível publicar o post. Seu conteúdo viola as regras da comunidade (Motivo: {{reason}}). Edite o texto.",
+    "moderationBlock": "Não é possível publicar. Seu conteúdo viola as regras da comunidade.",
+    "moderationCheckFailed": "Não foi possível verificar esta publicação agora. Tente novamente."
   },
   "editPost": {
     "screenTitle": "Editar post",
@@ -741,7 +750,16 @@
     "predictionSearchPlaceholder": "Pesquisar perguntas",
     "predictionNoSearchResults": "Nenhuma pergunta corresponde à sua pesquisa",
     "subCategoryPlaceholder": "Nome do esporte (ex. cricket)",
-    "leaguePlaceholder": "Liga (ex. ipl)"
+    "leaguePlaceholder": "Liga (ex. ipl)",
+    "moderationWarnTitle": "Aviso",
+    "moderationWarnMessage": "Sua batalha contém linguagem sensível ou gíria leve. Tem certeza de que deseja criá-la?",
+    "moderationYes": "Sim",
+    "moderationNo": "Não",
+    "moderationReview": "Batalha enviada. Ela está aguardando revisão antes de aparecer.",
+    "moderationBlockTitle": "Não é possível publicar",
+    "moderationBlockReason": "Não é possível publicar a batalha. Seu conteúdo viola as regras da comunidade (Motivo: {{reason}}). Edite o texto.",
+    "moderationBlock": "Não é possível publicar. Seu conteúdo viola as regras da comunidade.",
+    "moderationCheckFailed": "Não foi possível verificar esta batalha agora. Tente novamente."
   },
   "profileBattle": {
     "defaultTitle": "Batalha"
@@ -1077,7 +1095,16 @@
     "fallbackOpponent": "Oponente",
     "valensUser": "Usuário Valens",
     "battleCancelled": "Batalha cancelada",
-    "statusCancelled": "CANCELADA"
+    "statusCancelled": "CANCELADA",
+    "moderationWarnTitle": "Aviso",
+    "moderationWarnMessage": "Seu comentário contém linguagem sensível ou gíria leve. Tem certeza de que deseja publicar?",
+    "moderationYes": "Sim",
+    "moderationNo": "Não",
+    "moderationReview": "Comentário enviado. Ele está aguardando revisão antes de aparecer.",
+    "moderationBlockTitle": "Não é possível publicar",
+    "moderationBlockReason": "Não é possível publicar o comentário. Seu conteúdo viola as regras da comunidade (Motivo: {{reason}}). Edite o texto.",
+    "moderationBlock": "Não é possível publicar. Seu conteúdo viola as regras da comunidade.",
+    "moderationCheckFailed": "Não foi possível verificar este comentário agora. Tente novamente."
   },
   "battleVoteDetails": {
     "votesTitle": "Votos",
@@ -2641,7 +2668,16 @@
     "mentionSearching": "Procurando usuários...",
     "mentionNoUsers": "Nenhum usuário encontrado",
     "errorReactionFailed": "Falha ao salvar reação",
-    "errorReaction": "Erro ao salvar reação"
+    "errorReaction": "Erro ao salvar reação",
+    "moderationWarnTitle": "Aviso",
+    "moderationWarnMessage": "Seu comentário contém linguagem sensível ou gíria leve. Tem certeza de que deseja publicar?",
+    "moderationYes": "Sim",
+    "moderationNo": "Não",
+    "moderationReview": "Comentário enviado. Ele está aguardando revisão antes de aparecer.",
+    "moderationBlockTitle": "Não é possível publicar",
+    "moderationBlockReason": "Não é possível publicar o comentário. Seu conteúdo viola as regras da comunidade (Motivo: {{reason}}). Edite o texto.",
+    "moderationBlock": "Não é possível publicar. Seu conteúdo viola as regras da comunidade.",
+    "moderationCheckFailed": "Não foi possível verificar este comentário agora. Tente novamente."
   },
   "followCard": {
     "follow": "Seguir",
@@ -4820,7 +4856,17 @@
     "publishButton": "Anunciar produto",
     "publishing": "Anunciando...",
     "publishFailure": "Não foi possível anunciar o produto.",
-    "copyItemText": "Confira meu item em {{shopName}} no Valens.\n{{link}}"
+    "copyItemText": "Confira meu item em {{shopName}} no Valens.\n{{link}}",
+    "moderationWarnTitle": "Aviso",
+    "moderationWarnMessage": "Seu produto contém linguagem sensível ou gíria leve. Tem certeza de que deseja publicá-lo?",
+    "moderationYes": "Sim",
+    "moderationNo": "Não",
+    "moderationReviewTitle": "Enviado para revisão",
+    "moderationReview": "Produto enviado. Ele está aguardando revisão antes de aparecer.",
+    "moderationBlockTitle": "Não é possível publicar",
+    "moderationBlockReason": "Não é possível publicar o produto. Seu conteúdo viola as regras da comunidade (Motivo: {{reason}}). Edite o texto.",
+    "moderationBlock": "Não é possível publicar. Seu conteúdo viola as regras da comunidade.",
+    "moderationCheckFailed": "Não foi possível verificar este produto agora. Tente novamente."
   },
   "myClosetAddItemPublished": {
     "title": "Seu produto já está postado! 🎉",

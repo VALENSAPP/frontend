@@ -560,7 +560,16 @@
     "communityTrustTitle": "Post con fiducia della community",
     "communityTrustSubtitle": "Consenti alla community di verificare questo post in base alle proprie conoscenze.",
     "communityTrustLearnMore": "Scopri di più sulla fiducia della community",
-    "openProfileError": "Impossibile aprire il profilo di questo utente."
+    "openProfileError": "Impossibile aprire il profilo di questo utente.",
+    "moderationWarnTitle": "Avviso",
+    "moderationWarnMessage": "Il tuo post contiene linguaggio sensibile o slang lieve. Vuoi davvero pubblicarlo?",
+    "moderationYes": "Sì",
+    "moderationNo": "No",
+    "moderationReview": "Post inviato. È in attesa di revisione prima di comparire nel feed.",
+    "moderationBlockTitle": "Impossibile pubblicare",
+    "moderationBlockReason": "Impossibile pubblicare il post. Il contenuto viola le regole della community (Motivo: {{reason}}). Modifica il testo.",
+    "moderationBlock": "Impossibile pubblicare. Il contenuto viola le regole della community.",
+    "moderationCheckFailed": "Impossibile controllare questo post adesso. Riprova."
   },
   "editPost": {
     "screenTitle": "Modifica post",
@@ -741,7 +750,16 @@
     "predictionSearchPlaceholder": "Cerca domande",
     "predictionNoSearchResults": "Nessuna domanda corrisponde alla tua ricerca",
     "subCategoryPlaceholder": "Nome dello sport (es. cricket)",
-    "leaguePlaceholder": "Lega (es. ipl)"
+    "leaguePlaceholder": "Lega (es. ipl)",
+    "moderationWarnTitle": "Avviso",
+    "moderationWarnMessage": "La tua battle contiene linguaggio sensibile o slang lieve. Vuoi davvero crearla?",
+    "moderationYes": "Sì",
+    "moderationNo": "No",
+    "moderationReview": "Battle inviata. È in attesa di revisione prima di comparire.",
+    "moderationBlockTitle": "Impossibile pubblicare",
+    "moderationBlockReason": "Impossibile pubblicare la battle. Il contenuto viola le regole della community (Motivo: {{reason}}). Modifica il testo.",
+    "moderationBlock": "Impossibile pubblicare. Il contenuto viola le regole della community.",
+    "moderationCheckFailed": "Impossibile controllare questa battle adesso. Riprova."
   },
   "profileBattle": {
     "defaultTitle": "Battaglia"
@@ -1077,7 +1095,16 @@
     "fallbackOpponent": "Avversario",
     "valensUser": "Utente Valens",
     "battleCancelled": "Battaglia annullata",
-    "statusCancelled": "ANNULLATA"
+    "statusCancelled": "ANNULLATA",
+    "moderationWarnTitle": "Avviso",
+    "moderationWarnMessage": "Il tuo commento contiene linguaggio sensibile o slang lieve. Vuoi davvero pubblicarlo?",
+    "moderationYes": "Sì",
+    "moderationNo": "No",
+    "moderationReview": "Commento inviato. È in attesa di revisione prima di comparire.",
+    "moderationBlockTitle": "Impossibile pubblicare",
+    "moderationBlockReason": "Impossibile pubblicare il commento. Il contenuto viola le regole della community (Motivo: {{reason}}). Modifica il testo.",
+    "moderationBlock": "Impossibile pubblicare. Il contenuto viola le regole della community.",
+    "moderationCheckFailed": "Impossibile controllare questo commento adesso. Riprova."
   },
   "battleVoteDetails": {
     "votesTitle": "Voti",
@@ -2641,7 +2668,16 @@
     "mentionSearching": "Searching users...",
     "mentionNoUsers": "No users found",
     "errorReactionFailed": "Impossibile salvare la reazione",
-    "errorReaction": "Errore durante il salvataggio della reazione"
+    "errorReaction": "Errore durante il salvataggio della reazione",
+    "moderationWarnTitle": "Avviso",
+    "moderationWarnMessage": "Il tuo commento contiene linguaggio sensibile o slang lieve. Vuoi davvero pubblicarlo?",
+    "moderationYes": "Sì",
+    "moderationNo": "No",
+    "moderationReview": "Commento inviato. È in attesa di revisione prima di comparire.",
+    "moderationBlockTitle": "Impossibile pubblicare",
+    "moderationBlockReason": "Impossibile pubblicare il commento. Il contenuto viola le regole della community (Motivo: {{reason}}). Modifica il testo.",
+    "moderationBlock": "Impossibile pubblicare. Il contenuto viola le regole della community.",
+    "moderationCheckFailed": "Impossibile controllare questo commento adesso. Riprova."
   },
   "followCard": {
     "follow": "Segui",
@@ -4820,7 +4856,17 @@
     "publishButton": "Pubblica articolo",
     "publishing": "Pubblicazione in corso...",
     "publishFailure": "Impossibile pubblicare l'articolo.",
-    "copyItemText": "Scopri il mio prodotto su {{shopName}} su Valens.\n{{link}}"
+    "copyItemText": "Scopri il mio prodotto su {{shopName}} su Valens.\n{{link}}",
+    "moderationWarnTitle": "Avviso",
+    "moderationWarnMessage": "Il tuo prodotto contiene linguaggio sensibile o slang lieve. Vuoi davvero pubblicarlo?",
+    "moderationYes": "Sì",
+    "moderationNo": "No",
+    "moderationReviewTitle": "Inviato per la revisione",
+    "moderationReview": "Prodotto inviato. È in attesa di revisione prima di comparire.",
+    "moderationBlockTitle": "Impossibile pubblicare",
+    "moderationBlockReason": "Impossibile pubblicare il prodotto. Il contenuto viola le regole della community (Motivo: {{reason}}). Modifica il testo.",
+    "moderationBlock": "Impossibile pubblicare. Il contenuto viola le regole della community.",
+    "moderationCheckFailed": "Impossibile controllare questo prodotto adesso. Riprova."
   },
   "myClosetAddItemPublished": {
     "title": "Il tuo articolo è online! 🎉",

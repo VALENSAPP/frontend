@@ -14,6 +14,7 @@ import {
   findNodeHandle,
   DeviceEventEmitter,
   Switch,
+  Alert,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -23,6 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomButton from '../../../components/customButton/customButton';
 import { useToast } from 'react-native-toast-notifications';
 import { createPost, editPost, searchHashtags } from '../../../services/post';
+import { checkContentModeration, parseModerationResult } from '../../../services/moderation';
 import { getAllUser } from '../../../services/users';
 import {
   buildPostUploadPayloadFromImages,
@@ -108,6 +110,29 @@ const getVideoPreviewHeight = (media, isFlipPost) => {
     return screenHeight * 0.5;
   }
   return getPreviewHeightForMedia(media);
+};
+
+const isRemoteMediaUrl = (value) => /^https?:\/\//i.test(String(value || '').trim());
+
+const collectRemoteMediaRefs = (images) => {
+  const refs = [];
+  (Array.isArray(images) ? images : []).forEach(media => {
+    [
+      media?.processedUri,
+      media?.originalUri,
+      media?.path,
+      media?.uri,
+      media?.sourceURL,
+      media?.thumbnail,
+      media?.thumb,
+      media?.poster,
+      media?.previewUri,
+    ].forEach(candidate => {
+      const uri = String(candidate || '').trim();
+      if (isRemoteMediaUrl(uri) && !refs.includes(uri)) refs.push(uri);
+    });
+  });
+  return refs;
 };
 
 const PostEditorScreen = () => {
@@ -206,8 +231,9 @@ const PostEditorScreen = () => {
   const iosFocusedFieldRef = useRef(null);
   const hashtagSearchTimeoutRef = useRef(null);
   const activeHashtagSearchIdRef = useRef(0);
+  const publishInFlightRef = useRef(false);
   const { bgStyle, textStyle, cardStyle, text, card, border, mutedText, icon, accent } = useAppTheme();
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
 
   const toast = useToast();
   console.log('PostEditor received data:', { images, currentFilter, metadata, imageEdits, postType });
@@ -376,205 +402,313 @@ const PostEditorScreen = () => {
     navigation.navigate('HomeMain');
   }, [navigation, editSkipMediaEditor]);
 
+  const buildModerationText = useCallback(() => {
+    const overlayText = editorImages.flatMap(img =>
+      (Array.isArray(img?.textOverlays) ? img.textOverlays : [])
+        .map(overlay => String(overlay?.text || '').trim())
+        .filter(Boolean),
+    );
+    const hashtagText = selectedHashtags
+      .map(tag => `#${normalizeHashtag(tag)}`)
+      .filter(tag => tag !== '#')
+      .join(' ');
+
+    return [
+      caption.trim(),
+      hashtagText,
+      supportsLocation ? location.trim() : '',
+      postType === 'crowdfunding' ? link.trim() : '',
+      ...overlayText,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+  }, [caption, editorImages, link, location, postType, selectedHashtags, supportsLocation]);
+
+  const runModerationCheck = useCallback(async () => {
+    const userId = await AsyncStorage.getItem('userId');
+    const response = await checkContentModeration({
+      user_id: userId || '',
+      content_id:
+        isEditingPost && editPostId ? String(editPostId) : `temp_post_${Date.now()}`,
+      content_type: 'post',
+      feature: 'post',
+      text: buildModerationText(),
+      media_refs: collectRemoteMediaRefs(editorImages),
+      language: currentLanguage || 'en',
+    });
+
+    console.log('Moderation check response:', response);
+    const parsed = parseModerationResult(response);
+    if (!parsed.decision) {
+      const error = new Error(response?.message || 'Moderation check failed');
+      error.moderationResponse = response;
+      throw error;
+    }
+    return parsed;
+  }, [buildModerationText, currentLanguage, editPostId, editorImages, isEditingPost]);
+
+  const showModerationBlock = useCallback((reason) => {
+    Alert.alert(
+      t('postEditor.moderationBlockTitle'),
+      reason
+        ? t('postEditor.moderationBlockReason', { reason })
+        : t('postEditor.moderationBlock'),
+    );
+  }, [t]);
+
   const handlePost = async () => {
-    if (postType == 'crowdfunding') {
-      if (link && !isValidLink(link)) {
-        showToastMessage(toast, 'danger', t('postEditor.invalidLink'));
+    if (publishInFlightRef.current) return;
+    if (postType === 'crowdfunding' && link && !isValidLink(link)) {
+      showToastMessage(toast, 'danger', t('postEditor.invalidLink'));
+      return;
+    }
+
+    publishInFlightRef.current = true;
+    dispatch(showLoader());
+    let moderation;
+    try {
+      moderation = await runModerationCheck();
+    } catch (err) {
+      console.error('Moderation check error:', err);
+      showToastMessage(toast, 'danger', t('postEditor.moderationCheckFailed'));
+      return;
+    } finally {
+      dispatch(hideLoader());
+      publishInFlightRef.current = false;
+    }
+
+    if (moderation.decision === 'BLOCK') {
+      showModerationBlock(moderation.reason);
+      return;
+    }
+
+    if (moderation.decision === 'WARN') {
+      Alert.alert(
+        t('postEditor.moderationWarnTitle'),
+        t('postEditor.moderationWarnMessage'),
+        [
+          { text: t('postEditor.moderationNo'), style: 'cancel' },
+          {
+            text: t('postEditor.moderationYes'),
+            onPress: () => {
+              submitPost('ALLOW');
+            },
+          },
+        ],
+      );
+      return;
+    }
+
+    await submitPost(moderation.decision);
+  };
+
+  const submitPost = async (moderationDecision = 'ALLOW') => {
+    if (publishInFlightRef.current) return;
+    publishInFlightRef.current = true;
+    const underReview = moderationDecision === 'REVIEW';
+    try {
+      if (postType == 'crowdfunding') {
+        navigation.navigate('CreateMission', {
+          images: editorImages,
+          caption,
+          link,
+          ...(supportsLocation && location.trim() ? { location: location.trim() } : {}),
+          ...(selectedHashtags.length ? { hashtag: selectedHashtags } : {}),
+          taggedPeople,
+          taggedPeopleIds,
+          taggedPeopleMeta,
+          isTrustPost: isCommunityTrustPost,
+          ...(underReview ? { moderationStatus: 'REVIEW' } : {}),
+        });
         return;
       }
 
-      navigation.navigate('CreateMission', {
-        images: editorImages,
-        caption,
-        link,
+      dispatch(showLoader());
+      const isFlipPost = fromIcon === 'Flips' || postType === 'flip';
+      const primaryMedia = editorImages[0];
+
+      const payload = {
+        caption: caption.trim(),
         ...(supportsLocation && location.trim() ? { location: location.trim() } : {}),
         ...(selectedHashtags.length ? { hashtag: selectedHashtags } : {}),
-        taggedPeople,
-        taggedPeopleIds,
-        taggedPeopleMeta,
+        taggedPeople: taggedPeopleIds,
+        // Array.isArray(taggedPeople) ? taggedPeople.join(', ') : taggedPeople,
+        // ...(Array.isArray(taggedPeopleIds) && taggedPeopleIds.length ? { taggedPeopleIds } : {}),
+        // ...(Array.isArray(taggedPeopleMeta) && taggedPeopleMeta.length ? { taggedPeopleMeta } : {}),
+        media: editorImages.map(img => ({
+          uri: getMediaUri(img),
+          type: img.type,
+          name: getMediaUri(img).split('/').pop()
+        })),
+        type:
+          postType === 'private_circle' ? 'private_circle' :
+            postType === 'private'
+              ? 'private'
+              : fromIcon === 'Flips'
+                ? 'reel'
+                : 'normal',
+        visibleTo: visibleTo,
         isTrustPost: isCommunityTrustPost,
-      });
-      return;
-    }
-
-    dispatch(showLoader());
-    const isFlipPost = fromIcon === 'Flips' || postType === 'flip';
-    const primaryMedia = editorImages[0];
-
-    const payload = {
-      caption: caption.trim(),
-      ...(supportsLocation && location.trim() ? { location: location.trim() } : {}),
-      ...(selectedHashtags.length ? { hashtag: selectedHashtags } : {}),
-      taggedPeople: taggedPeopleIds,
-      // Array.isArray(taggedPeople) ? taggedPeople.join(', ') : taggedPeople,
-      // ...(Array.isArray(taggedPeopleIds) && taggedPeopleIds.length ? { taggedPeopleIds } : {}),
-      // ...(Array.isArray(taggedPeopleMeta) && taggedPeopleMeta.length ? { taggedPeopleMeta } : {}),
-      media: editorImages.map(img => ({
-        uri: getMediaUri(img),
-        type: img.type,
-        name: getMediaUri(img).split('/').pop()
-      })),
-      type:
-        postType === 'private_circle' ? 'private_circle' :
-          postType === 'private'
-            ? 'private'
-            : fromIcon === 'Flips'
-              ? 'reel'
-              : 'normal',
-      visibleTo: visibleTo,
-      isTrustPost: isCommunityTrustPost,
-      ...((postType === 'private' || postType === 'private_circle') &&
-        (fromIcon === 'Flips' || fromIcon === 'video')
-        ? {
-          format: fromIcon === 'Flips' ? 'reel' : fromIcon === 'video' ? 'video' : 'normal',
-        }
-        : fromIcon === 'Flips'
-          ? { format: 'reel' }
-          : {}),
-      // ...(isFlipPost && primaryMedia
-      //   ? { format: getPostMediaFormat(primaryMedia) }
-      //   : {}),
-    };
-
-    const uploadPayload = buildPostUploadPayloadFromImages(editorImages);
-    const { postMeta, music, youtubeMusicMeta, videoText, videoTextItems } = uploadPayload;
-
-    const localMedia = editorImages
-      .map(img => ({
-        uri: getMediaUri(img),
-        type: img.type || (isMediaVideo(img) ? 'video/mp4' : 'image/jpeg'),
-        name: getMediaUri(img).split('/').pop(),
-      }))
-      .filter(file => isLocalMediaUri(file.uri));
-
-    if (isEditingPost && editPostId) {
-      try {
-        const preservedPostMeta = parsedInitialPostMeta || postMeta;
-        const editPayload = editSkipMediaEditor
+        ...((postType === 'private' || postType === 'private_circle') &&
+          (fromIcon === 'Flips' || fromIcon === 'video')
           ? {
-              caption: caption.trim(),
-              ...(supportsLocation
-                ? (location.trim() ? { location: location.trim() } : { location: '' })
-                : {}),
-              hashtag: selectedHashtags,
-              taggedPeople: taggedPeopleIds,
-              isTrustPost: isCommunityTrustPost,
-              ...(Array.isArray(taggedPeopleIds) && taggedPeopleIds.length
-                ? { taggedPeopleIds, taggedPeopleMeta }
-                : {}),
-            }
-          : {
-              caption: caption.trim(),
-              ...(supportsLocation
-                ? (location.trim() ? { location: location.trim() } : { location: '' })
-                : {}),
-              hashtag: selectedHashtags,
-              taggedPeople: taggedPeopleIds,
-              ...(Array.isArray(taggedPeopleIds) && taggedPeopleIds.length
-                ? { taggedPeopleIds, taggedPeopleMeta }
-                : {}),
+            format: fromIcon === 'Flips' ? 'reel' : fromIcon === 'video' ? 'video' : 'normal',
+          }
+          : fromIcon === 'Flips'
+            ? { format: 'reel' }
+            : {}),
+        // ...(isFlipPost && primaryMedia
+        //   ? { format: getPostMediaFormat(primaryMedia) }
+        //   : {}),
+      };
+
+      const uploadPayload = buildPostUploadPayloadFromImages(editorImages);
+      const { postMeta, music, youtubeMusicMeta, videoText, videoTextItems } = uploadPayload;
+
+      const localMedia = editorImages
+        .map(img => ({
+          uri: getMediaUri(img),
+          type: img.type || (isMediaVideo(img) ? 'video/mp4' : 'image/jpeg'),
+          name: getMediaUri(img).split('/').pop(),
+        }))
+        .filter(file => isLocalMediaUri(file.uri));
+
+      if (isEditingPost && editPostId) {
+        try {
+          const preservedPostMeta = parsedInitialPostMeta || postMeta;
+          const editPayload = editSkipMediaEditor
+            ? {
+                caption: caption.trim(),
+                ...(supportsLocation
+                  ? (location.trim() ? { location: location.trim() } : { location: '' })
+                  : {}),
+                hashtag: selectedHashtags,
+                taggedPeople: taggedPeopleIds,
+                isTrustPost: isCommunityTrustPost,
+                ...(Array.isArray(taggedPeopleIds) && taggedPeopleIds.length
+                  ? { taggedPeopleIds, taggedPeopleMeta }
+                  : {}),
+              }
+            : {
+                caption: caption.trim(),
+                ...(supportsLocation
+                  ? (location.trim() ? { location: location.trim() } : { location: '' })
+                  : {}),
+                hashtag: selectedHashtags,
+                taggedPeople: taggedPeopleIds,
+                ...(Array.isArray(taggedPeopleIds) && taggedPeopleIds.length
+                  ? { taggedPeopleIds, taggedPeopleMeta }
+                  : {}),
+                postMeta,
+                ...(music ? { music } : { music: '' }),
+                ...(youtubeMusicMeta ? { youtubeMusicMeta } : { youtubeMusicMeta: '' }),
+                ...(videoText ? { videoText, videoTextItems } : {}),
+                ...(localMedia.length ? { media: localMedia } : {}),
+              };
+
+          const response = await editPost(editPostId, editPayload);
+
+          if (response?.statusCode && response.statusCode >= 400) {
+            throw new Error(response?.message || t('editPost.updateFailed'));
+          }
+
+          const updatedFromApi =
+            response?.data?.data ||
+            response?.data ||
+            response ||
+            {};
+          const updatedPost = {
+            id: editPostId,
+            ...updatedFromApi,
+            caption: updatedFromApi?.caption ?? caption.trim(),
+            location: supportsLocation
+              ? (updatedFromApi?.location ?? location.trim())
+              : (updatedFromApi?.location ?? ''),
+            postMeta: preservedPostMeta,
+            music: editSkipMediaEditor ? updatedFromApi?.music : music || null,
+            youtubeMusicMeta: editSkipMediaEditor
+              ? updatedFromApi?.youtubeMusicMeta
+              : youtubeMusicMeta || null,
+          };
+
+          onSave?.(updatedPost);
+          if (!editSkipMediaEditor) {
+            cacheClientPostOverlayFields(editPostId, {
               postMeta,
-              ...(music ? { music } : { music: '' }),
-              ...(youtubeMusicMeta ? { youtubeMusicMeta } : { youtubeMusicMeta: '' }),
-              ...(videoText ? { videoText, videoTextItems } : {}),
-              ...(localMedia.length ? { media: localMedia } : {}),
-            };
-
-        const response = await editPost(editPostId, editPayload);
-
-        if (response?.statusCode && response.statusCode >= 400) {
-          throw new Error(response?.message || t('editPost.updateFailed'));
+              music,
+              youtubeMusicMeta,
+            });
+          }
+          showToastMessage(
+            toast,
+            'success',
+            underReview
+              ? t('postEditor.moderationReview')
+              : (response?.data?.message || response?.message || t('editPost.postUpdated')),
+          );
+          navigateAfterPostUpdated();
+        } catch (err) {
+          console.error('Post update error:', err);
+          showToastMessage(
+            toast,
+            'danger',
+            err?.response?.data?.message || err?.message || t('editPost.updateFailed'),
+          );
+        } finally {
+          dispatch(hideLoader());
         }
+        return;
+      }
 
-        const updatedFromApi =
-          response?.data?.data ||
-          response?.data ||
-          response ||
-          {};
-        const updatedPost = {
-          id: editPostId,
-          ...updatedFromApi,
-          caption: updatedFromApi?.caption ?? caption.trim(),
-          location: supportsLocation
-            ? (updatedFromApi?.location ?? location.trim())
-            : (updatedFromApi?.location ?? ''),
-          postMeta: preservedPostMeta,
-          music: editSkipMediaEditor ? updatedFromApi?.music : music || null,
-          youtubeMusicMeta: editSkipMediaEditor
-            ? updatedFromApi?.youtubeMusicMeta
-            : youtubeMusicMeta || null,
-        };
+      try {
+        const response = await createPost({
+          ...payload,
+          postMeta,
+          ...(music ? { music } : {}),
+          ...(youtubeMusicMeta ? { youtubeMusicMeta } : {}),
+          ...(videoText ? { videoText, videoTextItems } : {}),
+        });
+        console.log('Post creation response:', response);
 
-        onSave?.(updatedPost);
-        if (!editSkipMediaEditor) {
-          cacheClientPostOverlayFields(editPostId, {
-            postMeta,
-            music,
-            youtubeMusicMeta,
-          });
+        if (response.statusCode == 200) {
+          const created =
+            response?.data?.data ||
+            response?.data?.post ||
+            response?.data ||
+            {};
+          const createdPostId = created?.id || created?.postId;
+          const overlayFields = { postMeta, music, youtubeMusicMeta };
+          const createdWithLocation = {
+            ...created,
+            ...(supportsLocation && location.trim() ? { location: location.trim() } : {}),
+          };
+          if (createdPostId) {
+            cacheClientPostOverlayFields(createdPostId, overlayFields);
+            DeviceEventEmitter.emit(
+              'POST_CREATED',
+              mergePostOverlayFieldsFromClient(createdWithLocation, overlayFields),
+            );
+          }
+          showToastMessage(
+            toast,
+            'success',
+            underReview
+              ? t('postEditor.moderationReview')
+              : (isFlipPost ? t('postEditor.flipSuccess') : t('postEditor.postSuccess')),
+          );
+          navigateAfterPostCreated();
+        } else {
+          showToastMessage(toast, 'danger', response.message || t('postEditor.postFail'));
         }
-        showToastMessage(
-          toast,
-          'success',
-          response?.data?.message || response?.message || t('editPost.postUpdated'),
-        );
-        navigateAfterPostUpdated();
       } catch (err) {
-        console.error('Post update error:', err);
-        showToastMessage(
-          toast,
-          'danger',
-          err?.response?.data?.message || err?.message || t('editPost.updateFailed'),
-        );
+        console.error('Post creation error:', err);
+        showToastMessage(toast, 'danger', err?.response?.message || t('postEditor.postError'));
       } finally {
         dispatch(hideLoader());
       }
-      return;
-    }
-
-    try {
-      const response = await createPost({
-        ...payload,
-        postMeta,
-        ...(music ? { music } : {}),
-        ...(youtubeMusicMeta ? { youtubeMusicMeta } : {}),
-        ...(videoText ? { videoText, videoTextItems } : {}),
-      });
-      console.log('Post creation response:', response);
-
-      if (response.statusCode == 200) {
-        const created =
-          response?.data?.data ||
-          response?.data?.post ||
-          response?.data ||
-          {};
-        const createdPostId = created?.id || created?.postId;
-        const overlayFields = { postMeta, music, youtubeMusicMeta };
-        const createdWithLocation = {
-          ...created,
-          ...(supportsLocation && location.trim() ? { location: location.trim() } : {}),
-        };
-        if (createdPostId) {
-          cacheClientPostOverlayFields(createdPostId, overlayFields);
-          DeviceEventEmitter.emit(
-            'POST_CREATED',
-            mergePostOverlayFieldsFromClient(createdWithLocation, overlayFields),
-          );
-        }
-        showToastMessage(
-          toast,
-          'success',
-          isFlipPost ? t('postEditor.flipSuccess') : t('postEditor.postSuccess'),
-        );
-        navigateAfterPostCreated();
-      } else {
-        showToastMessage(toast, 'danger', response.message || t('postEditor.postFail'));
-      }
-    } catch (err) {
-      console.error('Post creation error:', err);
-      showToastMessage(toast, 'danger', err?.response?.message || t('postEditor.postError'));
     } finally {
-      dispatch(hideLoader());
+      publishInFlightRef.current = false;
     }
   };
 

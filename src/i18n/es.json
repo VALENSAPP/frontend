@@ -560,7 +560,16 @@
     "communityTrustTitle": "Publicación de confianza comunitaria",
     "communityTrustSubtitle": "Permite que la comunidad verifique esta publicación según su conocimiento.",
     "communityTrustLearnMore": "Más información sobre Confianza comunitaria",
-    "openProfileError": "No se pudo abrir este perfil de usuario."
+    "openProfileError": "No se pudo abrir este perfil de usuario.",
+    "moderationWarnTitle": "Aviso",
+    "moderationWarnMessage": "Tu publicación contiene lenguaje sensible o jerga leve. ¿Seguro que quieres publicarla?",
+    "moderationYes": "Sí",
+    "moderationNo": "No",
+    "moderationReview": "Publicación enviada. Está en espera de revisión antes de aparecer en el feed.",
+    "moderationBlockTitle": "No se puede publicar",
+    "moderationBlockReason": "No se puede publicar el post. Tu contenido infringe las normas de la comunidad (Motivo: {{reason}}). Edita el texto.",
+    "moderationBlock": "No se puede publicar. Tu contenido infringe las normas de la comunidad.",
+    "moderationCheckFailed": "No se pudo revisar esta publicación ahora. Inténtalo de nuevo."
   },
   "editPost": {
     "screenTitle": "Editar publicación",
@@ -741,7 +750,16 @@
     "predictionSearchPlaceholder": "Buscar preguntas",
     "predictionNoSearchResults": "Ninguna pregunta coincide con tu búsqueda",
     "subCategoryPlaceholder": "Nombre del deporte (ej. cricket)",
-    "leaguePlaceholder": "Liga (ej. ipl)"
+    "leaguePlaceholder": "Liga (ej. ipl)",
+    "moderationWarnTitle": "Aviso",
+    "moderationWarnMessage": "Tu batalla contiene lenguaje sensible o jerga leve. ¿Seguro que quieres crearla?",
+    "moderationYes": "Sí",
+    "moderationNo": "No",
+    "moderationReview": "Batalla enviada. Está en espera de revisión antes de aparecer.",
+    "moderationBlockTitle": "No se puede publicar",
+    "moderationBlockReason": "No se puede publicar la batalla. Tu contenido infringe las normas de la comunidad (Motivo: {{reason}}). Edita el texto.",
+    "moderationBlock": "No se puede publicar. Tu contenido infringe las normas de la comunidad.",
+    "moderationCheckFailed": "No se pudo revisar esta batalla ahora. Inténtalo de nuevo."
   },
   "profileBattle": {
     "defaultTitle": "Batalla"
@@ -1077,7 +1095,16 @@
     "fallbackOpponent": "Oponente",
     "valensUser": "Usuario Valens",
     "battleCancelled": "Batalla cancelada",
-    "statusCancelled": "CANCELADA"
+    "statusCancelled": "CANCELADA",
+    "moderationWarnTitle": "Aviso",
+    "moderationWarnMessage": "Tu comentario contiene lenguaje sensible o jerga leve. ¿Seguro que quieres publicarlo?",
+    "moderationYes": "Sí",
+    "moderationNo": "No",
+    "moderationReview": "Comentario enviado. Está en espera de revisión antes de aparecer.",
+    "moderationBlockTitle": "No se puede publicar",
+    "moderationBlockReason": "No se puede publicar el comentario. Tu contenido infringe las normas de la comunidad (Motivo: {{reason}}). Edita el texto.",
+    "moderationBlock": "No se puede publicar. Tu contenido infringe las normas de la comunidad.",
+    "moderationCheckFailed": "No se pudo revisar este comentario ahora. Inténtalo de nuevo."
   },
   "battleVoteDetails": {
     "votesTitle": "Votos",
@@ -2641,7 +2668,16 @@
     "mentionSearching": "Searching users...",
     "mentionNoUsers": "No users found",
     "errorReactionFailed": "No se pudo guardar la reacción",
-    "errorReaction": "Error al guardar la reacción"
+    "errorReaction": "Error al guardar la reacción",
+    "moderationWarnTitle": "Aviso",
+    "moderationWarnMessage": "Tu comentario contiene lenguaje sensible o jerga leve. ¿Seguro que quieres publicarlo?",
+    "moderationYes": "Sí",
+    "moderationNo": "No",
+    "moderationReview": "Comentario enviado. Está en espera de revisión antes de aparecer.",
+    "moderationBlockTitle": "No se puede publicar",
+    "moderationBlockReason": "No se puede publicar el comentario. Tu contenido infringe las normas de la comunidad (Motivo: {{reason}}). Edita el texto.",
+    "moderationBlock": "No se puede publicar. Tu contenido infringe las normas de la comunidad.",
+    "moderationCheckFailed": "No se pudo revisar este comentario ahora. Inténtalo de nuevo."
   },
   "followCard": {
     "follow": "Seguir",
@@ -4820,7 +4856,17 @@
     "publishButton": "Publicar artículo",
     "publishing": "Publicando...",
     "publishFailure": "No se pudo publicar el artículo.",
-    "copyItemText": "Descubre mi producto en {{shopName}} en Valens.\n{{link}}"
+    "copyItemText": "Descubre mi producto en {{shopName}} en Valens.\n{{link}}",
+    "moderationWarnTitle": "Aviso",
+    "moderationWarnMessage": "Tu producto contiene lenguaje sensible o jerga leve. ¿Seguro que quieres publicarlo?",
+    "moderationYes": "Sí",
+    "moderationNo": "No",
+    "moderationReviewTitle": "Enviado a revisión",
+    "moderationReview": "Producto enviado. Está en espera de revisión antes de aparecer.",
+    "moderationBlockTitle": "No se puede publicar",
+    "moderationBlockReason": "No se puede publicar el producto. Tu contenido infringe las normas de la comunidad (Motivo: {{reason}}). Edita el texto.",
+    "moderationBlock": "No se puede publicar. Tu contenido infringe las normas de la comunidad.",
+    "moderationCheckFailed": "No se pudo revisar este producto ahora. Inténtalo de nuevo."
   },
   "myClosetAddItemPublished": {
     "title": "¡Tu artículo ya está publicado! 🎉",

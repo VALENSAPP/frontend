@@ -4,7 +4,7 @@ import { useAppTheme } from "../../theme/useApptheme";
 import { useLanguage } from "../../i18n";
 
 export default function WelcomeValensModal({ visible, onClose }) {
-  const { bgStyle, textStyle, text } = useAppTheme();
+  const { bgStyle, textStyle, mutedTextStyle, accent } = useAppTheme();
   const { t } = useLanguage();
 
   return (
@@ -17,15 +17,17 @@ export default function WelcomeValensModal({ visible, onClose }) {
       <TouchableOpacity style={styles.overlay} onPress={onClose}>
         <Pressable style={[styles.modalContent, bgStyle]} onPress={() => {}}>
           <Text style={[styles.title, textStyle]}>{t('welcomeValensModal.title')}</Text>
-          <Text style={styles.description}>
+          <Text style={[styles.description, mutedTextStyle]}>
             {t('welcomeValensModal.description')}
           </Text>
 
           <TouchableOpacity
-            style={[styles.button, { backgroundColor: text }]}
+            style={[styles.button, { backgroundColor: accent }]}
             onPress={onClose}
           >
-            <Text style={styles.buttonText}>{t('welcomeValensModal.getStarted')}</Text>
+            <Text style={styles.buttonText}>
+              {t('welcomeValensModal.getStarted')}
+            </Text>
           </TouchableOpacity>
         </Pressable>
       </TouchableOpacity>
@@ -64,7 +66,6 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    color: "#666",
     marginBottom: 24,
     textAlign: "center",
     lineHeight: 22,
@@ -75,7 +76,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   buttonText: {
-    color: "#fff",
+    color: "#ffffff",
     fontSize: 16,
     fontWeight: "600",
   },

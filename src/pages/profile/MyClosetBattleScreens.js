@@ -20,6 +20,14 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useThemeContext } from '../../theme/ThemeContext';
 import { useLanguage } from '../../i18n';
+import { useToast } from 'react-native-toast-notifications';
+import { showToastMessage } from '../../components/displaytoastmessage';
+import {
+  buildBattleModerationText,
+  collectRemoteMediaRefs,
+  moderateBattleComment,
+  moderateBattleContent,
+} from '../../utils/battleModeration';
 import HexAvatar from '../../components/home/story.js/HexAvatar';
 import {
   navigateClosetReturn,
@@ -1108,7 +1116,8 @@ export function BattlePreviewScreen({ navigation, route }) {
   const { bgStyle, text, card, bg, border, mutedText, accent: themeAccent } = useAppTheme();
   const { isDarkMode } = useThemeContext();
   const surfaces = formSurfaces(isDarkMode);
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
+  const toast = useToast();
   const accent = themeAccent || PURPLE;
   const primaryText = text || TEXT;
   const subtleMuted = mutedText || surfaces.mutedColor;
@@ -1181,10 +1190,37 @@ export function BattlePreviewScreen({ navigation, route }) {
   const handleLaunch = async () => {
     setLaunching(true);
     try {
+      let moderationDecision;
+      try {
+        moderationDecision = await moderateBattleContent({
+          text: buildBattleModerationText({
+            question: previewQuestion,
+            description: route?.params?.description,
+          }),
+          mediaRefs: collectRemoteMediaRefs(selectedItems.map(item => item?.image)),
+          contentId: isEditing && editingBattleId
+            ? String(editingBattleId)
+            : `temp_battle_${Date.now()}`,
+          language: currentLanguage,
+          t,
+        });
+      } catch (error) {
+        console.error('Battle moderation check error:', error);
+        Alert.alert(
+          t('openBattle.moderationBlockTitle'),
+          t('openBattle.moderationCheckFailed'),
+        );
+        return;
+      }
+      if (!moderationDecision) return;
+
       if (isEditing && editingBattleId) {
         const payload = buildEditBattlePayload();
         console.log("updateMarketplaceBattleQuestion-------------------", editingBattleId, payload);
         await updateMarketplaceBattleQuestion(editingBattleId, payload);
+        if (moderationDecision === 'REVIEW') {
+          showToastMessage(toast, 'success', t('openBattle.moderationReview'));
+        }
         const popParams = {
           battleId: editingBattleId,
           question: previewQuestion,
@@ -1207,6 +1243,9 @@ export function BattlePreviewScreen({ navigation, route }) {
         const payload = buildBattlePayload();
         const response = await createMarketplaceBattle(payload);
         console.log("createMarketplaceBattle-------------------", response);
+        if (moderationDecision === 'REVIEW') {
+          showToastMessage(toast, 'success', t('openBattle.moderationReview'));
+        }
         navigation.navigate('BattleCreatedSuccess', {
           ...route?.params,
           battle: response?.data || response,
@@ -1760,7 +1799,7 @@ export function ChallengeShopItemsScreen({ navigation, route }) {
 export function BattleLiveScreen({ navigation, route }) {
   const { bgStyle, text, card, bg, border, mutedText, accent: themeAccent } = useClosetTheme(route);
   const { isDarkMode } = useThemeContext();
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
   const brandAccent = themeAccent || PURPLE;
   // Label/price color: profile text (purple/gold in light, white/gold in dark)
   const accent = themeAccent || brandAccent;
@@ -2168,6 +2207,26 @@ export function BattleLiveScreen({ navigation, route }) {
     if (!message || !battleId || postingComment || isBattleExpired) return;
     setPostingComment(true);
     try {
+      let moderationDecision;
+      try {
+        moderationDecision = await moderateBattleComment({
+          text: message,
+          contentId: `temp_bcmt_${Date.now()}`,
+          replyToContentId: battleId,
+          contextIds: [battleId],
+          language: currentLanguage,
+          t,
+        });
+      } catch (error) {
+        console.error('Battle comment moderation check error:', error);
+        Alert.alert(
+          t('battleInProgress.moderationBlockTitle'),
+          t('battleInProgress.moderationCheckFailed'),
+        );
+        return;
+      }
+      if (!moderationDecision) return;
+
       const response = await addMarketplaceBattleComment(battleId, message);
       const isOk =
         (typeof response?.status === 'number' && response.status >= 200 && response.status < 300) ||
@@ -2184,6 +2243,9 @@ export function BattleLiveScreen({ navigation, route }) {
       setCommentText('');
       await loadComments(true);
       setBattle(prev => (prev ? { ...prev, totalComments: (prev.totalComments || 0) + 1 } : prev));
+      if (moderationDecision === 'REVIEW') {
+        Alert.alert(t('battleInProgress.moderationReview'));
+      }
     } catch (err) {
       Alert.alert(
         t('battle.errors.commentNotPosted') || 'Could not post comment',
@@ -3340,7 +3402,8 @@ export function ChallengeBattlePreviewScreen({ navigation, route }) {
   const { isDarkMode } = useThemeContext();
   const surfaces = formSurfaces(isDarkMode);
   const idleSurface = card || surfaces.listSurface;
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
+  const toast = useToast();
   const accent = themeAccent || PURPLE;
   const primaryText = text || TEXT;
   const subtleMuted = mutedText || surfaces.mutedColor;
@@ -3355,6 +3418,30 @@ export function ChallengeBattlePreviewScreen({ navigation, route }) {
   const handleLaunch = async () => {
     setLaunching(true);
     try {
+      let moderationDecision;
+      try {
+        moderationDecision = await moderateBattleContent({
+          text: buildBattleModerationText({
+            question: question || '',
+          }),
+          mediaRefs: collectRemoteMediaRefs([
+            selectedItems?.[0]?.image,
+            selectedItems?.[1]?.image,
+          ]),
+          contentId: `temp_battle_${Date.now()}`,
+          language: currentLanguage,
+          t,
+        });
+      } catch (error) {
+        console.error('Battle moderation check error:', error);
+        Alert.alert(
+          t('openBattle.moderationBlockTitle'),
+          t('openBattle.moderationCheckFailed'),
+        );
+        return;
+      }
+      if (!moderationDecision) return;
+
       const durationMs = DURATION_MS[duration] || (3 * 24 * 60 * 60 * 1000);
       const startAt = new Date();
       const endAt = new Date(startAt.getTime() + durationMs);
@@ -3376,6 +3463,9 @@ export function ChallengeBattlePreviewScreen({ navigation, route }) {
         };
 
         await challengeShop(challengePayload);
+        if (moderationDecision === 'REVIEW') {
+          showToastMessage(toast, 'success', t('openBattle.moderationReview'));
+        }
       } else {
         // Standard Battle Flow
         const payload = {
