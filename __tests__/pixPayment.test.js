@@ -12,12 +12,15 @@ describe('PIX tip checkout', () => {
       expect(getPaymentProvider({ country, paymentProvider: 'STRIPE' })).toBe('PAGBANK');
     },
   );
-  test('preserves a persisted PagBank provider when country is missing', () => {
-    expect(getPaymentProvider({ paymentProvider: 'PAGBANK' })).toBe('PAGBANK');
+  test('does not enable the new UI from a stored provider without Brazil country', () => {
+    expect(getPaymentProvider({ paymentProvider: 'PAGBANK' })).toBe('STRIPE');
   });
-  test('keeps the Stripe route for a non-Brazilian Stripe user', () => {
-    expect(getPaymentProvider({ country: 'IN', paymentProvider: 'STRIPE' })).toBe('STRIPE');
-  });
+  test.each(['US', 'GB', 'PT', 'IN', 'DE', 'JP', 'ZA', 'AU', 'CA', 'FR'])(
+    'preserves the existing Stripe flow for %s regardless of a stale stored provider', country => {
+      expect(getPaymentProvider({ country, paymentProvider: 'STRIPE' })).toBe('STRIPE');
+      expect(getPaymentProvider({ country, paymentProvider: 'PAGBANK' })).toBe('STRIPE');
+    },
+  );
   test('accepts a complete checkout with the requested amount', () => {
     expect(getPixCheckout(response(checkout), 500)).toBe(checkout);
     expect(formatPixAmount(500)).toBe('R$ 5,00');

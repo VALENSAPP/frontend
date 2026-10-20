@@ -2,11 +2,11 @@
 
 ## Brazil PIX tips
 
-Brazilian buyers use PagBank PIX for tips without Stripe customer setup. The checkout displays the amount in BRL, a QR code, copyable PIX text, expiration and backend-confirmed payment status. Copying the code or closing the checkout does not confirm payment.
+Only buyers whose profile country is Brazil use the new PagBank PIX tip checkout. Buyers in every other country keep the original Stripe tip component unchanged. The checkout displays the amount in BRL, a QR code, copyable PIX text, expiration and backend-confirmed payment status. Copying the code or closing the checkout does not confirm payment.
 
 The backend must expose the PIX fields on `POST /billing/send-tip` and `rawStatus` on the authenticated payment-details response before this checkout is released. PagBank credentials belong only on the backend.
 
-Run the payment utility tests with `npm test -- --runInBand __tests__/pixPayment.test.js`.
+Payment utility coverage is in `__tests__/pixPayment.test.js`.
 
 
 

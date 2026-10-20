@@ -1,13 +1,12 @@
 const BRAZIL_NAMES = new Set(['br', 'bra', 'brazil', 'brasil', 'brésil', 'bresil']);
 
-// Match the backend resolver: Brazil wins, then the persisted provider.
+// The new PIX UI is Brazil-only. Every other country keeps the legacy Stripe flow.
 export function getPaymentProvider(user) {
   const country = String(user?.country || '').trim().toLowerCase();
   const parts = country.split(/[,|/]/).map(part => part.trim());
   if (BRAZIL_NAMES.has(country) || parts.some(part => BRAZIL_NAMES.has(part)) ||
       /\bbrazil\b|\bbrasil\b/.test(country)) return 'PAGBANK';
-  const stored = String(user?.paymentProvider || '').trim().toUpperCase();
-  return stored === 'PAGBANK' ? 'PAGBANK' : 'STRIPE';
+  return 'STRIPE';
 }
 
 export function getPixCheckout(response, expectedAmountMinor) {

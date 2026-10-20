@@ -3177,9 +3177,9 @@
     "acceptButton": "Aceitar"
   },
   "stripePaymentMethod": {
-    "message": "Conclua a configuração do Stripe para adicionar um método de pagamento.",
+    "message": "Conclua a configuração do Pagbank para adicionar um método de pagamento.",
     "cancelButton": "Cancelar",
-    "connectButton": "Conectar ao Stripe"
+    "connectButton": "Conectar ao Pagbank"
   },
   "supportCreator": {
     "disclaimerTitle": "Apoiar \"{{creatorName}}\"?",
@@ -3221,7 +3221,7 @@
     "tipSuccess": "Gorjeta enviada com sucesso!",
     "onboardingIncomplete": "A configuração do Pagbank ainda não está completa.",
     "missingCreator": "Não foi possível enviar a gorjeta. Informações do criador ausentes.",
-    "minAmountError": "O valor mínimo da gorjeta é {{amount}}."
+    "minAmountError": "O valor mínimo da gorjeta é R$0.50."
   },
   "tipPayoutSetup": {
     "connectTitle": "Conectar GORJETA",
@@ -3850,9 +3850,9 @@
     "paymentCancelled": "Pagamento cancelado",
     "sessionFailed": "Não foi possível criar a sessão de pagamento. Tente novamente.",
     "networkError": "Erro de rede. Verifique sua conexão e tente novamente.",
-    "onboardingFailed": "Falha ao abrir a configuração do Stripe",
+    "onboardingFailed": "Falha ao abrir a configuração do Pagbank",
     "recipientNotReady": "O destinatário do pagamento ainda não concluiu a configuração.",
-    "customerSetupRequired": "Conclua a configuração do Stripe para adicionar uma forma de pagamento.",
+    "customerSetupRequired": "Conclua a configuração do Pagbank para adicionar uma forma de pagamento.",
     "customerSetupFailed": "Não foi possível abrir a configuração de pagamento. Tente novamente."
   },
   "userChat": {
@@ -5649,5 +5649,8 @@
     "check": "Verificar pagamento",
     "checkFailed": "Não foi possível confirmar o pagamento agora. Tente verificar novamente.",
     "close": "Fechar"
+  ,
+    "startFailed": "Não foi possível iniciar o pagamento PIX. Tente novamente.",
+    "minAmountError": "O valor mínimo da gorjeta é R$ 0,50."
   }
 }

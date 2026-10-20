@@ -5649,5 +5649,8 @@
     "check": "Check payment",
     "checkFailed": "Payment could not be confirmed right now. Please check again.",
     "close": "Close"
+  ,
+    "startFailed": "Could not start the PIX payment. Please try again.",
+    "minAmountError": "The minimum tip amount is R$ 0.50."
   }
 }
