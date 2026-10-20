@@ -120,8 +120,8 @@
     "countryRequired": "Por favor, selecione seu país"
   },
   "kyc": {
-    "title": "Verificação KYC",
-    "subtitle": "Precisamos verificar sua identidade real para cumprir regulamentações e manter a plataforma segura",
+    "title": "Verificação de identidade",
+    "subtitle": "Confirme sua identidade para continuar.",
     "securityInfo": "Seus dados são criptografados e armazenados com segurança. Nunca compartilhamos com terceiros.",
     "firstNameLabel": "Nome",
     "firstNamePlaceholder": "Digite seu nome",
@@ -147,7 +147,7 @@
     "lastNameMinLength": "O nome deve ter 2 caracteres, no mínimo",
     "lastNameLettersOnly": "O sobrenome deve conter somente letras",
     "documentTypeRequired": "O tipo de documento é obrigatório",
-    "modalSubmitting": "Enviando KYC",
+    "modalSubmitting": "Enviando dados para verificação",
     "modalRetrying": "Tentando novamente...",
     "modalSubmittingMsg": "Verificando sua identidade e protegendo suas informações...",
     "modalRetryingMsg": "Tentando novamente...",
@@ -156,20 +156,20 @@
     "tryAgain": "Tentar novamente",
     "cancel": "Cancelar",
     "proceedingWallet": "Indo para a configuração da carteira...",
-    "progressTitle": "KYC em andamento",
+    "progressTitle": "Verificação em andamento",
     "progressMessage": "Isso pode levar alguns momentos. Por favor, verifique novamente mais tarde.",
     "exploreApp": "Explorar o aplicativo",
     "checkStatusGoBack": "Verificar status e voltar",
-    "kycRejectedTitle": "O KYC foi rejeitado.",
-    "kycRejectedMessage": "O seu KYC foi rejeitado. Envie-o novamente, por favor.",
+    "kycRejectedTitle": "Identidade não aprovada",
+    "kycRejectedMessage": "Não foi possível aprovar sua identidade. Confira os dados e tente novamente.",
     "retry": "Tentar novamente",
-    "kycNotVerifiedTitle": "KYC não verificado",
-    "kycNotVerifiedMessage": "Não foi possível verificar o status do KYC. Por favor, tente novamente."
+    "kycNotVerifiedTitle": "Identidade não verificada",
+    "kycNotVerifiedMessage": "Não foi possível consultar sua verificação de identidade. Tente novamente."
   },
   "businessProfile": {
     "headerSubtitle": "Configuração da Empresa",
     "welcomeTitle": "Configure o seu Perfil Empresarial",
-    "welcomeSubtitle": "Adicione detalhes para continuar a verificação KYC",
+    "welcomeSubtitle": "Adicione os dados para continuar a verificação de identidade",
     "fields": {
       "businessName": "Nome da empresa *",
       "businessNamePlaceholder": "Digite o nome da sua empresa",
@@ -286,7 +286,7 @@
   "stepHeader": {
     "email": "E-mail",
     "profile": "Perfil",
-    "kyc": "KYC",
+    "kyc": "Identidade",
     "wallet": "Carteira"
   },
   "otp": {
@@ -316,8 +316,8 @@
     "somethingWentWrong": "Algo deu errado",
     "fetchPostsError": "Falha ao carregar posts",
     "fcmTokenUpdateError": "Falha ao atualizar o token de notificação",
-    "kycPendingToast": "A verificação KYC ainda está pendente. Tente novamente mais tarde.",
-    "kycRejectedToast": "A verificação KYC foi rejeitada. Tente novamente.",
+    "kycPendingToast": "A verificação de identidade ainda está pendente. Tente novamente mais tarde.",
+    "kycRejectedToast": "A verificação de identidade não foi aprovada. Tente novamente.",
     "businessSubscription": {
       "title": "Ative sua assinatura",
       "message": "Ative sua assinatura empresarial para desbloquear todos os recursos.",
@@ -2456,7 +2456,7 @@
     "fullyVerifiedSubtitle": "Está tudo pronto. Sua conta está totalmente verificada.",
     "incompleteSubtitle": "Conclua as etapas restantes de verificação para desbloquear acesso total.",
     "emailVerificationTitle": "Verificação de e-mail",
-    "kycTitle": "Verificação KYC",
+    "kycTitle": "Verificação de identidade",
     "kybTitle": "Verificação KYB",
     "governmentIdSubtitle": "Documento oficial verificado",
     "verified": "Verificado",
@@ -3290,7 +3290,7 @@
     "section3Sub3Title": "3.3 Autorização de Cobrança",
     "section3Sub3Body": "Ao habilitar seu plano, você autoriza a Valens a cobrar automaticamente as taxas de manutenção e deduzir taxas de saque dos pagamentos.",
     "section4Title": "4. Ganhos e Pagamentos",
-    "section4Body": "Os ganhos são visíveis no Painel do Criador. Os pagamentos seguem a Política de Pagamentos. A verificação KYC é obrigatória. Você deve reportar seus ganhos às autoridades fiscais.",
+    "section4Body": "Os ganhos são visíveis no Painel do Criador. Os pagamentos seguem a Política de Pagamentos. A verificação de identidade é obrigatória. Você deve reportar seus ganhos às autoridades fiscais.",
     "section5Title": "5. Responsabilidades de Conteúdo",
     "section5Body": "Todo conteúdo privado deve seguir as diretrizes da Valens. Conteúdo ilegal, prejudicial, abusivo ou fraudulento é proibido.",
     "section6Title": "6. Aplicação de Conta e Conformidade",
@@ -3442,7 +3442,7 @@
   },
   "welcomeValensModal": {
     "title": "Bem-vindo, você é Valens!",
-    "description": "Sua verificação KYC foi aprovada. Agora você pode explorar o aplicativo e começar a se conectar com a comunidade.",
+    "description": "Sua identidade foi verificada. Agora você pode explorar o aplicativo e começar a se conectar com a comunidade.",
     "getStarted": "Começar"
   },
   "postStoryMusicTrim": {
@@ -3926,7 +3926,7 @@
     "twitterLoginFailed": "Falha no login do Twitter",
     "twitterTokenNotFound": "Token de acesso do Twitter não encontrado",
     "tokenExchangeFailed": "Falha na troca do token",
-    "kycRejected": "A verificação KYC foi rejeitada. Tente novamente.",
+    "kycRejected": "A verificação de identidade não foi aprovada. Tente novamente.",
     "loginSuccess": "Usuário conectado com sucesso",
     "failedToFetchProfile": "Falha ao buscar o status do perfil",
     "walletSessionFailed": "Não foi possível criar a sessão da carteira",
@@ -4041,7 +4041,7 @@
     "profileSettings": "Configurações do Perfil",
     "changePassword": "Alterar Senha",
     "verificationStatus": "Status da Verificação",
-    "kycVerification": "Verificação KYC",
+    "kycVerification": "Verificação de identidade",
     "privacySettings": "Excluir conta",
     "twoFactorAuth": "Autenticação de Dois Fatores",
     "loginHistory": "Histórico de Login",
