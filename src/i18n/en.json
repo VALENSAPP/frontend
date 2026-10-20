@@ -5634,5 +5634,20 @@
     "chapter2Fallback": "Create content that connects",
     "chapter3Fallback": "Monetize your knowledge",
     "chapter4Fallback": "Grow your audience"
+  },
+  "pixPayment": {
+    "title": "Pay with PIX · PagBank",
+    "instructions": "Scan the QR code or copy the PIX code to pay using your banking app.",
+    "qrLabel": "PIX payment QR code",
+    "copy": "Copy PIX code",
+    "copied": "PIX code copied",
+    "expires": "Valid until {{date}}",
+    "pending": "Waiting for payment confirmation",
+    "paid": "Payment confirmed",
+    "expired": "This PIX code has expired. Check its status before starting another payment.",
+    "failed": "This payment was not completed.",
+    "check": "Check payment",
+    "checkFailed": "Payment could not be confirmed right now. Please check again.",
+    "close": "Close"
   }
 }

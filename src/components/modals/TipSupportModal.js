@@ -29,6 +29,9 @@ import StripePaymentMethodModal from './StripePaymentMethodModal';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useThemeContext } from '../../theme/ThemeContext';
 import { useLanguage } from '../../i18n';
+import { getPaymentProfile } from '../../services/paymentProfile';
+import { formatPixAmount, getPaymentProvider, getPixCheckout } from '../../utils/pixPayment';
+import PixPaymentModal from './PixPaymentModal';
 
 const AMOUNTS = [5, 10, 25, 50];
 const MIN_TIP_AMOUNT = 0.5;
@@ -70,42 +73,80 @@ export default function TipSupportModal({
   const [customAmount, setCustomAmount] = useState('');
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
+  const [paymentProvider, setPaymentProvider] = useState(null);
+  const [pixCheckout, setPixCheckout] = useState(null);
+  const pixCheckoutRef = useRef(null);
+  const activeProviderRef = useRef(null);
+  const submittingRef = useRef(false);
+  const generationRef = useRef(0);
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
   const paymentCompletedRef = useRef(false);
 
   const finalAmount = Number(selectedAmount || customAmount);
-  const isAmountValid = finalAmount >= MIN_TIP_AMOUNT;
+  const isAmountValid = Number.isFinite(finalAmount) &&
+    Number.isSafeInteger(Math.round(finalAmount * 100)) && finalAmount >= MIN_TIP_AMOUNT;
   const primaryText = isDarkMode ? '#F5F0FF' : (text || '#111827');
   const secondaryText = isDarkMode ? '#C8C4D0' : (mutedText || '#6B7280');
   const actionAccent = accent || '#5a2d82';
   const idleBorder = border || (isDarkMode ? '#444444' : '#D1D5DB');
   const sheetBg = card || (isDarkMode ? '#1E1E1E' : '#FFFFFF');
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setCustomAmount('');
     setSelectedAmount(null);
     setIsButtonLoading(false);
     paymentCompletedRef.current = false;
-  };
+    submittingRef.current = false;
+    pixCheckoutRef.current = null;
+    activeProviderRef.current = null;
+    setPixCheckout(null);
+    setShowPaymentMethodModal(false);
+    setPaymentProvider(null);
+  }, []);
 
   useEffect(() => {
+    let active = true;
     if (!visible) {
       resetForm();
-      return undefined;
+    } else {
+      getPaymentProfile().then(user => {
+        if (active) setPaymentProvider(getPaymentProvider(user));
+      }).catch(() => {}); // Confirm refreshes the profile and reports failure.
     }
+    return () => {
+      active = false;
+      generationRef.current++;
+      if (submittingRef.current) {
+        submittingRef.current = false;
+        dispatch(hideLoader());
+      }
+    };
+  }, [visible, resetForm, dispatch]);
 
+  const completePayment = useCallback(() => {
+    if (paymentCompletedRef.current) return;
+    paymentCompletedRef.current = true;
+    setIsButtonLoading(false);
+    dispatch(hideLoader());
+    onTipSuccess?.();
+    onClose?.();
+    showToastMessage(toast, 'success', t('tipSupportScreen.tipSuccess'));
+  }, [onClose, onTipSuccess, dispatch, toast, t]);
+
+  const handlePixPaid = useCallback(paymentId => {
+    if (visibleRef.current && pixCheckoutRef.current?.paymentId === paymentId) completePayment();
+  }, [completePayment]);
+
+  useEffect(() => {
+    if (!visible) return undefined;
     const subscription = DeviceEventEmitter.addListener('PAYMENT_COMPLETED', () => {
-      paymentCompletedRef.current = true;
-      setIsButtonLoading(false);
-      dispatch(hideLoader());
-      onTipSuccess?.();
-      setCustomAmount('');
-      setSelectedAmount(null);
-      onClose?.();
-      showToastMessage(toast, 'success', t('tipSupportScreen.tipSuccess'));
+      // PIX success is accepted only from the matching backend payment status.
+      if (activeProviderRef.current === 'STRIPE') completePayment();
     });
 
     return () => subscription.remove();
-  }, [visible, onClose, onTipSuccess, dispatch, toast, t]);
+  }, [visible, completePayment]);
 
   const openCheckoutSession = useCallback(async (url) => {
     try {
@@ -127,43 +168,62 @@ export default function TipSupportModal({
   }, [dispatch]);
 
   const handleConfirm = async () => {
+    if (submittingRef.current || pixCheckoutRef.current) return;
     if (!vendorId) {
       showToastMessage(toast, 'danger', t('tipSupportScreen.missingCreator'));
       return;
     }
 
     if (!isAmountValid) {
-      showToastMessage(toast, 'danger', t('tipSupportScreen.minAmountError'));
+      showToastMessage(toast, 'danger', t('tipSupportScreen.minAmountError', {
+        amount: paymentProvider === 'PAGBANK' ? formatPixAmount(50) : '0.50',
+      }));
       return;
     }
 
-    const canProceed = await requireStripeCustomerForPayment();
-    if (!canProceed) {
-      setShowPaymentMethodModal(true);
-      return;
-    }
-
+    submittingRef.current = true;
+    const generation = generationRef.current;
+    const isCurrent = () => visibleRef.current && generation === generationRef.current;
     setIsButtonLoading(true);
     dispatch(showLoader());
 
     try {
+      const user = await getPaymentProfile();
+      if (!isCurrent()) return;
+      const provider = getPaymentProvider(user);
+      setPaymentProvider(provider);
+      if (provider === 'STRIPE') {
+        const canProceed = await requireStripeCustomerForPayment();
+        if (!isCurrent()) return;
+        if (!canProceed) {
+          setShowPaymentMethodModal(true);
+          return;
+        }
+      }
+      activeProviderRef.current = provider;
       const response = await sendTip({
         amount: Number(finalAmount),
         receiverUserId: String(vendorId),
       });
-      console.log('sendTip response:', response);
-      const url = getPaymentSessionUrl(response);
-
-      if (!url) {
-        setIsButtonLoading(false);
-        dispatch(hideLoader());
+      if (!isCurrent()) return;
+      if (provider === 'PAGBANK') {
+        const checkout = getPixCheckout(response, Math.round(finalAmount * 100));
+        if (!checkout) throw new Error('Incomplete PIX checkout');
+        pixCheckoutRef.current = checkout;
+        setPixCheckout(checkout);
         return;
       }
-
+      const url = getPaymentSessionUrl(response);
+      if (!url) throw new Error('Payment session unavailable');
       await openCheckoutSession(url);
     } catch (error) {
-      setIsButtonLoading(false);
-      dispatch(hideLoader());
+      if (isCurrent()) showToastMessage(toast, 'danger', t('stripe.sessionFailed'));
+    } finally {
+      if (generation === generationRef.current) {
+        submittingRef.current = false;
+        setIsButtonLoading(false);
+        dispatch(hideLoader());
+      }
     }
   };
 
@@ -173,7 +233,7 @@ export default function TipSupportModal({
   return (
     <>
       <Modal
-        visible={visible}
+        visible={visible && !pixCheckout}
         transparent
         animationType="slide"
         onRequestClose={onClose}
@@ -217,6 +277,7 @@ export default function TipSupportModal({
                   {AMOUNTS.map((amt) => (
                     <TouchableOpacity
                       key={amt}
+                      testID={`tip-amount-${amt}`}
                       style={[
                         styles.amountBox,
                         { borderColor: idleBorder, backgroundColor: sheetBg },
@@ -230,7 +291,9 @@ export default function TipSupportModal({
                         setCustomAmount('');
                       }}
                     >
-                      <Text style={[styles.amountText, { color: primaryText }]}>${amt}</Text>
+                      <Text style={[styles.amountText, { color: primaryText }]}>
+                        {paymentProvider === 'PAGBANK' ? formatPixAmount(amt * 100) : paymentProvider === 'STRIPE' ? `$${amt}` : String(amt)}
+                      </Text>
                     </TouchableOpacity>
                   ))}
 
@@ -267,6 +330,7 @@ export default function TipSupportModal({
                 </View>
 
                 <TouchableOpacity
+                  testID="tip-confirm-payment"
                   style={[
                     styles.continueBtn,
                     { backgroundColor: actionAccent },
@@ -308,6 +372,12 @@ export default function TipSupportModal({
             // showToastMessage(toast, 'danger', e?.message || stripeErrorMessages.ONBOARDING_FAILED);
           }
         }}
+      />
+      <PixPaymentModal
+        visible={visible && Boolean(pixCheckout)}
+        checkout={pixCheckout}
+        onClose={onClose}
+        onPaid={handlePixPaid}
       />
     </>
   );

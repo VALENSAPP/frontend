@@ -3177,9 +3177,9 @@
     "acceptButton": "Aceitar"
   },
   "stripePaymentMethod": {
-    "message": "Conclua a configuração do Pagbank para adicionar um método de pagamento.",
+    "message": "Conclua a configuração do Stripe para adicionar um método de pagamento.",
     "cancelButton": "Cancelar",
-    "connectButton": "Conectar ao Pagbank"
+    "connectButton": "Conectar ao Stripe"
   },
   "supportCreator": {
     "disclaimerTitle": "Apoiar \"{{creatorName}}\"?",
@@ -3221,7 +3221,7 @@
     "tipSuccess": "Gorjeta enviada com sucesso!",
     "onboardingIncomplete": "A configuração do Pagbank ainda não está completa.",
     "missingCreator": "Não foi possível enviar a gorjeta. Informações do criador ausentes.",
-    "minAmountError": "O valor mínimo da gorjeta é R$0.50."
+    "minAmountError": "O valor mínimo da gorjeta é {{amount}}."
   },
   "tipPayoutSetup": {
     "connectTitle": "Conectar GORJETA",
@@ -3850,9 +3850,9 @@
     "paymentCancelled": "Pagamento cancelado",
     "sessionFailed": "Não foi possível criar a sessão de pagamento. Tente novamente.",
     "networkError": "Erro de rede. Verifique sua conexão e tente novamente.",
-    "onboardingFailed": "Falha ao abrir a configuração do Pagbank",
+    "onboardingFailed": "Falha ao abrir a configuração do Stripe",
     "recipientNotReady": "O destinatário do pagamento ainda não concluiu a configuração.",
-    "customerSetupRequired": "Conclua a configuração do Pagbank para adicionar uma forma de pagamento.",
+    "customerSetupRequired": "Conclua a configuração do Stripe para adicionar uma forma de pagamento.",
     "customerSetupFailed": "Não foi possível abrir a configuração de pagamento. Tente novamente."
   },
   "userChat": {
@@ -5634,5 +5634,20 @@
     "chapter2Fallback": "Crie conteúdo relevante",
     "chapter3Fallback": "Monetize seu conhecimento",
     "chapter4Fallback": "Aumente seu público"
+  },
+  "pixPayment": {
+    "title": "Pagar com PIX · PagBank",
+    "instructions": "Escaneie o QR Code ou copie o código PIX para pagar no aplicativo do seu banco.",
+    "qrLabel": "QR Code para pagamento PIX",
+    "copy": "Copiar código PIX",
+    "copied": "Código PIX copiado",
+    "expires": "Válido até {{date}}",
+    "pending": "Aguardando confirmação do pagamento",
+    "paid": "Pagamento confirmado",
+    "expired": "Este código PIX expirou. Consulte o status antes de iniciar outro pagamento.",
+    "failed": "Este pagamento não foi concluído.",
+    "check": "Verificar pagamento",
+    "checkFailed": "Não foi possível confirmar o pagamento agora. Tente verificar novamente.",
+    "close": "Fechar"
   }
 }
