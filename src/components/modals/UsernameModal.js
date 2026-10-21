@@ -18,7 +18,7 @@ import { useAppTheme } from '../../theme/useApptheme';
 import { useLanguage } from '../../i18n';
 import { BASE_URL } from '../../config/urls';
 
-const UsernameModal = ({ visible, onClose, data }) => {
+const UsernameModal = ({ visible, onClose, data, canReport = false, onReport }) => {
   const sheetRef = useRef();
   const { bgStyle, text, icon, mutedText, border } = useAppTheme();
   const toast = useToast();
@@ -108,7 +108,7 @@ console.log('qrShareUrl:', qrShareUrl);
     <RBSheet
       ref={sheetRef}
       draggable
-      height={140}
+      height={canReport ? 230 : 140}
       onClose={onClose}
       customModalProps={{ statusBarTranslucent: true }}
       customStyles={{
@@ -139,6 +139,19 @@ console.log('qrShareUrl:', qrShareUrl);
               <Text style={[styles.topButtonText, { color: text }]}>{t('usernameModal.sendButton')}</Text>
             </TouchableOpacity>
           </View>
+
+          {canReport ? (
+            <TouchableOpacity
+              style={[styles.optionRow, { borderColor: border }]}
+              onPress={() => {
+                sheetRef.current?.close();
+                setTimeout(() => onReport?.(), 300);
+              }}
+            >
+              <Ionicons name="flag-outline" size={20} color="#ff453a" style={styles.optionIcon} />
+              <Text style={[styles.optionText, { color: '#ff453a' }]}>{t('usernameModal.report')}</Text>
+            </TouchableOpacity>
+          ) : null}
 
           {/* <TouchableOpacity style={[styles.optionRow, bgStyle]} onPress={copyWalletAddress}>
             <Ionicons name="wallet-outline" size={20} color="#111100" style={styles.optionIcon} />

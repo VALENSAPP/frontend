@@ -3126,6 +3126,7 @@
     "cancelButton": "Annuler",
     "missingPostIdTitle": "Impossible de signaler",
     "missingPostIdMessage": "ID de publication manquant.",
+    "missingUserMessage": "L'utilisateur qui a créé cette publication est manquant.",
     "noReasonTitle": "Sélectionnez une raison",
     "noReasonMessage": "Veuillez choisir une raison pour ce signalement.",
     "successTitle": "Signalement envoyé",
@@ -3137,7 +3138,8 @@
     "reason4": "Violence ou comportement dangereux",
     "reason5": "Fausse information",
     "reason6": "Intimidation ou harcèlement",
-    "reason7": "Arnaque ou fraude"
+    "reason7": "Arnaque ou fraude",
+    "reasonImpersonation": "Usurpation d'identité"
   },
   "shareModal": {
     "searchPlaceholder": "Rechercher",
@@ -3415,6 +3417,7 @@
   "usernameModal": {
     "copyLinkButton": "Copier le lien",
     "sendButton": "Envoyer",
+    "report": "Signaler",
     "walletAddressOption": "Adresse du portefeuille Base",
     "linkCopied": "Lien du profil copié avec succès",
     "walletCopied": "Adresse du portefeuille copiée avec succès",

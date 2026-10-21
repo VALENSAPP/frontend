@@ -3126,6 +3126,7 @@
     "cancelButton": "Annulla",
     "missingPostIdTitle": "Impossibile segnalare",
     "missingPostIdMessage": "ID del post mancante.",
+    "missingUserMessage": "Manca l'utente che ha creato questo post.",
     "noReasonTitle": "Seleziona un motivo",
     "noReasonMessage": "Seleziona un motivo per questa segnalazione.",
     "successTitle": "Segnalazione inviata",
@@ -3137,7 +3138,8 @@
     "reason4": "Violenza o comportamento pericoloso",
     "reason5": "Informazioni false",
     "reason6": "Bullismo o molestie",
-    "reason7": "Truffa o frode"
+    "reason7": "Truffa o frode",
+    "reasonImpersonation": "Impersonificazione"
   },
   "shareModal": {
     "searchPlaceholder": "Cerca",
@@ -3415,6 +3417,7 @@
   "usernameModal": {
     "copyLinkButton": "Copia link",
     "sendButton": "Invia",
+    "report": "Segnala",
     "walletAddressOption": "Indirizzo wallet Base",
     "linkCopied": "Link del profilo copiato con successo",
     "walletCopied": "Indirizzo wallet copiato con successo",

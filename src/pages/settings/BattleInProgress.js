@@ -60,6 +60,7 @@ import HexAvatar from '../../components/home/story.js/HexAvatar';
 import { Vsbanner } from '../../assets/icons';
 import { useLanguage } from '../../i18n';
 import { moderateBattleComment } from '../../utils/battleModeration';
+import ReportFlowScreen from '../../components/modals/Report';
 import { BASE_URL } from '../../config/urls';
 
 const isMeaningfulValue = value => {
@@ -723,6 +724,7 @@ export default function BattleInProgress() {
   const [participantBattleStats, setParticipantBattleStats] = useState({});
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const replyInputRef = useRef(null);
+  const reportSheetRef = useRef(null);
   const scrollRef = useRef(null);
   const commentSelectionFrameRef = useRef(null);
   const pendingCommentSelectionRef = useRef({});
@@ -3338,6 +3340,15 @@ export default function BattleInProgress() {
                 ? t('battleInProgress.battleCancelled')
                 : (canViewResults ? t('battleInProgress.battleEnded') : t('battleInProgress.screenTitle'))}
             </Text>
+            <View style={styles.headerActions}>
+            {!isBattleCreator ? (
+              <TouchableOpacity
+                onPress={() => reportSheetRef.current?.open()}
+                style={styles.headerIconBtn}
+              >
+                <Ionicons name="flag-outline" size={20} color={accent} />
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity
               onPress={() => { setRefreshing(true); fetchBattle(true); }}
               style={styles.headerIconBtn}
@@ -3347,6 +3358,7 @@ export default function BattleInProgress() {
                 : <Ionicons name="refresh-outline" size={20} color={accent} />
               }
             </TouchableOpacity>
+            </View>
           </View>
 
           {renderHeroCard()}
@@ -3718,6 +3730,13 @@ export default function BattleInProgress() {
           </Pressable>
         </Pressable>
       </Modal>
+      <ReportFlowScreen
+        ref={reportSheetRef}
+        postId={resolvedBattleId}
+        reportedUserId={String(battle?.creatorId || '')}
+        contentType="battle"
+        feature="battle"
+      />
     </SafeAreaView>
     </View>
   );
@@ -3735,6 +3754,7 @@ const styles = StyleSheet.create({
     default: {},
   }),
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
   headerIconBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 18, fontWeight: '800' },
 

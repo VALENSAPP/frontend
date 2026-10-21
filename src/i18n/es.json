@@ -3126,6 +3126,7 @@
     "cancelButton": "Cancelar",
     "missingPostIdTitle": "No se puede reportar",
     "missingPostIdMessage": "Falta el ID de la publicación.",
+    "missingUserMessage": "Falta el usuario que creó esta publicación.",
     "noReasonTitle": "Selecciona un motivo",
     "noReasonMessage": "Por favor elige un motivo para este reporte.",
     "successTitle": "Reporte enviado",
@@ -3137,7 +3138,8 @@
     "reason4": "Violencia o comportamiento peligroso",
     "reason5": "Información falsa",
     "reason6": "Acoso o intimidación",
-    "reason7": "Estafa o fraude"
+    "reason7": "Estafa o fraude",
+    "reasonImpersonation": "Suplantación de identidad"
   },
   "shareModal": {
     "searchPlaceholder": "Buscar",
@@ -3415,6 +3417,7 @@
   "usernameModal": {
     "copyLinkButton": "Copiar enlace",
     "sendButton": "Enviar",
+    "report": "Reportar",
     "walletAddressOption": "Dirección de billetera Base",
     "linkCopied": "Enlace del perfil copiado correctamente",
     "walletCopied": "Dirección de billetera copiada correctamente",

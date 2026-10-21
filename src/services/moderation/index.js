@@ -189,3 +189,7 @@ export const parseModerationResult = (response) => {
 export const checkContentModeration = async (payload) => {
   return axiosInstance.post('v1/moderation/check', payload);
 };
+
+export const reportContent = async (payload) => {
+  return axiosInstance.post('v1/reports', payload);
+};

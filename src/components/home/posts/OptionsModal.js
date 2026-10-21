@@ -26,6 +26,7 @@ export default function OptionsModal({
   hideBusy = false,
   onHiddenChange,
   canHide = true,
+  reportedUserId = '',
 }) {
   const sheetRef = useRef();
   const { bgStyle, textStyle, icon, mutedText } = useAppTheme();
@@ -35,6 +36,7 @@ export default function OptionsModal({
   const [localHidden, setLocalHidden] = useState(!!isHidden);
   const [localHideBusy, setLocalHideBusy] = useState(false);
   const [reportPostId, setReportPostId] = useState('');
+  const [reportOwnerId, setReportOwnerId] = useState('');
 
   const effectiveHidden = useMemo(() => localHidden, [localHidden]);
   const effectiveHideBusy = useMemo(
@@ -57,6 +59,12 @@ export default function OptionsModal({
     }
   }, [postId]);
 
+  useEffect(() => {
+    if (reportedUserId) {
+      setReportOwnerId(String(reportedUserId));
+    }
+  }, [reportedUserId]);
+
   const tap = action => {
     onSelect?.(action, { postId });
   };
@@ -64,6 +72,9 @@ export default function OptionsModal({
   const report = () => {
     if (postId) {
       setReportPostId(String(postId));
+    }
+    if (reportedUserId) {
+      setReportOwnerId(String(reportedUserId));
     }
     sheetRef.current?.close();
     setTimeout(() => {
@@ -267,7 +278,11 @@ export default function OptionsModal({
           </View>
         </ScrollView>
       </RBSheet>
-      <ReportFlowScreen ref={reportRef} postId={reportPostId} />
+      <ReportFlowScreen
+        ref={reportRef}
+        postId={reportPostId}
+        reportedUserId={reportOwnerId}
+      />
     </>
   );
 }

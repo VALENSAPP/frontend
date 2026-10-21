@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Alert,
@@ -20,6 +20,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useThemeContext } from '../../theme/ThemeContext';
 import { useLanguage } from '../../i18n';
+import ReportFlowScreen from '../../components/modals/Report';
 import { useToast } from 'react-native-toast-notifications';
 import { showToastMessage } from '../../components/displaytoastmessage';
 import {
@@ -1902,6 +1903,7 @@ export function BattleLiveScreen({ navigation, route }) {
   const [deletingCommentId, setDeletingCommentId] = useState('');
   const [deletingBattle, setDeletingBattle] = useState(false);
   const [manageModalVisible, setManageModalVisible] = useState(false);
+  const reportSheetRef = useRef(null);
 
   const question = battle?.title || route?.params?.question || t('battle.defaultQuestion');
   const battleDescription = (battle?.description || route?.params?.description || '').trim();
@@ -2510,6 +2512,15 @@ export function BattleLiveScreen({ navigation, route }) {
         <View style={[liveStyles.categoryPill, { borderColor: accent }]}>
           <Text style={[liveStyles.categoryPillText, { color: accent }]}>{battle?.category || t('battle.opinionBattle')}</Text>
         </View>
+        {!isCreator ? (
+          <TouchableOpacity
+            onPress={() => reportSheetRef.current?.open()}
+            style={liveStyles.daysLeftRow}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="flag-outline" size={18} color={accent} />
+          </TouchableOpacity>
+        ) : null}
         <View style={liveStyles.daysLeftRow}>
           <Ionicons name="time-outline" size={13} color={subtleMuted} />
           <Text style={[liveStyles.daysLeftText, { color: subtleMuted }]}>{t('battle.daysLeft', { count: battle?.daysLeft ?? 0 })}</Text>
@@ -2990,6 +3001,13 @@ export function BattleLiveScreen({ navigation, route }) {
         ) : null}
       </View>
 
+      <ReportFlowScreen
+        ref={reportSheetRef}
+        postId={String(battle?.id || battleId || '')}
+        reportedUserId={String(battle?.createdBy || '')}
+        contentType="battle"
+        feature="battle"
+      />
     </KeyboardAwareScrollView>
   );
 }

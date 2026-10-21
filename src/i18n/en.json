@@ -3126,6 +3126,7 @@
     "cancelButton": "Cancel",
     "missingPostIdTitle": "Unable to report",
     "missingPostIdMessage": "Missing post id.",
+    "missingUserMessage": "Missing the user who created this post.",
     "noReasonTitle": "Select a reason",
     "noReasonMessage": "Please choose a reason for this report.",
     "successTitle": "Report submitted",
@@ -3137,7 +3138,8 @@
     "reason4": "Violence or dangerous behaviour",
     "reason5": "False information",
     "reason6": "Bullying or harassment",
-    "reason7": "Scam or fraud"
+    "reason7": "Scam or fraud",
+    "reasonImpersonation": "Impersonation"
   },
   "shareModal": {
     "searchPlaceholder": "Search",
@@ -3415,6 +3417,7 @@
   "usernameModal": {
     "copyLinkButton": "Copy link",
     "sendButton": "Send",
+    "report": "Report",
     "walletAddressOption": "Base wallet address",
     "linkCopied": "Profile link copied successfully",
     "walletCopied": "Wallet address copied successfully",
