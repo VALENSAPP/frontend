@@ -29,6 +29,7 @@ import { useThemeContext } from '../../theme/ThemeContext';
 import { showToastMessage } from '../../components/displaytoastmessage';
 import { hideLoader, showLoader } from '../../redux/actions/LoaderAction';
 import { createMyCloset, createMyClosetItem, getMyClosetById } from '../../services/myCloset';
+import { moderateMarketplaceProduct } from '../../utils/marketplaceModeration';
 import ShareModal from '../../components/modals/ShareModal';
 import PostLocationModal from '../../components/modals/PostLocationModal';
 import { getPlaceDetails, isGooglePlacesConfigured, searchPlacePredictions, searchCityPredictions } from '../../services/googlePlaces';
@@ -312,6 +313,74 @@ const getItemSteps = t => [
   },
 ];
 
+const SHOP_CREATION_STEPS = [
+  'MyClosetCreateShop',
+  'MyClosetUploadLogo',
+  'MyClosetTellUs',
+  'MyClosetPreferences',
+];
+
+const ADD_ITEM_STEPS = [
+  'MyClosetAddItemPhotos',
+  'MyClosetAddItemDetails',
+  'MyClosetAddItemPrice',
+  'MyClosetAddItemShipping',
+  'MyClosetAddItemReview',
+];
+
+const goToPreviousClosetStep = navigation => {
+  const state = navigation?.getState?.();
+  const routes = state?.routes;
+  if (!routes?.length) {
+    navigation?.goBack?.();
+    return;
+  }
+
+  const index = typeof state.index === 'number' ? state.index : routes.length - 1;
+  const current = routes[index];
+  const flow = [SHOP_CREATION_STEPS, ADD_ITEM_STEPS].find(steps =>
+    steps.includes(current?.name),
+  );
+
+  if (!flow) {
+    if (navigation.canGoBack?.()) navigation.goBack();
+    return;
+  }
+
+  const stepIndex = flow.indexOf(current.name);
+  if (stepIndex <= 0) {
+    if (navigation.canGoBack?.()) navigation.goBack();
+    return;
+  }
+
+  const previousName = flow[stepIndex - 1];
+  if (routes[index - 1]?.name === previousName) {
+    navigation.goBack();
+    return;
+  }
+
+  const previousRoute = routes
+    .slice(0, index)
+    .findLast(route => route.name === previousName);
+  const params = {
+    ...(previousRoute?.params || {}),
+    draft: {
+      ...(previousRoute?.params?.draft || {}),
+      ...(current?.params?.draft || {}),
+    },
+  };
+  if (current?.params?.isFirstItem != null && params.isFirstItem == null) {
+    params.isFirstItem = current.params.isFirstItem;
+  }
+
+  if (previousRoute && navigation.popTo) {
+    navigation.popTo(previousName, params, { merge: true });
+    return;
+  }
+
+  navigation.replace(previousName, params);
+};
+
 const FlowShell = ({
   navigation,
   activeStep,
@@ -348,7 +417,7 @@ const FlowShell = ({
         <View style={styles.headerRow}>
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => navigation.goBack()}
+            onPress={() => goToPreviousClosetStep(navigation)}
             style={[styles.backButton, { backgroundColor: chipSurface }]}
           >
             <Ionicons name="chevron-back" size={24} color={accent} />
@@ -445,7 +514,7 @@ const Shell = ({ navigation, activeStep, children }) => {
         <View style={styles.headerRow}>
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => navigation.goBack()}
+            onPress={() => goToPreviousClosetStep(navigation)}
             style={[styles.backButton, { backgroundColor: chipSurface }]}
           >
             <Ionicons name="chevron-back" size={24} color={accent} />
@@ -1124,7 +1193,7 @@ const MyClosetCreateShopScreen = ({ navigation, route }) => {
     }
 
     setErrors({});
-    navigation.navigate('MyClosetUploadLogo', { draft: nextDraft });
+    navigation.push('MyClosetUploadLogo', { draft: nextDraft });
   };
 
   return (
@@ -1265,7 +1334,7 @@ const MyClosetUploadLogoScreen = ({ navigation, route }) => {
     }
 
     setError('');
-    navigation.navigate('MyClosetTellUs', { draft: nextDraft });
+    navigation.push('MyClosetTellUs', { draft: nextDraft });
   };
 
   return (
@@ -1358,7 +1427,7 @@ const MyClosetTellUsScreen = ({ navigation, route }) => {
     }
 
     setErrors({});
-    navigation.navigate('MyClosetPreferences', { draft: nextDraft });
+    navigation.push('MyClosetPreferences', { draft: nextDraft });
   };
 
   return (
@@ -1552,7 +1621,7 @@ const MyClosetPreferencesScreen = ({ navigation, route }) => {
           'success',
           response?.message || t('myClosetPreferences.createSuccess'),
         );
-        navigation.navigate('MyClosetLive', { draft: nextDraft });
+        navigation.push('MyClosetLive', { draft: nextDraft });
         return;
       }
 
@@ -1806,7 +1875,7 @@ const MyClosetLiveScreen = ({ navigation, route }) => {
             label={itemTitle}
             text={text}
             onPress={() => {
-              navigation.navigate('MyClosetAddItemPhotos', { draft: {}, isFirstItem: isFirstItem });
+              navigation.push('MyClosetAddItemPhotos', { draft: {}, isFirstItem: isFirstItem });
             }}
           />
         </View>
@@ -1961,7 +2030,7 @@ const MyClosetAddItemPhotosScreen = ({ navigation, route }) => {
       return;
     }
 
-    navigation.navigate('MyClosetAddItemDetails', {
+    navigation.push('MyClosetAddItemDetails', {
       draft: { ...draft, photos },
       isFirstItem,
     });
@@ -2147,7 +2216,7 @@ const MyClosetAddItemDetailsScreen = ({ navigation, route }) => {
       return;
     }
 
-    navigation.navigate('MyClosetAddItemPrice', { draft: nextDraft, isFirstItem });
+    navigation.push('MyClosetAddItemPrice', { draft: nextDraft, isFirstItem });
   };
 
   return (
@@ -2279,7 +2348,7 @@ const MyClosetAddItemPriceScreen = ({ navigation, route }) => {
       return;
     }
 
-    navigation.navigate('MyClosetAddItemShipping', { draft: nextDraft, isFirstItem });
+    navigation.push('MyClosetAddItemShipping', { draft: nextDraft, isFirstItem });
   };
 
   return (
@@ -2676,7 +2745,7 @@ const MyClosetAddItemShippingScreen = ({ navigation, route }) => {
       return;
     }
 
-    navigation.navigate('MyClosetAddItemReview', { draft: nextDraft, isFirstItem });
+    navigation.push('MyClosetAddItemReview', { draft: nextDraft, isFirstItem });
   };
 
   return (
@@ -3077,7 +3146,7 @@ const MyClosetAddItemReviewScreen = ({ navigation, route }) => {
   const { isDarkMode } = useThemeContext();
   const text = accent;
   const surfaces = formSurfaces(isDarkMode);
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
   const itemTitle = isFirstItem ? t('myClosetLive.addFirstItem') : t('myClosetLive.addNewItem');
   const ITEM_STEPS = useMemo(() => getItemSteps(t), [t]);
   const dispatch = useDispatch();
@@ -3120,6 +3189,25 @@ const deliverySummaryLines = useMemo(() => {
     if (isPublishing) return;
 
     setIsPublishing(true);
+    let moderationDecision;
+    try {
+      moderationDecision = await moderateMarketplaceProduct({
+        draft,
+        contentId: `temp_prod_${Date.now()}`,
+        language: currentLanguage,
+        t,
+      });
+    } catch (error) {
+      console.error('Product moderation check error:', error);
+      showToastMessage(toast, 'danger', t('myClosetAddItemReview.moderationCheckFailed'));
+      setIsPublishing(false);
+      return;
+    }
+    if (!moderationDecision) {
+      setIsPublishing(false);
+      return;
+    }
+
     dispatch(showLoader());
     try {
       console.log('[MyCloset] Creating item with draft:', draft);
@@ -3128,9 +3216,10 @@ const deliverySummaryLines = useMemo(() => {
       const statusCode = response?.statusCode;
 
       if (statusCode === 200 || statusCode === 201) {
-        navigation.navigate('MyClosetAddItemPublished', {
+        navigation.push('MyClosetAddItemPublished', {
           draft,
           item: response?.data || response,
+          underReview: moderationDecision === 'REVIEW',
         });
         return;
       }
@@ -3289,6 +3378,7 @@ const MyClosetAddItemPublishedScreen = ({ navigation, route }) => {
   const text = accent;
   const surfaces = formSurfaces(isDarkMode);
   const { t } = useLanguage();
+  const underReview = route?.params?.underReview === true;
   const [publishedShopName, setPublishedShopName] = useState(item?.shopName || draft.shopName || '');
   const heroPhoto = draft.photos?.[0];
   const publishedName = item?.name || draft.itemName || t('myClosetAddItemReview.placeholderItemName');
@@ -3370,9 +3460,15 @@ const MyClosetAddItemPublishedScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        <Text style={[styles.successTitle, { color: text }]}>{t('myClosetAddItemPublished.title')}</Text>
+        <Text style={[styles.successTitle, { color: text }]}>
+          {underReview
+            ? t('myClosetAddItemReview.moderationReviewTitle')
+            : t('myClosetAddItemPublished.title')}
+        </Text>
         <Text style={[styles.successSubtitle, { color: surfaces.mutedColor }]}>
-          {t('myClosetAddItemPublished.subtitle')}
+          {underReview
+            ? t('myClosetAddItemReview.moderationReview')
+            : t('myClosetAddItemPublished.subtitle')}
         </Text>
 
         <View
@@ -3440,7 +3536,7 @@ const MyClosetAddItemPublishedScreen = ({ navigation, route }) => {
             label={t('myClosetAddItemPublished.addAnotherItem')}
             text={text}
             onPress={() =>
-              navigation.navigate('MyClosetAddItemPhotos', { draft: {}, isFirstItem: false })
+              navigation.push('MyClosetAddItemPhotos', { draft: {}, isFirstItem: false })
             }
           />
         </View>

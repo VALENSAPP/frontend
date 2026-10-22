@@ -57,7 +57,6 @@ import useScreenshotProtection, {
 } from '../../hooks/useScreenshotProtection';
 import { navigateToUserProfile } from '../../utils/navigateToUserProfile';
 import { isPostVideoUrl } from '../../utils/postMediaFormat';
-
 import {
   extractPostFromByIdResponse,
   mergeTrustPostFields,
@@ -65,6 +64,40 @@ import {
   resolveTrustPostFromSources,
   withTrustPostFields,
 } from '../../utils/trustPost';
+
+const likeStateKey = postId => (postId == null || postId === '' ? '' : String(postId));
+
+const readPostLiked = post => !!(post?.isLike ?? post?.liked ?? post?.isLiked);
+
+const readPostLikeCount = post => {
+  const raw = post?.likesCount ?? post?.likeCount ?? post?.totalLikes;
+  const count = Number(raw);
+  return Number.isFinite(count) ? count : 0;
+};
+
+const readLikeResponse = response => {
+  const data = response?.data;
+  const nested =
+    data?.data && typeof data.data === 'object' && !Array.isArray(data.data)
+      ? data.data
+      : null;
+  const payload =
+    nested
+      ? { ...data, ...nested }
+      : data && typeof data === 'object' && !Array.isArray(data)
+        ? data
+        : {};
+  const likedValue = payload.liked ?? payload.isLiked ?? payload.isLike;
+  const countValue = payload.likesCount ?? payload.likeCount ?? payload.totalLikes;
+  const count = Number(countValue);
+  return {
+    liked: likedValue == null ? null : !!likedValue,
+    count:
+      countValue == null || countValue === '' || !Number.isFinite(count)
+        ? null
+        : count,
+  };
+};
 
 export default function PostView({ postData = [], userData = {} }) {
   // ─── All hooks at the very top ───────────────────────────────
@@ -133,6 +166,13 @@ export default function PostView({ postData = [], userData = {} }) {
   const pinningPostIdRef = useRef('');
   const pendingInitialScrollRef = useRef(false);
   const didAutoOpenCommentsRef = useRef(false);
+  const likeOverrideRef = useRef(new Set());
+  const likedRef = useRef(liked);
+  const likeCountRef = useRef(postLikesCount);
+  const likingIdsRef = useRef(likingIds);
+  likedRef.current = liked;
+  likeCountRef.current = postLikesCount;
+  likingIdsRef.current = likingIds;
   const [listViewportHeight, setListViewportHeight] = useState(0);
   const { bgStyle, text, border } = useAppTheme();
   const [isReady, setIsReady] = useState(false);
@@ -147,6 +187,9 @@ export default function PostView({ postData = [], userData = {} }) {
     const nextPosts = normalizePosts(navPostData, postData);
     setPosts(nextPosts);
     setList(nextPosts);
+    likeOverrideRef.current = new Set();
+    likedRef.current = {};
+    likeCountRef.current = {};
     setLiked({});
     setSaved({});
     setPostLikesCount({});
@@ -223,9 +266,17 @@ export default function PostView({ postData = [], userData = {} }) {
           prev.map(post => (String(post.id) === String(postId) ? merged : post)),
         );
 
+        const hydratedKey = likeStateKey(merged.id);
+        const keepLocalLike = likeOverrideRef.current.has(hydratedKey);
         setSaved(prev => ({ ...prev, [merged.id]: !!merged.isSaved }));
-        setLiked(prev => ({ ...prev, [merged.id]: !!merged.isLike }));
-        setPostLikesCount(prev => ({ ...prev, [merged.id]: merged.likeCount ?? 0 }));
+        if (!keepLocalLike) {
+          const nextLiked = readPostLiked(merged);
+          const nextCount = readPostLikeCount(merged);
+          likedRef.current = { ...likedRef.current, [hydratedKey]: nextLiked };
+          likeCountRef.current = { ...likeCountRef.current, [hydratedKey]: nextCount };
+          setLiked(prev => ({ ...prev, [merged.id]: nextLiked }));
+          setPostLikesCount(prev => ({ ...prev, [merged.id]: nextCount }));
+        }
         setPostCommentsCount(prev => ({ ...prev, [merged.id]: merged.commentCount ?? 0 }));
         setHiddenById(prev => ({ ...prev, [merged.id]: !!merged.isHide }));
 
@@ -269,9 +320,17 @@ export default function PostView({ postData = [], userData = {} }) {
             : p,
         ));
 
+        const freshKey = likeStateKey(freshPost.id);
+        const keepLocalLike = likeOverrideRef.current.has(freshKey);
         setSaved(prev => ({ ...prev, [freshPost.id]: !!freshPost.isSaved }));
-        setLiked(prev => ({ ...prev, [freshPost.id]: !!freshPost.isLike }));
-        setPostLikesCount(prev => ({ ...prev, [freshPost.id]: freshPost.likeCount ?? 0 }));
+        if (!keepLocalLike) {
+          const nextLiked = readPostLiked(freshPost);
+          const nextCount = readPostLikeCount(freshPost);
+          likedRef.current = { ...likedRef.current, [freshKey]: nextLiked };
+          likeCountRef.current = { ...likeCountRef.current, [freshKey]: nextCount };
+          setLiked(prev => ({ ...prev, [freshPost.id]: nextLiked }));
+          setPostLikesCount(prev => ({ ...prev, [freshPost.id]: nextCount }));
+        }
         setPostCommentsCount(prev => ({ ...prev, [freshPost.id]: freshPost.commentCount ?? 0 }));
         setHiddenById(prev => ({ ...prev, [freshPost.id]: !!freshPost.isHide }));
 
@@ -353,9 +412,15 @@ export default function PostView({ postData = [], userData = {} }) {
       const seededHidden = {};
       for (const p of posts) {
         if (p?.id) {
+          const key = likeStateKey(p.id);
+          const keepLocalLike = likeOverrideRef.current.has(key);
           seededSaved[p.id] = !!p.isSaved;
-          seededLiked[p.id] = !!(p.isLike ?? p.liked);
-          seededLikeCount[p.id] = p.likesCount ?? p.likeCount ?? 0;
+          seededLiked[p.id] = keepLocalLike
+            ? !!likedRef.current[key]
+            : readPostLiked(p);
+          seededLikeCount[p.id] = keepLocalLike
+            ? readPostLikeCount({ likeCount: likeCountRef.current[key] })
+            : readPostLikeCount(p);
           seededCommentCounts[p.id] = p.commentCount ?? 0;
           seededHidden[p.id] = !!p.isHide;
         }
@@ -364,8 +429,20 @@ export default function PostView({ postData = [], userData = {} }) {
         }
       }
       setSaved(seededSaved);
-      setLiked(seededLiked);
-      setPostLikesCount(seededLikeCount);
+      setLiked(prev => {
+        const next = { ...seededLiked };
+        likeOverrideRef.current.forEach(key => {
+          if (prev[key] != null) next[key] = prev[key];
+        });
+        return next;
+      });
+      setPostLikesCount(prev => {
+        const next = { ...seededLikeCount };
+        likeOverrideRef.current.forEach(key => {
+          if (prev[key] != null) next[key] = prev[key];
+        });
+        return next;
+      });
       setPostCommentsCount(seededCommentCounts);
       setHiddenById(prev => ({ ...prev, ...seededHidden }));
       if (Object.keys(seededFollowing).length) {
@@ -551,53 +628,84 @@ export default function PostView({ postData = [], userData = {} }) {
 
   // ─── Like ───────────────────────────────────────────────────
   const toggleLike = useCallback(async (postId) => {
-    if (!postId) return;
-    if (likingIds.has(postId)) return;
+    const key = likeStateKey(postId);
+    if (!key || likingIdsRef.current.has(key)) return;
 
-    const wasLiked = !!liked[postId];
-    const prevCount = postLikesCount[postId] ?? 0;
+    const wasLiked = !!likedRef.current[key];
+    const prevCount = readPostLikeCount({ likeCount: likeCountRef.current[key] });
+    const nextLiked = !wasLiked;
+    const nextCount = nextLiked ? prevCount + 1 : Math.max(0, prevCount - 1);
 
-    setLiked(prev => ({ ...prev, [postId]: !wasLiked }));
-    setPostLikesCount(prev => ({
-      ...prev,
-      [postId]: wasLiked ? Math.max(0, prevCount - 1) : prevCount + 1,
-    }));
+    likeOverrideRef.current.add(key);
+    likedRef.current = { ...likedRef.current, [key]: nextLiked };
+    likeCountRef.current = { ...likeCountRef.current, [key]: nextCount };
+    likingIdsRef.current = new Set(likingIdsRef.current).add(key);
 
-    setLikingIds(prev => new Set(prev).add(postId));
+    setLiked(prev => ({ ...prev, [postId]: nextLiked }));
+    setPostLikesCount(prev => ({ ...prev, [postId]: nextCount }));
+    setLikingIds(prev => new Set(prev).add(key));
+
+    const rollback = () => {
+      likeOverrideRef.current.delete(key);
+      likedRef.current = { ...likedRef.current, [key]: wasLiked };
+      likeCountRef.current = { ...likeCountRef.current, [key]: prevCount };
+      setLiked(prev => ({ ...prev, [postId]: wasLiked }));
+      setPostLikesCount(prev => ({ ...prev, [postId]: prevCount }));
+    };
 
     try {
       const res = await likePost(postId);
+      const payload = res?.data?.data && typeof res.data.data === 'object'
+        ? res.data.data
+        : res?.data;
+      console.log('[PostView] like API', {
+        postId,
+        statusCode: res?.statusCode,
+        success: res?.success,
+        liked: payload?.liked,
+        isLiked: payload?.isLiked,
+        isLike: payload?.isLike,
+        dislike: payload?.dislike ?? payload?.isDislike ?? payload?.disliked,
+        likesCount: payload?.likesCount,
+        likeCount: payload?.likeCount,
+        totalLikes: payload?.totalLikes,
+        data: res?.data,
+      });
       const ok = res?.statusCode === 200 && res?.success;
 
       if (ok) {
         if (userChat) {
           await refetchPostData(postId);
         } else {
-          const serverLiked = !!res?.data?.liked;
-          const serverCount = res?.data?.likesCount ?? res?.data?.totalLikes;
-
-          setLiked(prev => ({ ...prev, [postId]: serverLiked }));
-          if (serverCount !== undefined) {
-            setPostLikesCount(prev => ({ ...prev, [postId]: serverCount }));
+          const serverLike = readLikeResponse(res);
+          if (serverLike.liked != null) {
+            likedRef.current = { ...likedRef.current, [key]: serverLike.liked };
+            setLiked(prev => ({ ...prev, [postId]: serverLike.liked }));
+          }
+          if (serverLike.count != null) {
+            likeCountRef.current = { ...likeCountRef.current, [key]: serverLike.count };
+            setPostLikesCount(prev => ({ ...prev, [postId]: serverLike.count }));
           }
         }
       } else {
-        setLiked(prev => ({ ...prev, [postId]: wasLiked }));
-        setPostLikesCount(prev => ({ ...prev, [postId]: prevCount }));
+        rollback();
         showToastMessage(toast, 'danger', res?.data?.message || t('postView.failedToggleLike'));
       }
     } catch (e) {
-      setLiked(prev => ({ ...prev, [postId]: wasLiked }));
-      setPostLikesCount(prev => ({ ...prev, [postId]: prevCount }));
+      rollback();
       showToastMessage(toast, 'danger', e?.response?.data?.message || t('postView.somethingWentWrong'));
     } finally {
+      const nextLock = new Set(likingIdsRef.current);
+      nextLock.delete(key);
+      likingIdsRef.current = nextLock;
       setLikingIds(prev => {
         const next = new Set(prev);
+        next.delete(key);
         next.delete(postId);
         return next;
       });
     }
-  }, [liked, likingIds, postLikesCount, refetchPostData, toast, userChat, t]);
+  }, [refetchPostData, toast, userChat, t]);
 
   // ─── Save / Unsave ──────────────────────────────────────────
   const handleToggleSave = useCallback(async id => {
@@ -1127,11 +1235,13 @@ export default function PostView({ postData = [], userData = {} }) {
         >
           <PostItem
             item={mapped}
-            liked={!!liked[item.id]}
-            likesCount={postLikesCount[item.id] || 0}
+            liked={!!(liked[item.id] ?? liked[likeStateKey(item.id)])}
+            likesCount={readPostLikeCount({
+              likeCount: postLikesCount[item.id] ?? postLikesCount[likeStateKey(item.id)],
+            })}
             commentsCount={postCommentsCount[item.id] || 0}
             saved={!!saved[item.id]}
-            onToggleLike={() => toggleLike(item.id)}
+            onToggleLike={toggleLike}
             onToggleSave={() => handleToggleSave(item.id)}
             onToggleFollow={handleToggleFollow}
             followingBusy={followingBusy.has(String(mapped.UserId))}
@@ -1314,6 +1424,7 @@ export default function PostView({ postData = [], userData = {} }) {
         onSelect={onSheetAction}
         fromHome={true}
         postId={modalPostId ?? ''}
+        reportedUserId={String(modalPost?.userId ?? modalPost?.UserId ?? '')}
         isSaved={!!(modalPostId && saved[modalPostId])}
         isPinned={!!(modalPost && isPostPinned(modalPost))}
         canDelete={!!canDelete}

@@ -489,6 +489,12 @@ const SavedPostsScreen = ({ navigation }) => {
     setModalPostId(null);
   }, []);
 
+  const modalReportedUserId = useMemo(() => {
+    if (!modalPostId) return '';
+    const post = posts.find(item => String(item?.id || item?._id) === String(modalPostId));
+    return String(post?.userId ?? post?.UserId ?? '');
+  }, [modalPostId, posts]);
+
   const onOptionsSelect = useCallback(
     async (action) => {
       if (!modalPostId) return;
@@ -1041,6 +1047,7 @@ const SavedPostsScreen = ({ navigation }) => {
             fromHome={true}
             onSelect={onOptionsSelect}
             postId={modalPostId ?? ''}
+            reportedUserId={modalReportedUserId}
             canHide={false}
             isSaved={
               modalPostId != null && (saved[modalPostId] ?? saved[String(modalPostId)])

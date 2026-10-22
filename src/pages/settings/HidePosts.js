@@ -874,6 +874,7 @@ const HidePosts = ({ navigation }) => {
         fromHome={true}
         onSelect={onOptionsSelect}
         postId={modalPostId ?? ''}
+        reportedUserId={String(modalPost?.userId ?? modalPost?.UserId ?? '')}
         isSaved={!!(modalPostId && savedById[String(modalPostId)])}
         isHidden={!!(modalPostId && hidden[String(modalPostId)])}
         hideBusy={modalPostId ? unhidingIds.has(modalPostId) : false}

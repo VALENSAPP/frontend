@@ -239,6 +239,10 @@
     "displayNameAvailable": "Display name is available!",
     "displayNameTaken": "Display name is already taken",
     "displayNameError": "Error checking display name availability",
+    "checkingUsername": "...",
+    "usernameAvailable": "Username is available!",
+    "usernameTaken": "Username is already taken",
+    "usernameError": "Error checking username availability",
     "suggestions": "Suggestions:",
     "usernameRequired": "Username is required",
     "displayNameRequired": "Display name is required",
@@ -560,7 +564,16 @@
     "communityTrustTitle": "Community Trust Post",
     "communityTrustSubtitle": "Allow the community to verify this post based on their knowledge.",
     "communityTrustLearnMore": "Learn more about Community Trust",
-    "openProfileError": "Unable to open this user profile."
+    "openProfileError": "Unable to open this user profile.",
+    "moderationWarnTitle": "Notice",
+    "moderationWarnMessage": "Your post contains sensitive or mild slang. Are you sure you want to post?",
+    "moderationYes": "Yes",
+    "moderationNo": "No",
+    "moderationReview": "Post submitted. It is waiting for review before appearing on the feed.",
+    "moderationBlockTitle": "Cannot publish",
+    "moderationBlockReason": "Cannot publish post. Your content violates community rules (Reason: {{reason}}). Please edit your text.",
+    "moderationBlock": "Cannot publish. Your content violates community rules.",
+    "moderationCheckFailed": "Unable to check this post right now. Please try again."
   },
   "editPost": {
     "screenTitle": "Edit Post",
@@ -741,7 +754,16 @@
     "predictionSearchPlaceholder": "Search questions",
     "predictionNoSearchResults": "No questions match your search",
     "subCategoryPlaceholder": "Sports Name (e.g. cricket)",
-    "leaguePlaceholder": "League (e.g. ipl)"
+    "leaguePlaceholder": "League (e.g. ipl)",
+    "moderationWarnTitle": "Notice",
+    "moderationWarnMessage": "Your battle contains sensitive or mild slang. Are you sure you want to create it?",
+    "moderationYes": "Yes",
+    "moderationNo": "No",
+    "moderationReview": "Battle submitted. It is waiting for review before appearing.",
+    "moderationBlockTitle": "Cannot publish",
+    "moderationBlockReason": "Cannot publish battle. Your content violates community rules (Reason: {{reason}}). Please edit your text.",
+    "moderationBlock": "Cannot publish. Your content violates community rules.",
+    "moderationCheckFailed": "Unable to check this battle right now. Please try again."
   },
   "profileBattle": {
     "defaultTitle": "Battle"
@@ -1077,7 +1099,16 @@
     "fallbackOpponent": "Opponent",
     "valensUser": "Valens User",
     "battleCancelled": "Battle Cancelled",
-    "statusCancelled": "CANCELLED"
+    "statusCancelled": "CANCELLED",
+    "moderationWarnTitle": "Notice",
+    "moderationWarnMessage": "Your comment contains sensitive or mild slang. Are you sure you want to post?",
+    "moderationYes": "Yes",
+    "moderationNo": "No",
+    "moderationReview": "Comment submitted. It is waiting for review before appearing.",
+    "moderationBlockTitle": "Cannot publish",
+    "moderationBlockReason": "Cannot publish comment. Your content violates community rules (Reason: {{reason}}). Please edit your text.",
+    "moderationBlock": "Cannot publish. Your content violates community rules.",
+    "moderationCheckFailed": "Unable to check this comment right now. Please try again."
   },
   "battleVoteDetails": {
     "votesTitle": "Votes",
@@ -2641,7 +2672,16 @@
     "mentionSearching": "Searching users...",
     "mentionNoUsers": "No users found",
     "errorReactionFailed": "Failed to save reaction",
-    "errorReaction": "Error saving reaction"
+    "errorReaction": "Error saving reaction",
+    "moderationWarnTitle": "Notice",
+    "moderationWarnMessage": "Your comment contains sensitive or mild slang. Are you sure you want to post?",
+    "moderationYes": "Yes",
+    "moderationNo": "No",
+    "moderationReview": "Comment submitted. It is waiting for review before appearing.",
+    "moderationBlockTitle": "Cannot publish",
+    "moderationBlockReason": "Cannot publish comment. Your content violates community rules (Reason: {{reason}}). Please edit your text.",
+    "moderationBlock": "Cannot publish. Your content violates community rules.",
+    "moderationCheckFailed": "Unable to check this comment right now. Please try again."
   },
   "followCard": {
     "follow": "Follow",
@@ -3090,6 +3130,7 @@
     "cancelButton": "Cancel",
     "missingPostIdTitle": "Unable to report",
     "missingPostIdMessage": "Missing post id.",
+    "missingUserMessage": "Missing the user who created this post.",
     "noReasonTitle": "Select a reason",
     "noReasonMessage": "Please choose a reason for this report.",
     "successTitle": "Report submitted",
@@ -3101,7 +3142,8 @@
     "reason4": "Violence or dangerous behaviour",
     "reason5": "False information",
     "reason6": "Bullying or harassment",
-    "reason7": "Scam or fraud"
+    "reason7": "Scam or fraud",
+    "reasonImpersonation": "Impersonation"
   },
   "shareModal": {
     "searchPlaceholder": "Search",
@@ -3379,6 +3421,7 @@
   "usernameModal": {
     "copyLinkButton": "Copy link",
     "sendButton": "Send",
+    "report": "Report",
     "walletAddressOption": "Base wallet address",
     "linkCopied": "Profile link copied successfully",
     "walletCopied": "Wallet address copied successfully",
@@ -4820,7 +4863,17 @@
     "publishButton": "Publish Item",
     "publishing": "Publishing...",
     "publishFailure": "Failed to publish your item.",
-    "copyItemText": "Check out my product item at {{shopName}} on Valens. \n{{link}}"
+    "copyItemText": "Check out my product item at {{shopName}} on Valens. \n{{link}}",
+    "moderationWarnTitle": "Notice",
+    "moderationWarnMessage": "Your product contains sensitive or mild slang. Are you sure you want to publish?",
+    "moderationYes": "Yes",
+    "moderationNo": "No",
+    "moderationReviewTitle": "Submitted for review",
+    "moderationReview": "Product submitted. It is waiting for review before appearing.",
+    "moderationBlockTitle": "Cannot publish",
+    "moderationBlockReason": "Cannot publish product. Your content violates community rules (Reason: {{reason}}). Please edit your text.",
+    "moderationBlock": "Cannot publish. Your content violates community rules.",
+    "moderationCheckFailed": "Unable to check this product right now. Please try again."
   },
   "myClosetAddItemPublished": {
     "title": "Your item is live! 🎉",

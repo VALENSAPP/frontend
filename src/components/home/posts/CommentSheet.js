@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Keyboard,
   Platform,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { formatDistanceToNow } from 'date-fns';
@@ -20,6 +21,7 @@ import {
   editComment,
   postCommentReaction,
 } from '../../../services/post';
+import { checkContentModeration, parseModerationResult } from '../../../services/moderation';
 import { useToast } from 'react-native-toast-notifications';
 import { showToastMessage } from '../../displaytoastmessage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -527,7 +529,7 @@ export default function CommentSheet({
   const activeMentionRef = useRef(null);
 
   const toast = useToast();
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
   const insets = useSafeAreaInsets();
   const profileImage = useSelector(state => state.profileImage?.profileImg);
   const { bgStyle, card, border, mutedText, accent } = useAppTheme();
@@ -744,16 +746,13 @@ export default function CommentSheet({
 
   // ─── send / edit / reply ─────────────────────────────────────────────────────
 
-  const handleSendComment = useCallback(async () => {
-    const activeText = replyingToComment ? replyText : commentText;
-    if (!activeText.trim()) {
-      showToastMessage(toast, 'danger', t('commentSheet.errorEmptyComment'));
-      return;
-    }
-    if (isPosting) return;
+  const publishComment = useCallback(async (trimmedComment, moderationDecision = 'ALLOW') => {
+    if (!trimmedComment) return;
 
-    const trimmedComment = activeText.trim();
-    // Dismiss once up-front so editable toggles don't bounce the sheet.
+    const underReview = moderationDecision === 'REVIEW';
+    const postedMessage = messageKey =>
+      underReview ? t('commentSheet.moderationReview') : t(messageKey);
+
     Keyboard.dismiss();
     clearMentionState();
 
@@ -777,7 +776,7 @@ export default function CommentSheet({
         const response = await editComment(editingComment.id, trimmedComment);
         if (response.success) {
           await fetchComments();
-          showToastMessage(toast, 'success', t('commentSheet.successCommentUpdated'));
+          showToastMessage(toast, 'success', postedMessage('commentSheet.successCommentUpdated'));
         } else {
           setComments(prev =>
             prev.map(c =>
@@ -813,7 +812,7 @@ export default function CommentSheet({
         if (response.success) {
           setExpandedReplies(prev => ({ ...prev, [threadId]: true }));
           await fetchComments();
-          showToastMessage(toast, 'success', t('commentSheet.successReplyPosted'));
+          showToastMessage(toast, 'success', postedMessage('commentSheet.successReplyPosted'));
         } else {
           showToastMessage(toast, 'danger', t('commentSheet.errorReplyFailed'));
         }
@@ -850,7 +849,7 @@ export default function CommentSheet({
       const response = await postComment(postId, trimmedComment);
       if (response.success) {
         await fetchComments();
-        showToastMessage(toast, 'success', t('commentSheet.successCommentPosted'));
+        showToastMessage(toast, 'success', postedMessage('commentSheet.successCommentPosted'));
       } else {
         setComments(prev => prev.filter(c => c.id !== tempId));
         onCommentCountUpdate?.(postId, comments.length);
@@ -865,9 +864,6 @@ export default function CommentSheet({
     }
   }, [
     replyingToComment,
-    replyText,
-    commentText,
-    isPosting,
     editingComment,
     postId,
     currentUser,
@@ -879,7 +875,100 @@ export default function CommentSheet({
     clearMentionState,
   ]);
 
-  // ─── moderation ──────────────────────────────────────────────────────────────
+  const handleSendComment = useCallback(async () => {
+    const activeText = replyingToComment ? replyText : commentText;
+    if (!activeText.trim()) {
+      showToastMessage(toast, 'danger', t('commentSheet.errorEmptyComment'));
+      return;
+    }
+    if (isPosting) return;
+
+    const trimmedComment = activeText.trim();
+    const isReply = !editingComment && Boolean(replyingToComment?.id);
+    const replyToContentId = isReply
+      ? String(replyingToComment.id)
+      : String(postId || '');
+    const contextIds = [];
+    if (postId) contextIds.push(String(postId));
+    if (isReply) {
+      const parentId = String(replyingToComment.threadId || replyingToComment.id);
+      if (parentId && !contextIds.includes(parentId)) contextIds.push(parentId);
+    }
+
+    setIsPosting(true);
+    let moderation;
+    try {
+      const storedUserId = userId || (await AsyncStorage.getItem('userId'));
+      const response = await checkContentModeration({
+        user_id: storedUserId || '',
+        content_id: editingComment?.id
+          ? String(editingComment.id)
+          : `temp_cmt_${Date.now()}`,
+        content_type: 'comment',
+        feature: 'post',
+        text: trimmedComment,
+        reply_to_content_id: replyToContentId,
+        context_ids: contextIds,
+        language: currentLanguage || 'en',
+      });
+
+      console.log('Moderation response comment Sheet screen:', response);
+      moderation = parseModerationResult(response);
+      if (!moderation.decision) {
+        throw new Error(response?.message || 'Moderation check failed');
+      }
+    } catch (err) {
+      console.error('Comment moderation check error:', err);
+      showToastMessage(toast, 'danger', t('commentSheet.moderationCheckFailed'));
+      setIsPosting(false);
+      return;
+    }
+
+    if (moderation.decision === 'BLOCK') {
+      setIsPosting(false);
+      Alert.alert(
+        t('commentSheet.moderationBlockTitle'),
+        moderation.reason
+          ? t('commentSheet.moderationBlockReason', { reason: moderation.reason })
+          : t('commentSheet.moderationBlock'),
+      );
+      return;
+    }
+
+    if (moderation.decision === 'WARN') {
+      setIsPosting(false);
+      Alert.alert(
+        t('commentSheet.moderationWarnTitle'),
+        t('commentSheet.moderationWarnMessage'),
+        [
+          { text: t('commentSheet.moderationNo'), style: 'cancel' },
+          {
+            text: t('commentSheet.moderationYes'),
+            onPress: () => {
+              publishComment(trimmedComment, 'ALLOW');
+            },
+          },
+        ],
+      );
+      return;
+    }
+
+    await publishComment(trimmedComment, moderation.decision);
+  }, [
+    replyingToComment,
+    replyText,
+    commentText,
+    isPosting,
+    editingComment,
+    postId,
+    userId,
+    currentLanguage,
+    publishComment,
+    toast,
+    t,
+  ]);
+
+  // ─── comment actions ─────────────────────────────────────────────────────────
 
   const openActionsFor = useCallback(comment => {
     if (comment.isOptimistic) return;

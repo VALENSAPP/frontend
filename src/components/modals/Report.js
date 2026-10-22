@@ -10,14 +10,33 @@ import {
 } from 'react-native';
 import RBSheet from 'react-native-raw-bottom-sheet';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { reportPost } from '../../services/post';
+import { reportContent } from '../../services/moderation';
 import { useLanguage } from '../../i18n';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useThemeContext } from '../../theme/ThemeContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const ReportFlowScreen = forwardRef(({ postId = '', onReported }, ref) => {
+const getReportReasons = (contentType) => [
+  { id: 1, code: 'SPAM_MANIPULATION', titleKey: 'reportFlow.reason1', icon: 'alert-circle' },
+  { id: 2, code: 'NUDITY_SEXUAL_CONTENT', titleKey: 'reportFlow.reason2', icon: 'alert-circle' },
+  { id: 3, code: contentType === 'battle' ? 'HATE_DISCRIMINATION' : 'HATE_SPEECH', titleKey: 'reportFlow.reason3', icon: 'alert-circle' },
+  { id: 4, code: 'VIOLENCE', titleKey: 'reportFlow.reason4', icon: 'alert-circle' },
+  { id: 5, code: 'FALSE_INFORMATION', titleKey: 'reportFlow.reason5', icon: 'alert-circle' },
+  { id: 6, code: 'HARASSMENT', titleKey: 'reportFlow.reason6', icon: 'alert-circle' },
+  { id: 7, code: contentType === 'product' ? 'SCAM_FRAUD' : 'SCAM', titleKey: 'reportFlow.reason7', icon: 'alert-circle' },
+  ...(contentType === 'user'
+    ? [{ id: 8, code: 'IMPERSONATION', titleKey: 'reportFlow.reasonImpersonation', icon: 'alert-circle' }]
+    : []),
+];
+
+const ReportFlowScreen = forwardRef(({
+  postId = '',
+  reportedUserId = '',
+  contentType = 'post',
+  feature = 'post',
+  onReported,
+}, ref) => {
   const reasonSheet = useRef(null);
   const confirmSheet = useRef(null);
   const { t } = useLanguage();
@@ -43,16 +62,10 @@ const ReportFlowScreen = forwardRef(({ postId = '', onReported }, ref) => {
   const [selectedReason, setSelectedReason] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Report reasons built from translation keys so they switch language automatically
-  const reportReasons = [
-    { id: 1, title: t('reportFlow.reason1'), icon: 'alert-circle' },
-    { id: 2, title: t('reportFlow.reason2'), icon: 'alert-circle' },
-    { id: 3, title: t('reportFlow.reason3'), icon: 'alert-circle' },
-    { id: 4, title: t('reportFlow.reason4'), icon: 'alert-circle' },
-    { id: 5, title: t('reportFlow.reason5'), icon: 'alert-circle' },
-    { id: 6, title: t('reportFlow.reason6'), icon: 'alert-circle' },
-    { id: 7, title: t('reportFlow.reason7'), icon: 'alert-circle' },
-  ];
+  const reportReasons = useMemo(
+    () => getReportReasons(contentType).map(reason => ({ ...reason, title: t(reason.titleKey) })),
+    [contentType, t],
+  );
 
   const handleSelectReason = (reason) => {
     setSelectedReason(reason);
@@ -68,7 +81,7 @@ const ReportFlowScreen = forwardRef(({ postId = '', onReported }, ref) => {
       );
       return;
     }
-    if (!selectedReason) {
+    if (!selectedReason?.code) {
       Alert.alert(
         t('reportFlow.noReasonTitle'),
         t('reportFlow.noReasonMessage'),
@@ -79,30 +92,42 @@ const ReportFlowScreen = forwardRef(({ postId = '', onReported }, ref) => {
     try {
       setSubmitting(true);
 
-      const response = await reportPost({
-        postId: String(postId),
-        reason: selectedReason,
+      const response = await reportContent({
+        content_id: String(postId).trim(),
+        content_type: contentType,
+        feature,
+        reported_user_id: String(reportedUserId || '').trim(),
+        reason_code: selectedReason.code,
       });
 
-      console.log('Report API Response:', response);
-      console.log('Response Data:', response?.data);
+      console.log(response,'response reportContent:')
+
+      const ok = response?.statusCode === 200 && response?.success === true;
+      if (!ok) {
+        Alert.alert(
+          t('reportFlow.failedTitle'),
+          response?.data?.message || response?.message || t('reportFlow.failedTitle'),
+        );
+        return;
+      }
 
       confirmSheet.current?.close();
       setSelectedReason(null);
 
-      onReported?.({ postId: String(postId), reason: selectedReason });
+      onReported?.({
+        postId: String(postId),
+        reason: selectedReason.title,
+        reasonCode: selectedReason.code,
+      });
 
       Alert.alert(
         t('reportFlow.successTitle'),
-        t('reportFlow.successMessage'),
+        response?.data?.message || t('reportFlow.successMessage'),
       );
     } catch (err) {
-      console.log('Report API Error:', err);
-      console.log('Error Response:', err?.response);
-
       Alert.alert(
         t('reportFlow.failedTitle'),
-        err?.response?.data?.message || err?.message || 'Something went wrong.',
+        err?.message || t('reportFlow.failedTitle'),
       );
     } finally {
       setSubmitting(false);
@@ -110,7 +135,10 @@ const ReportFlowScreen = forwardRef(({ postId = '', onReported }, ref) => {
   };
 
   React.useImperativeHandle(ref, () => ({
-    open: () => reasonSheet.current?.open(),
+    open: () => {
+      setSelectedReason(null);
+      reasonSheet.current?.open();
+    },
     close: () => reasonSheet.current?.close(),
   }));
 
@@ -119,7 +147,7 @@ const ReportFlowScreen = forwardRef(({ postId = '', onReported }, ref) => {
       {/* Sheet 1 — Select Reason */}
       <RBSheet
         ref={reasonSheet}
-        height={480}
+        height={contentType === 'user' ? 540 : 480}
         openDuration={200}
         closeOnDragDown={true}
         customStyles={{
@@ -159,7 +187,7 @@ const ReportFlowScreen = forwardRef(({ postId = '', onReported }, ref) => {
                   borderColor: sheetTheme.borderColor,
                 },
               ]}
-              onPress={() => handleSelectReason(reason.title)}
+              onPress={() => handleSelectReason(reason)}
             >
               <View style={[styles.reasonIconWrapper, { backgroundColor: sheetTheme.iconBg }]}>
                 <Icon name={reason.icon} size={20} color={sheetTheme.accentColor} />
@@ -213,7 +241,7 @@ const ReportFlowScreen = forwardRef(({ postId = '', onReported }, ref) => {
             {t('reportFlow.reasonLabel')}
           </Text>
           <Text style={[styles.selectedReason, { color: sheetTheme.labelColor }]}>
-            {selectedReason}
+            {selectedReason?.title}
           </Text>
         </View>
 

@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import DatePicker from 'react-native-date-picker';
 import CountryPicker from 'react-native-country-picker-modal';
-import CustomButton from '../../../components/customButton/customButton';
 import { StackActions, useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -135,7 +134,7 @@ const CreateMission = () => {
   const dispatch = useDispatch();
   const route = useRoute();
   const toast = useToast();
-  const { bgStyle, textStyle, text } = useAppTheme();
+  const { bgStyle, textStyle, icon, border, accent, card, mutedText } = useAppTheme();
   const { t } = useLanguage();
 
   const userProfile = useSelector(state => state.user?.profile || state.auth?.user);
@@ -150,6 +149,7 @@ const CreateMission = () => {
     taggedPeopleMeta = [],
     isTrustPost = false,
     hashtag = [],
+    moderationStatus = null,
   } = route.params || {};
 
   const getMediaUri = (media) =>
@@ -379,7 +379,13 @@ const CreateMission = () => {
       const response = await createPost(payload);
 
       if (response.statusCode == 200) {
-        showToastMessage(toast, 'success', t('createMission.postCreatedSuccess'));
+        showToastMessage(
+          toast,
+          'success',
+          moderationStatus === 'REVIEW'
+            ? t('postEditor.moderationReview')
+            : t('createMission.postCreatedSuccess'),
+        );
         resetForm();
         setShowPicker(false);
         setPickerMode('start');
@@ -402,11 +408,11 @@ const CreateMission = () => {
   return (
     <SafeAreaView style={[styles.container, bgStyle]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#000" />
+          <Icon name="arrow-back" size={24} color={icon} />
         </TouchableOpacity>
-        <Text style={styles.title}>{t('createMission.screenTitle')}</Text>
+        <Text style={[styles.title, textStyle]}>{t('createMission.screenTitle')}</Text>
         <Text></Text>
       </View>
 
@@ -428,19 +434,19 @@ const CreateMission = () => {
             <ScrollView style={[styles.content, bgStyle]} showsVerticalScrollIndicator={false}>
               {/* Raise Amount */}
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>{t('createMission.raiseAmountLabel')}</Text>
-                <View style={styles.amountInputContainer}>
-                  <Text style={styles.currencySymbol}>
+                <Text style={[styles.label, textStyle]}>{t('createMission.raiseAmountLabel')}</Text>
+                <View style={[styles.amountInputContainer, { backgroundColor: card, borderColor: border }]}>
+                  <Text style={[styles.currencySymbol, textStyle]}>
                     {selectedCountry ? getCurrencyInfo(selectedCountry.cca2).symbol : '$'}
                   </Text>
                   <TextInput
-                    style={[styles.amountInput, touched.raiseAmount && errors.raiseAmount && styles.inputError]}
+                    style={[styles.amountInput, textStyle, touched.raiseAmount && errors.raiseAmount && styles.inputError]}
                     placeholder={t('createMission.raiseAmountPlaceholder')}
                     keyboardType="numeric"
                     value={values.raiseAmount}
                     onChangeText={(text) => handleAmountChange(text, setFieldValue)}
                     onBlur={handleBlur('raiseAmount')}
-                    placeholderTextColor="#999"
+                    placeholderTextColor={mutedText}
                   />
                 </View>
                 {touched.raiseAmount && errors.raiseAmount && (
@@ -450,18 +456,19 @@ const CreateMission = () => {
 
               {/* Start Time */}
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>{t('createMission.startDateLabel')}</Text>
+                <Text style={[styles.label, textStyle]}>{t('createMission.startDateLabel')}</Text>
                 <TouchableOpacity
                   style={[
                     styles.dateButton,
+                    { backgroundColor: card, borderColor: border },
                     touched.startTime && errors.startTime && styles.inputError
                   ]}
                   onPress={() => showDatePicker('start', setFieldValue, setFieldTouched)}
                 >
-                  <Text style={[styles.dateText, !values.startTime && styles.placeholderText]}>
+                  <Text style={[styles.dateText, values.startTime ? textStyle : { color: mutedText }]}>
                     {values.startTime ? formatDateDisplay(values.startTime) : t('createMission.startDatePlaceholder')}
                   </Text>
-                  <Icon name="calendar-outline" size={20} color="#666" />
+                  <Icon name="calendar-outline" size={20} color={mutedText} />
                 </TouchableOpacity>
                 {touched.startTime && errors.startTime && (
                   <Text style={styles.errorText}>{errors.startTime}</Text>
@@ -470,18 +477,19 @@ const CreateMission = () => {
 
               {/* End Time */}
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>{t('createMission.endDateLabel')}</Text>
+                <Text style={[styles.label, textStyle]}>{t('createMission.endDateLabel')}</Text>
                 <TouchableOpacity
                   style={[
                     styles.dateButton,
+                    { backgroundColor: card, borderColor: border },
                     touched.endTime && errors.endTime && styles.inputError
                   ]}
                   onPress={() => showDatePicker('end', setFieldValue, setFieldTouched)}
                 >
-                  <Text style={[styles.dateText, !values.endTime && styles.placeholderText]}>
+                  <Text style={[styles.dateText, values.endTime ? textStyle : { color: mutedText }]}>
                     {values.endTime ? formatDateDisplay(values.endTime) : t('createMission.endDatePlaceholder')}
                   </Text>
-                  <Icon name="calendar-outline" size={20} color="#666" />
+                  <Icon name="calendar-outline" size={20} color={mutedText} />
                 </TouchableOpacity>
                 {touched.endTime && errors.endTime && (
                   <Text style={styles.errorText}>{errors.endTime}</Text>
@@ -518,12 +526,15 @@ const CreateMission = () => {
               />
             </ScrollView>
 
-            <CustomButton
-              title={t('createMission.continueButton')}
+            <TouchableOpacity
+              style={[styles.socialBtn, styles.instagramBtn, { backgroundColor: accent, borderColor: accent }]}
               onPress={handleSubmit}
-              style={[styles.socialBtn, styles.instagramBtn, { backgroundColor: text, borderColor: text }]}
-              textStyle={styles.socialBtnText}
-            />
+              activeOpacity={0.7}
+            >
+              <Text style={styles.socialBtnText}>
+                {t('createMission.continueButton')}
+              </Text>
+            </TouchableOpacity>
           </>
         )}
       </Formik>
@@ -544,9 +555,9 @@ const styles = StyleSheet.create({
     paddingTop: 30
   },
   content: { flex: 1, paddingHorizontal: 16, paddingTop: 10 },
-  title: { fontSize: 18, fontWeight: '600', color: '#000', textAlign: 'center' },
+  title: { fontSize: 18, fontWeight: '600', textAlign: 'center' },
   inputContainer: { marginBottom: 18 },
-  label: { fontSize: 14, color: '#000', marginBottom: 6, fontWeight: '500' },
+  label: { fontSize: 14, marginBottom: 6, fontWeight: '500' },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
@@ -586,34 +597,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ccc',
     borderRadius: 10,
-    backgroundColor: '#fff',
     paddingHorizontal: 12,
   },
   currencySymbol: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
     marginRight: 8,
   },
   amountInput: {
     flex: 1,
     padding: 10,
     fontSize: 16,
-    color: '#333',
   },
   dateButton: {
     borderWidth: 1,
-    borderColor: '#ccc',
     borderRadius: 10,
     padding: 12,
-    backgroundColor: '#fff',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  dateText: { color: '#333', fontSize: 16 },
+  dateText: { fontSize: 16 },
   socialBtn: {
     width: '90%',
     height: 45,
@@ -624,7 +629,7 @@ const styles = StyleSheet.create({
     bottom: 10,
   },
   socialBtnText: {
-    color: 'white',
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -635,9 +640,6 @@ const styles = StyleSheet.create({
   },
   countryPicker: {
     display: 'none',
-  },
-  placeholderText: {
-    color: '#999',
   },
 });
 

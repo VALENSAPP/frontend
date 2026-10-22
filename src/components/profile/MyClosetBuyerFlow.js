@@ -52,6 +52,7 @@ import { getClosetChatThreadsApi } from '../../services/chatMessage';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useThemeContext } from '../../theme/ThemeContext';
 import { useLanguage } from '../../i18n';
+import ReportFlowScreen from '../modals/Report';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { FlatList as GestureFlatList } from 'react-native-gesture-handler';
 import InstagramZoomableImage from '../shared/InstagramZoomableImage';
@@ -675,7 +676,7 @@ const BottomBar = ({ children }) => {
 // Shared UI atoms
 // ─────────────────────────────────────────────────────────────────────────────
 
-const Header = ({ navigation, title, rightIcon, onRightPress, rightDisabled = false, secondaryRightIcon, onSecondaryRightPress, secondaryRightDisabled = false, returnTo, isOwnProfile, isRouteFromSearch, fromMyOwnProfile, preferStackBack = false, fromWishlist, color, isFirstScreen = false }) => {
+const Header = ({ navigation, title, rightIcon, onRightPress, rightDisabled = false, secondaryRightIcon, onSecondaryRightPress, secondaryRightDisabled = false, tertiaryRightIcon, onTertiaryRightPress, returnTo, isOwnProfile, isRouteFromSearch, fromMyOwnProfile, preferStackBack = false, fromWishlist, color, isFirstScreen = false }) => {
   // const { accent } = useAppTheme();
   const { isDarkMode } = useThemeContext();
   const labelColor = isDarkMode ? '#ffffff' : '#17072d';
@@ -693,7 +694,7 @@ const Header = ({ navigation, title, rightIcon, onRightPress, rightDisabled = fa
       <Text style={[styles.headerTitle, { color: labelColor }]}>{!isFirstScreen ? title : isOwnProfile ? title : `${title}'s Closet`}</Text>
       {!isOwnProfile &&
         <>
-          {rightIcon || secondaryRightIcon ? (
+          {rightIcon || secondaryRightIcon || tertiaryRightIcon ? (
             <View style={styles.headerActions}>
               {rightIcon ? (
                 <TouchableOpacity
@@ -717,6 +718,17 @@ const Header = ({ navigation, title, rightIcon, onRightPress, rightDisabled = fa
                   activeOpacity={0.8}
                 >
                   <Ionicons name={secondaryRightIcon} size={21} color={color} />
+                </TouchableOpacity>
+              ) : null}
+              {tertiaryRightIcon ? (
+                <TouchableOpacity
+                  onPress={onTertiaryRightPress}
+                  accessibilityRole="button"
+                  accessibilityLabel="Report item"
+                  style={[styles.iconButton, { backgroundColor: chipSurface }]}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name={tertiaryRightIcon} size={21} color={color} />
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -2112,6 +2124,17 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
   const [wishlistLoading, setWishlistLoading] = useState(false);
   const [wishlistItemId, setWishlistItemId] = useState(null);
   const [detailScrollEnabled, setDetailScrollEnabled] = useState(true);
+  const reportSheetRef = useRef(null);
+  const reportedSellerId = String(
+    route?.params?.sellerId
+    || seller?.id
+    || seller?._id
+    || seller?.userId
+    || item.raw?.sellerId
+    || item.raw?.userId
+    || item.raw?.seller?.id
+    || '',
+  ).trim();
   const isOutOfStock = Number(item.quantityAvailable) <= 0;
   const productId = item.raw?.id || item.raw?._id || item.id;
   const offersShipping = item.shippingOption === 'ship_items' || item.shippingOption === 'both';
@@ -2217,11 +2240,20 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
         secondaryRightIcon={wishlisted ? 'bookmark' : 'bookmark-outline'}
         onSecondaryRightPress={handleWishlistPress}
         secondaryRightDisabled={wishlistLoading}
+        tertiaryRightIcon="flag-outline"
+        onTertiaryRightPress={() => reportSheetRef.current?.open()}
         returnTo={returnTo}
         isOwnProfile={isOwnProfile}
         fromWishlist={!!route?.params?.fromWishlist}
         fromMyOwnProfile={!route?.params?.preferStackBack && returnTo?.screen !== 'SearchHome'}
         preferStackBack={Boolean(route?.params?.preferStackBack)}
+      />
+      <ReportFlowScreen
+        ref={reportSheetRef}
+        postId={String(productId || '')}
+        reportedUserId={reportedSellerId}
+        contentType="product"
+        feature="marketplace"
       />
       <ScrollView
         contentContainerStyle={styles.detailContent}
