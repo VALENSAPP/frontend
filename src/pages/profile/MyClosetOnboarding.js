@@ -29,6 +29,7 @@ import { useThemeContext } from '../../theme/ThemeContext';
 import { showToastMessage } from '../../components/displaytoastmessage';
 import { hideLoader, showLoader } from '../../redux/actions/LoaderAction';
 import { createMyCloset, createMyClosetItem, getMyClosetById } from '../../services/myCloset';
+import { moderateMarketplaceProduct } from '../../utils/marketplaceModeration';
 import ShareModal from '../../components/modals/ShareModal';
 import PostLocationModal from '../../components/modals/PostLocationModal';
 import { getPlaceDetails, isGooglePlacesConfigured, searchPlacePredictions, searchCityPredictions } from '../../services/googlePlaces';
@@ -3077,7 +3078,7 @@ const MyClosetAddItemReviewScreen = ({ navigation, route }) => {
   const { isDarkMode } = useThemeContext();
   const text = accent;
   const surfaces = formSurfaces(isDarkMode);
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
   const itemTitle = isFirstItem ? t('myClosetLive.addFirstItem') : t('myClosetLive.addNewItem');
   const ITEM_STEPS = useMemo(() => getItemSteps(t), [t]);
   const dispatch = useDispatch();
@@ -3120,6 +3121,25 @@ const deliverySummaryLines = useMemo(() => {
     if (isPublishing) return;
 
     setIsPublishing(true);
+    let moderationDecision;
+    try {
+      moderationDecision = await moderateMarketplaceProduct({
+        draft,
+        contentId: `temp_prod_${Date.now()}`,
+        language: currentLanguage,
+        t,
+      });
+    } catch (error) {
+      console.error('Product moderation check error:', error);
+      showToastMessage(toast, 'danger', t('myClosetAddItemReview.moderationCheckFailed'));
+      setIsPublishing(false);
+      return;
+    }
+    if (!moderationDecision) {
+      setIsPublishing(false);
+      return;
+    }
+
     dispatch(showLoader());
     try {
       console.log('[MyCloset] Creating item with draft:', draft);
@@ -3131,6 +3151,7 @@ const deliverySummaryLines = useMemo(() => {
         navigation.navigate('MyClosetAddItemPublished', {
           draft,
           item: response?.data || response,
+          underReview: moderationDecision === 'REVIEW',
         });
         return;
       }
@@ -3289,6 +3310,7 @@ const MyClosetAddItemPublishedScreen = ({ navigation, route }) => {
   const text = accent;
   const surfaces = formSurfaces(isDarkMode);
   const { t } = useLanguage();
+  const underReview = route?.params?.underReview === true;
   const [publishedShopName, setPublishedShopName] = useState(item?.shopName || draft.shopName || '');
   const heroPhoto = draft.photos?.[0];
   const publishedName = item?.name || draft.itemName || t('myClosetAddItemReview.placeholderItemName');
@@ -3370,9 +3392,15 @@ const MyClosetAddItemPublishedScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        <Text style={[styles.successTitle, { color: text }]}>{t('myClosetAddItemPublished.title')}</Text>
+        <Text style={[styles.successTitle, { color: text }]}>
+          {underReview
+            ? t('myClosetAddItemReview.moderationReviewTitle')
+            : t('myClosetAddItemPublished.title')}
+        </Text>
         <Text style={[styles.successSubtitle, { color: surfaces.mutedColor }]}>
-          {t('myClosetAddItemPublished.subtitle')}
+          {underReview
+            ? t('myClosetAddItemReview.moderationReview')
+            : t('myClosetAddItemPublished.subtitle')}
         </Text>
 
         <View

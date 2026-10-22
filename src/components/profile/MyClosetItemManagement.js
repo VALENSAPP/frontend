@@ -31,6 +31,7 @@ import { showToastMessage } from '../displaytoastmessage';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useThemeContext } from '../../theme/ThemeContext';
 import { useLanguage } from '../../i18n';
+import { moderateMarketplaceProduct } from '../../utils/marketplaceModeration';
 import { useTargetClosetScreen, navigateToTargetClosetScreen } from '../../utils/closetNavigation';
 import {
   deleteMyClosetItem,
@@ -594,7 +595,7 @@ const MyClosetItemEditorScreen = ({ navigation, route }) => {
   const { accent, bgStyle, cardStyle, textStyle, mutedTextStyle, border, card, text } = useAppTheme();
   const { isDarkMode } = useThemeContext();
   const surfaces = formSurfaces(isDarkMode);
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
   const toast = useToast();
   const dispatch = useDispatch();
   const item = route?.params?.item || {};
@@ -762,11 +763,36 @@ const MyClosetItemEditorScreen = ({ navigation, route }) => {
   const handleSave = useCallback(async () => {
     if (!draft.id) return;
     setSaving(true);
+    let moderationDecision;
+    try {
+      moderationDecision = await moderateMarketplaceProduct({
+        draft,
+        contentId: String(draft.id),
+        language: currentLanguage,
+        t,
+      });
+    } catch (error) {
+      console.error('Product moderation check error:', error);
+      showToastMessage(toast, 'danger', t('myClosetAddItemReview.moderationCheckFailed'));
+      setSaving(false);
+      return;
+    }
+    if (!moderationDecision) {
+      setSaving(false);
+      return;
+    }
+
     dispatch(showLoader());
     try {
       const response = await updateMyClosetItem(draft.id, buildPayload(draft));
       if (response?.statusCode === 200 || response?.statusCode === 201) {
-        showToastMessage(toast, 'success', response?.message || t('myClosetItemEditor.updateSuccess'));
+        showToastMessage(
+          toast,
+          'success',
+          moderationDecision === 'REVIEW'
+            ? t('myClosetAddItemReview.moderationReview')
+            : (response?.message || t('myClosetItemEditor.updateSuccess')),
+        );
         handleBack();
         return;
       }
@@ -786,7 +812,7 @@ const MyClosetItemEditorScreen = ({ navigation, route }) => {
       setSaving(false);
       dispatch(hideLoader());
     }
-  }, [draft, dispatch, handleBack, navigation, toast, t]);
+  }, [draft, dispatch, handleBack, navigation, toast, t, currentLanguage]);
 
   const handleDelete = useCallback(() => {
     if (!draft.id) return;

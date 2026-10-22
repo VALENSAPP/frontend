@@ -27,6 +27,11 @@ import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../../i18n';
 import { createBattle, editBattle } from '../../services/battle';
+import {
+  buildBattleModerationText,
+  collectRemoteMediaRefs,
+  moderateBattleContent,
+} from '../../utils/battleModeration';
 import { getAllUser } from '../../services/users';
 import { showToastMessage } from '../../components/displaytoastmessage';
 import { useAppTheme } from '../../theme/useApptheme';
@@ -167,7 +172,7 @@ export default function OpenBattleScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const toast = useToast();
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
   const [form, setForm] = useState(createInitialForm);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -847,6 +852,25 @@ export default function OpenBattleScreen() {
 
       setSubmitting(true);
       try {
+        let moderationDecision;
+        try {
+          moderationDecision = await moderateBattleContent({
+            text: buildBattleModerationText({
+              question,
+              options,
+            }),
+            mediaRefs: collectRemoteMediaRefs(form.options.map(option => option?.image)),
+            contentId: editBattleId,
+            language: currentLanguage,
+            t,
+          });
+        } catch (error) {
+          console.error('Battle moderation check error:', error);
+          showToastMessage(toast, 'danger', t('openBattle.moderationCheckFailed'));
+          return;
+        }
+        if (!moderationDecision) return;
+
         const response = await editBattle({
           battleId: editBattleId,
           question,
@@ -857,7 +881,9 @@ export default function OpenBattleScreen() {
           showToastMessage(
             toast,
             'success',
-            response?.message || t('openBattle.battleUpdatedSuccess'),
+            moderationDecision === 'REVIEW'
+              ? t('openBattle.moderationReview')
+              : (response?.message || t('openBattle.battleUpdatedSuccess')),
           );
 
           const updatedBattle = {
@@ -937,6 +963,25 @@ export default function OpenBattleScreen() {
     setSubmitting(true);
     console.log('Submitting battle with payload:', payload);
     try {
+      let moderationDecision;
+      try {
+        moderationDecision = await moderateBattleContent({
+          text: buildBattleModerationText({
+            question: payload.question,
+            options: payload.options || filledOptions,
+          }),
+          mediaRefs: collectRemoteMediaRefs(payload.optionImages),
+          contentId: `temp_battle_${Date.now()}`,
+          language: currentLanguage,
+          t,
+        });
+      } catch (error) {
+        console.error('Battle moderation check error:', error);
+        showToastMessage(toast, 'danger', t('openBattle.moderationCheckFailed'));
+        return;
+      }
+      if (!moderationDecision) return;
+
       const response = await createBattle(payload);
       console.log('Received response:', response);
       if (
@@ -947,7 +992,9 @@ export default function OpenBattleScreen() {
         showToastMessage(
           toast,
           'success',
-          response?.message || t('openBattle.battleCreatedSuccess'),
+          moderationDecision === 'REVIEW'
+            ? t('openBattle.moderationReview')
+            : (response?.message || t('openBattle.battleCreatedSuccess')),
         );
         setForm(createInitialForm());
         setErrors({});

@@ -560,7 +560,16 @@
     "communityTrustTitle": "Publication de confiance communautaire",
     "communityTrustSubtitle": "Permettez à la communauté de vérifier cette publication selon ses connaissances.",
     "communityTrustLearnMore": "En savoir plus sur la confiance communautaire",
-    "openProfileError": "Impossible d'ouvrir ce profil utilisateur."
+    "openProfileError": "Impossible d'ouvrir ce profil utilisateur.",
+    "moderationWarnTitle": "Avis",
+    "moderationWarnMessage": "Votre publication contient un langage sensible ou de l'argot léger. Voulez-vous vraiment la publier ?",
+    "moderationYes": "Oui",
+    "moderationNo": "Non",
+    "moderationReview": "Publication envoyée. Elle est en attente de révision avant d'apparaître dans le fil.",
+    "moderationBlockTitle": "Publication impossible",
+    "moderationBlockReason": "Impossible de publier. Votre contenu enfreint les règles de la communauté (Raison : {{reason}}). Modifiez votre texte.",
+    "moderationBlock": "Impossible de publier. Votre contenu enfreint les règles de la communauté.",
+    "moderationCheckFailed": "Impossible de vérifier cette publication pour le moment. Réessayez."
   },
   "editPost": {
     "screenTitle": "Modifier la publication",
@@ -741,7 +750,16 @@
     "predictionSearchPlaceholder": "Rechercher des questions",
     "predictionNoSearchResults": "Aucune question ne correspond à votre recherche",
     "subCategoryPlaceholder": "Nom du sport (ex. cricket)",
-    "leaguePlaceholder": "Ligue (ex. ipl)"
+    "leaguePlaceholder": "Ligue (ex. ipl)",
+    "moderationWarnTitle": "Avis",
+    "moderationWarnMessage": "Votre battle contient un langage sensible ou de l'argot léger. Voulez-vous vraiment la créer ?",
+    "moderationYes": "Oui",
+    "moderationNo": "Non",
+    "moderationReview": "Battle envoyée. Elle est en attente de révision avant d'apparaître.",
+    "moderationBlockTitle": "Publication impossible",
+    "moderationBlockReason": "Impossible de publier la battle. Votre contenu enfreint les règles de la communauté (Raison : {{reason}}). Modifiez votre texte.",
+    "moderationBlock": "Impossible de publier. Votre contenu enfreint les règles de la communauté.",
+    "moderationCheckFailed": "Impossible de vérifier cette battle pour le moment. Réessayez."
   },
   "profileBattle": {
     "defaultTitle": "Battle"
@@ -1077,7 +1095,16 @@
     "fallbackOpponent": "Adversaire",
     "valensUser": "Utilisateur Valens",
     "battleCancelled": "Battle annulée",
-    "statusCancelled": "ANNULÉE"
+    "statusCancelled": "ANNULÉE",
+    "moderationWarnTitle": "Avis",
+    "moderationWarnMessage": "Votre commentaire contient un langage sensible ou de l'argot léger. Voulez-vous vraiment le publier ?",
+    "moderationYes": "Oui",
+    "moderationNo": "Non",
+    "moderationReview": "Commentaire envoyé. Il est en attente de révision avant d'apparaître.",
+    "moderationBlockTitle": "Publication impossible",
+    "moderationBlockReason": "Impossible de publier le commentaire. Votre contenu enfreint les règles de la communauté (Raison : {{reason}}). Modifiez votre texte.",
+    "moderationBlock": "Impossible de publier. Votre contenu enfreint les règles de la communauté.",
+    "moderationCheckFailed": "Impossible de vérifier ce commentaire pour le moment. Réessayez."
   },
   "battleVoteDetails": {
     "votesTitle": "Votes",
@@ -2641,7 +2668,16 @@
     "mentionSearching": "Searching users...",
     "mentionNoUsers": "No users found",
     "errorReactionFailed": "Échec de l'enregistrement de la réaction",
-    "errorReaction": "Erreur lors de l'enregistrement de la réaction"
+    "errorReaction": "Erreur lors de l'enregistrement de la réaction",
+    "moderationWarnTitle": "Avis",
+    "moderationWarnMessage": "Votre commentaire contient un langage sensible ou de l'argot léger. Voulez-vous vraiment le publier ?",
+    "moderationYes": "Oui",
+    "moderationNo": "Non",
+    "moderationReview": "Commentaire envoyé. Il est en attente de révision avant d'apparaître.",
+    "moderationBlockTitle": "Publication impossible",
+    "moderationBlockReason": "Impossible de publier le commentaire. Votre contenu enfreint les règles de la communauté (Raison : {{reason}}). Modifiez votre texte.",
+    "moderationBlock": "Impossible de publier. Votre contenu enfreint les règles de la communauté.",
+    "moderationCheckFailed": "Impossible de vérifier ce commentaire pour le moment. Réessayez."
   },
   "followCard": {
     "follow": "Suivre",
@@ -3090,6 +3126,7 @@
     "cancelButton": "Annuler",
     "missingPostIdTitle": "Impossible de signaler",
     "missingPostIdMessage": "ID de publication manquant.",
+    "missingUserMessage": "L'utilisateur qui a créé cette publication est manquant.",
     "noReasonTitle": "Sélectionnez une raison",
     "noReasonMessage": "Veuillez choisir une raison pour ce signalement.",
     "successTitle": "Signalement envoyé",
@@ -3101,7 +3138,8 @@
     "reason4": "Violence ou comportement dangereux",
     "reason5": "Fausse information",
     "reason6": "Intimidation ou harcèlement",
-    "reason7": "Arnaque ou fraude"
+    "reason7": "Arnaque ou fraude",
+    "reasonImpersonation": "Usurpation d'identité"
   },
   "shareModal": {
     "searchPlaceholder": "Rechercher",
@@ -3379,6 +3417,7 @@
   "usernameModal": {
     "copyLinkButton": "Copier le lien",
     "sendButton": "Envoyer",
+    "report": "Signaler",
     "walletAddressOption": "Adresse du portefeuille Base",
     "linkCopied": "Lien du profil copié avec succès",
     "walletCopied": "Adresse du portefeuille copiée avec succès",
@@ -4820,7 +4859,17 @@
     "publishButton": "Publier l'article",
     "publishing": "Publication en cours...",
     "publishFailure": "Impossible de publier l'article.",
-    "copyItemText": "Découvrez mon produit chez {{shopName}} sur Valens.\n{{link}}"
+    "copyItemText": "Découvrez mon produit chez {{shopName}} sur Valens.\n{{link}}",
+    "moderationWarnTitle": "Avis",
+    "moderationWarnMessage": "Votre produit contient un langage sensible ou de l'argot léger. Voulez-vous vraiment le publier ?",
+    "moderationYes": "Oui",
+    "moderationNo": "Non",
+    "moderationReviewTitle": "Envoyé pour révision",
+    "moderationReview": "Produit envoyé. Il est en attente de révision avant d'apparaître.",
+    "moderationBlockTitle": "Publication impossible",
+    "moderationBlockReason": "Impossible de publier le produit. Votre contenu enfreint les règles de la communauté (Raison : {{reason}}). Modifiez votre texte.",
+    "moderationBlock": "Impossible de publier. Votre contenu enfreint les règles de la communauté.",
+    "moderationCheckFailed": "Impossible de vérifier ce produit pour le moment. Réessayez."
   },
   "myClosetAddItemPublished": {
     "title": "Votre article est en ligne ! 🎉",

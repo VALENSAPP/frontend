@@ -339,6 +339,7 @@ export default function StoryComposer({
     icon,
     mutedText,
     border,
+    accent,
   } = useAppTheme();
   const { isDarkMode } = useThemeContext();
   const toolbarInactiveColor = isDarkMode ? mutedText : '#555';
@@ -1967,7 +1968,7 @@ export default function StoryComposer({
           onClose={() => setShowStickerModal(false)}
           onSelectSticker={addSticker}
           isDarkMode={isDarkMode}
-          accentColor={themeText || '#5a2d82'}
+          accentColor={accent || '#5a2d82'}
         />
 
         <PostStoryMusicTrimModal

@@ -35,6 +35,7 @@ import {
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import ProfileModal from '../modals/ProfileModal';
 import UsernameModal from '../modals/UsernameModal';
+import ReportFlowScreen from '../modals/Report';
 import TradeModal from '../modals/TradeModal';
 import SupportCreatorModal from '../modals/SupportCreatorModal';
 import TipSupportModal from '../modals/TipSupportModal';
@@ -212,6 +213,10 @@ const ProfilePersonData = ({
 
   const [modalVisible, setModalVisible] = useState(false);
   const [usernameModalVisible, setUsernameModalVisible] = useState(false);
+  const reportSheetRef = useRef(null);
+  const reportedProfileId = String(
+    targetUserId || userData?.id || userData?._id || userData?.userId || '',
+  ).trim();
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
   const [composerVisible, setComposerVisible] = useState(false);
   const [composerList, setComposerList] = useState([]);
@@ -1812,6 +1817,15 @@ const ProfilePersonData = ({
         visible={usernameModalVisible}
         onClose={() => setUsernameModalVisible(false)}
         data={usernameModalData}
+        canReport={!!fromUsersProfile}
+        onReport={() => reportSheetRef.current?.open()}
+      />
+      <ReportFlowScreen
+        ref={reportSheetRef}
+        postId={reportedProfileId}
+        reportedUserId={reportedProfileId}
+        contentType="user"
+        feature="profile"
       />
       <StoryComposer
         modalVisible={composerVisible}

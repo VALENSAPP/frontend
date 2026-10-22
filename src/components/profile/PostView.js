@@ -1314,6 +1314,7 @@ export default function PostView({ postData = [], userData = {} }) {
         onSelect={onSheetAction}
         fromHome={true}
         postId={modalPostId ?? ''}
+        reportedUserId={String(modalPost?.userId ?? modalPost?.UserId ?? '')}
         isSaved={!!(modalPostId && saved[modalPostId])}
         isPinned={!!(modalPost && isPostPinned(modalPost))}
         canDelete={!!canDelete}

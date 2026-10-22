@@ -1181,6 +1181,9 @@ const Posts = forwardRef(function Posts(
             fromHome={true}
             onSelect={onOptionsSelect}
             postId={modalPostId ?? ''}
+            reportedUserId={String(
+              mappedPosts.find(post => String(post.id) === String(modalPostId))?.UserId || '',
+            )}
             isSaved={!!(modalPostId && saved[modalPostId])}
             canDelete={!!canDelete}
             isHidden={!!(modalPostId && hiddenById[modalPostId])}
