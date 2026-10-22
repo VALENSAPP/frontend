@@ -313,6 +313,74 @@ const getItemSteps = t => [
   },
 ];
 
+const SHOP_CREATION_STEPS = [
+  'MyClosetCreateShop',
+  'MyClosetUploadLogo',
+  'MyClosetTellUs',
+  'MyClosetPreferences',
+];
+
+const ADD_ITEM_STEPS = [
+  'MyClosetAddItemPhotos',
+  'MyClosetAddItemDetails',
+  'MyClosetAddItemPrice',
+  'MyClosetAddItemShipping',
+  'MyClosetAddItemReview',
+];
+
+const goToPreviousClosetStep = navigation => {
+  const state = navigation?.getState?.();
+  const routes = state?.routes;
+  if (!routes?.length) {
+    navigation?.goBack?.();
+    return;
+  }
+
+  const index = typeof state.index === 'number' ? state.index : routes.length - 1;
+  const current = routes[index];
+  const flow = [SHOP_CREATION_STEPS, ADD_ITEM_STEPS].find(steps =>
+    steps.includes(current?.name),
+  );
+
+  if (!flow) {
+    if (navigation.canGoBack?.()) navigation.goBack();
+    return;
+  }
+
+  const stepIndex = flow.indexOf(current.name);
+  if (stepIndex <= 0) {
+    if (navigation.canGoBack?.()) navigation.goBack();
+    return;
+  }
+
+  const previousName = flow[stepIndex - 1];
+  if (routes[index - 1]?.name === previousName) {
+    navigation.goBack();
+    return;
+  }
+
+  const previousRoute = routes
+    .slice(0, index)
+    .findLast(route => route.name === previousName);
+  const params = {
+    ...(previousRoute?.params || {}),
+    draft: {
+      ...(previousRoute?.params?.draft || {}),
+      ...(current?.params?.draft || {}),
+    },
+  };
+  if (current?.params?.isFirstItem != null && params.isFirstItem == null) {
+    params.isFirstItem = current.params.isFirstItem;
+  }
+
+  if (previousRoute && navigation.popTo) {
+    navigation.popTo(previousName, params, { merge: true });
+    return;
+  }
+
+  navigation.replace(previousName, params);
+};
+
 const FlowShell = ({
   navigation,
   activeStep,
@@ -349,7 +417,7 @@ const FlowShell = ({
         <View style={styles.headerRow}>
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => navigation.goBack()}
+            onPress={() => goToPreviousClosetStep(navigation)}
             style={[styles.backButton, { backgroundColor: chipSurface }]}
           >
             <Ionicons name="chevron-back" size={24} color={accent} />
@@ -446,7 +514,7 @@ const Shell = ({ navigation, activeStep, children }) => {
         <View style={styles.headerRow}>
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => navigation.goBack()}
+            onPress={() => goToPreviousClosetStep(navigation)}
             style={[styles.backButton, { backgroundColor: chipSurface }]}
           >
             <Ionicons name="chevron-back" size={24} color={accent} />
@@ -1125,7 +1193,7 @@ const MyClosetCreateShopScreen = ({ navigation, route }) => {
     }
 
     setErrors({});
-    navigation.navigate('MyClosetUploadLogo', { draft: nextDraft });
+    navigation.push('MyClosetUploadLogo', { draft: nextDraft });
   };
 
   return (
@@ -1266,7 +1334,7 @@ const MyClosetUploadLogoScreen = ({ navigation, route }) => {
     }
 
     setError('');
-    navigation.navigate('MyClosetTellUs', { draft: nextDraft });
+    navigation.push('MyClosetTellUs', { draft: nextDraft });
   };
 
   return (
@@ -1359,7 +1427,7 @@ const MyClosetTellUsScreen = ({ navigation, route }) => {
     }
 
     setErrors({});
-    navigation.navigate('MyClosetPreferences', { draft: nextDraft });
+    navigation.push('MyClosetPreferences', { draft: nextDraft });
   };
 
   return (
@@ -1553,7 +1621,7 @@ const MyClosetPreferencesScreen = ({ navigation, route }) => {
           'success',
           response?.message || t('myClosetPreferences.createSuccess'),
         );
-        navigation.navigate('MyClosetLive', { draft: nextDraft });
+        navigation.push('MyClosetLive', { draft: nextDraft });
         return;
       }
 
@@ -1807,7 +1875,7 @@ const MyClosetLiveScreen = ({ navigation, route }) => {
             label={itemTitle}
             text={text}
             onPress={() => {
-              navigation.navigate('MyClosetAddItemPhotos', { draft: {}, isFirstItem: isFirstItem });
+              navigation.push('MyClosetAddItemPhotos', { draft: {}, isFirstItem: isFirstItem });
             }}
           />
         </View>
@@ -1962,7 +2030,7 @@ const MyClosetAddItemPhotosScreen = ({ navigation, route }) => {
       return;
     }
 
-    navigation.navigate('MyClosetAddItemDetails', {
+    navigation.push('MyClosetAddItemDetails', {
       draft: { ...draft, photos },
       isFirstItem,
     });
@@ -2148,7 +2216,7 @@ const MyClosetAddItemDetailsScreen = ({ navigation, route }) => {
       return;
     }
 
-    navigation.navigate('MyClosetAddItemPrice', { draft: nextDraft, isFirstItem });
+    navigation.push('MyClosetAddItemPrice', { draft: nextDraft, isFirstItem });
   };
 
   return (
@@ -2280,7 +2348,7 @@ const MyClosetAddItemPriceScreen = ({ navigation, route }) => {
       return;
     }
 
-    navigation.navigate('MyClosetAddItemShipping', { draft: nextDraft, isFirstItem });
+    navigation.push('MyClosetAddItemShipping', { draft: nextDraft, isFirstItem });
   };
 
   return (
@@ -2677,7 +2745,7 @@ const MyClosetAddItemShippingScreen = ({ navigation, route }) => {
       return;
     }
 
-    navigation.navigate('MyClosetAddItemReview', { draft: nextDraft, isFirstItem });
+    navigation.push('MyClosetAddItemReview', { draft: nextDraft, isFirstItem });
   };
 
   return (
@@ -3148,7 +3216,7 @@ const deliverySummaryLines = useMemo(() => {
       const statusCode = response?.statusCode;
 
       if (statusCode === 200 || statusCode === 201) {
-        navigation.navigate('MyClosetAddItemPublished', {
+        navigation.push('MyClosetAddItemPublished', {
           draft,
           item: response?.data || response,
           underReview: moderationDecision === 'REVIEW',
@@ -3468,7 +3536,7 @@ const MyClosetAddItemPublishedScreen = ({ navigation, route }) => {
             label={t('myClosetAddItemPublished.addAnotherItem')}
             text={text}
             onPress={() =>
-              navigation.navigate('MyClosetAddItemPhotos', { draft: {}, isFirstItem: false })
+              navigation.push('MyClosetAddItemPhotos', { draft: {}, isFirstItem: false })
             }
           />
         </View>

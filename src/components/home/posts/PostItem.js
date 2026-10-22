@@ -629,11 +629,27 @@ function PostItem({
   const [trustScore, setTrustScore] = useState(null);
   const [trustCommentModalVisible, setTrustCommentModalVisible] = useState(false);
   const [trustCommentModalType, setTrustCommentModalType] = useState(null);
-  const [localLiked, setLocalLiked] = useState(liked);
-  const [localLikesCount, setLocalLikesCount] = useState(likesCount || 0);
+  const [localLiked, setLocalLiked] = useState(!!liked);
+  const [localLikesCount, setLocalLikesCount] = useState(Number(likesCount) || 0);
+  const likeSnapshotRef = useRef(null);
 
-  useEffect(() => { setLocalLiked(liked); }, [liked]);
-  useEffect(() => { setLocalLikesCount(likesCount || 0); }, [likesCount]);
+
+  console.log(localLikesCount,"localLikesCountPostItem");
+
+  useEffect(() => {
+    const snapshot = `${item?.id}:${String(liked)}:${String(likesCount)}`;
+    if (likeSnapshotRef.current !== snapshot) {
+      console.log('[PostItem] like/dislike value for count', {
+        postId: item?.id,
+        liked,
+        likesCount,
+        previous: likeSnapshotRef.current,
+      });
+      likeSnapshotRef.current = snapshot;
+    }
+    setLocalLiked(!!liked);
+    setLocalLikesCount(Number(likesCount) || 0);
+  }, [liked, likesCount, item?.id]);
 
   const { t, currentLanguage } = useLanguage();
   const showTrustControls = isTruthyTrustPost(isTrustPost) || resolveIsTrustPost(item);

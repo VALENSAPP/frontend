@@ -20,8 +20,8 @@ import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useLanguage } from '../../i18n';
 import { getUserCredentials } from '../../services/post';
-import { FanPageSubscription } from '../../services/stirpe';
-import { cancelFanSubscription } from '../../services/wallet';
+import { FanPageSubscription, getFansubscriptionStatus } from '../../services/stirpe';
+import { cancelFanSubscription, getMySubscriptionsList } from '../../services/wallet';
 import { getPaymentSessionUrl, STRIPE_BROWSER_OPTIONS } from '../../utils/stripeOnboarding';
 import { primaryCtaColors } from '../../utils/ctaContrast';
 
@@ -33,6 +33,88 @@ const formatCurrency = (val) => {
   const num = Number(val);
   if (isNaN(num)) return `$${val}`;
   return `$${num.toLocaleString('en-US')}`;
+};
+
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+const PAID_PAYMENT_STATUSES = new Set(['PAID', 'SUCCEEDED', 'SUCCESS', 'COMPLETE', 'COMPLETED']);
+const UNPAID_PAYMENT_STATUSES = new Set(['UNPAID', 'FAILED', 'CANCELLED', 'CANCELED', 'INCOMPLETE']);
+
+const walkObjects = (value, visit) => {
+  if (!value || typeof value !== 'object') return;
+  if (Array.isArray(value)) {
+    value.forEach(item => walkObjects(item, visit));
+    return;
+  }
+  visit(value);
+  Object.values(value).forEach(child => walkObjects(child, visit));
+};
+
+const creatorIdsOn = node => [
+  node?.creatorId,
+  node?.creator_id,
+  node?.contentUserId,
+  node?.followingId,
+  node?.creator?.id,
+  node?.creator?.userId,
+].filter(id => id != null && id !== '');
+
+const readPaymentDecision = node => {
+  const priceStatus = String(
+    node?.priceUpdateStatus ?? node?.price_update_status ?? node?.priceUpdate?.status ?? '',
+  ).trim().toUpperCase();
+  if (priceStatus === 'ACCEPTED') return 'paid';
+  if (priceStatus === 'PENDING' || priceStatus === 'DECLINED') return 'unpaid';
+
+  const paymentStatus = String(
+    node?.paymentStatus ?? node?.checkoutStatus ?? node?.sessionStatus ?? '',
+  ).trim().toUpperCase();
+  if (PAID_PAYMENT_STATUSES.has(paymentStatus)) return 'paid';
+  if (UNPAID_PAYMENT_STATUSES.has(paymentStatus)) return 'unpaid';
+  return 'unknown';
+};
+
+const combinePaymentDecision = (current, next) => {
+  if (current === 'paid' || next === 'paid') return 'paid';
+  if (next === 'unpaid') return 'unpaid';
+  return current;
+};
+
+const decisionFromPayload = (payload, creatorId, { requireCreatorMatch }) => {
+  let decision = 'unknown';
+  walkObjects(payload, node => {
+    const ids = creatorIdsOn(node);
+    if (requireCreatorMatch && creatorId) {
+      if (!ids.some(id => String(id) === String(creatorId))) return;
+    }
+    decision = combinePaymentDecision(decision, readPaymentDecision(node));
+  });
+  return decision;
+};
+
+const waitForPriceUpdatePayment = async ({ creatorId }) => {
+  let sawUnpaid = false;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (attempt > 0) await delay(1500);
+    const [statusResult, listResult] = await Promise.allSettled([
+      creatorId ? getFansubscriptionStatus(creatorId) : Promise.resolve(null),
+      getMySubscriptionsList(),
+    ]);
+    const fanSubscriptionStatus = statusResult.status === 'fulfilled' ? statusResult.value : null;
+    const mySubscriptions = listResult.status === 'fulfilled' ? listResult.value : null;
+    const decision = combinePaymentDecision(
+      decisionFromPayload(fanSubscriptionStatus, creatorId, { requireCreatorMatch: false }),
+      decisionFromPayload(mySubscriptions, creatorId, { requireCreatorMatch: true }),
+    );
+    console.log('[SubscriptionPriceChanged] payment status API', {
+      attempt: attempt + 1,
+      decision,
+      fanSubscriptionStatus,
+    });
+    if (decision === 'paid') return 'paid';
+    if (decision === 'unpaid') sawUnpaid = true;
+  }
+  return sawUnpaid ? 'unpaid' : 'unknown';
 };
 
 const SubscriptionPriceChangedScreen = () => {
@@ -87,6 +169,8 @@ const SubscriptionPriceChangedScreen = () => {
   };
 
   const [statusState, setStatusState] = useState(resolveStatusState);
+
+  console.log(statusState,"statusStateScreenLog");
 
   useEffect(() => {
     setStatusState(resolveStatusState());
@@ -151,6 +235,7 @@ const SubscriptionPriceChangedScreen = () => {
       };
 
       const response = await FanPageSubscription(payload);
+      console.log('[SubscriptionPriceChanged] pay-following response', response);
       const sessionUrl = getPaymentSessionUrl(response);
 
       if (sessionUrl) {
@@ -162,6 +247,22 @@ const SubscriptionPriceChangedScreen = () => {
         } else {
           await Linking.openURL(sessionUrl);
         }
+      }
+
+      const paymentDecision = await waitForPriceUpdatePayment({ creatorId });
+      const checkoutResponseDecision = decisionFromPayload(response, creatorId, { requireCreatorMatch: false });
+      const paymentResult = checkoutResponseDecision === 'paid' ? 'paid' : paymentDecision;
+
+      if (sessionUrl && paymentResult === 'unpaid') {
+        setStatusState('pending');
+        Alert.alert(
+          t('subscriptionPriceChangedScreen.paymentNotCompleted', 'Payment not completed'),
+          t(
+            'subscriptionPriceChangedScreen.paymentNotCompletedBody',
+            'You returned before the payment was finished. The price update is still pending.',
+          ),
+        );
+        return;
       }
 
       setStatusState('accepted');
