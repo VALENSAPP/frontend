@@ -14,7 +14,8 @@ import {
   FlatList,
   Linking,
   Modal,
-  Pressable
+  Pressable,
+  ActivityIndicator
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import LinearGradient from 'react-native-linear-gradient';
@@ -22,7 +23,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import StepHeader from './headerSection';
-import { checkDisplayName, getProfile, EditProfile } from '../../../services/createProfile';
+import { checkDisplayName, checkUsername, getProfile, EditProfile } from '../../../services/createProfile';
 import { logout, removeDeviceAccountRequest } from '../../../services/authentication';
 import { useToast } from 'react-native-toast-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -64,6 +65,9 @@ export default function CreateProfile() {
   const [displayNameStatus, setDisplayNameStatus] = useState(null);
   const [displayNameSuggestions, setDisplayNameSuggestions] = useState([]);
   const [isCheckingDisplayName, setIsCheckingDisplayName] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState(null);
+  const [usernameSuggestions, setUsernameSuggestions] = useState([]);
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const refRBSheet = useRef();
   const [imageMeta, setImageMeta] = useState(null);
   const { bgStyle, card, border, mutedText, accent, cardStyle } = useAppTheme(profileFromRoute);
@@ -145,10 +149,18 @@ export default function CreateProfile() {
         if (!isMounted) return;
         if (resp.statusCode === 200) {
           setServerProfile(resp);
-          setUsername(resp.data.userName || '');
+          const serverUsername = resp.data.userName || '';
+          const storedUsername = !serverUsername ? (await AsyncStorage.getItem('username')) : '';
+          const initialUsername = serverUsername || storedUsername || '';
+          setUsername(initialUsername);
           setDisplayName(resp.data.displayName || '');
           setBio(resp.data.bio || '');
           if (resp.data.displayName) setDisplayNameStatus('approved');
+          if (serverUsername) {
+            setUsernameStatus('approved');
+          } else if (storedUsername) {
+            checkUsernameAvailability(storedUsername);
+          }
         } else {
           toast.show(resp.message, { type: 'danger' });
         }
@@ -238,17 +250,21 @@ export default function CreateProfile() {
     setDisplayNameSuggestions([]);
     try {
       const resp = await checkDisplayName({ displayName: name });
-      if (resp && resp.statusCode === 200 && resp.success) {
-        const { status, suggestions = [] } = resp.data;
+      if (resp && (resp.statusCode === 200 || resp.statusCode === 201) && resp.success) {
+        const { status, suggestions = [] } = resp.data || {};
         setDisplayNameStatus(status);
         if (status === 'taken') {
           setDisplayNameSuggestions(suggestions);
           setErrors(prev => ({
             ...prev,
-            displayName: resp.data.message || t('createProfile.displayNameTaken'),
+            displayName: resp.data?.message || t('createProfile.displayNameTaken'),
           }));
         } else if (status === 'approved') {
-          setErrors(prev => ({ ...prev, displayName: '' }));
+          setErrors(prev => {
+            const next = { ...prev };
+            delete next.displayName;
+            return next;
+          });
         }
       } else {
         setDisplayNameStatus(null);
@@ -267,6 +283,78 @@ export default function CreateProfile() {
 
   const debouncedCheckDisplayName = useDebouncedCallback(checkDisplayNameAvailability, 500);
 
+  const checkUsernameAvailability = async (name) => {
+    const trimmed = (name || '').trim();
+    if (!trimmed || trimmed.length < 2) {
+      setUsernameStatus(null);
+      setUsernameSuggestions([]);
+      return;
+    }
+
+    if (
+      serverProfile?.data?.userName &&
+      trimmed.toLowerCase() === serverProfile.data.userName.trim().toLowerCase()
+    ) {
+      setUsernameStatus('approved');
+      setUsernameSuggestions([]);
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next.username;
+        return next;
+      });
+      return;
+    }
+
+    setIsCheckingUsername(true);
+    setUsernameStatus('checking');
+    setUsernameSuggestions([]);
+
+    try {
+      const resp = await checkUsername({ userName: trimmed, username: trimmed });
+      console.log('Username check response:', resp);
+
+      if (resp && (resp.statusCode === 200 || resp.statusCode === 201) && resp.success) {
+        const data = resp.data || {};
+        const isAvail = data.isAvailable !== false && data.status !== 'taken';
+        const suggestions = data.suggestions || [];
+        const message = data.message;
+
+        setUsernameStatus(isAvail ? 'approved' : 'taken');
+
+        if (!isAvail) {
+          setUsernameSuggestions(suggestions);
+          setErrors(prev => ({
+            ...prev,
+            username: message || t('createProfile.usernameTaken'),
+          }));
+        } else {
+          setUsernameSuggestions([]);
+          setErrors(prev => {
+            const next = { ...prev };
+            delete next.username;
+            return next;
+          });
+        }
+      } else {
+        setUsernameStatus('taken');
+        const suggestions = resp?.data?.suggestions || [];
+        if (suggestions.length > 0) setUsernameSuggestions(suggestions);
+        setErrors(prev => ({
+          ...prev,
+          username: resp?.message || resp?.data?.message || t('createProfile.usernameTaken'),
+        }));
+      }
+    } catch (err) {
+      console.error('Username check error:', err);
+      setUsernameStatus(null);
+      toast.show(err?.message || t('createProfile.usernameError'), { type: 'danger' });
+    } finally {
+      setIsCheckingUsername(false);
+    }
+  };
+
+  const debouncedCheckUsername = useDebouncedCallback(checkUsernameAvailability, 500);
+
   const naviGationButton = (data) => {
     if (data === 'termsCondition') {
       Linking.openURL('https://valens.app/terms');
@@ -282,6 +370,7 @@ export default function CreateProfile() {
     !validateDisplayName(displayName) &&
     !validateBio(bio) &&
     displayNameStatus === 'approved' &&
+    usernameStatus === 'approved' &&
     acceptTerms &&
     acceptPrivacy;
 
@@ -303,6 +392,114 @@ export default function CreateProfile() {
     checkDisplayNameAvailability(suggestion);
   };
 
+  const handleUsernameChange = (txt) => {
+    setUsername(txt);
+    const basicError = validateUsernameField(txt);
+    setErrors(prev => ({ ...prev, username: basicError }));
+
+    if (
+      serverProfile?.data?.userName &&
+      txt.trim().toLowerCase() === serverProfile.data.userName.trim().toLowerCase()
+    ) {
+      setUsernameStatus('approved');
+      setUsernameSuggestions([]);
+      return;
+    }
+
+    if (!basicError && txt.trim().length >= 2) {
+      debouncedCheckUsername(txt.trim());
+    } else {
+      setUsernameStatus(null);
+      setUsernameSuggestions([]);
+    }
+  };
+
+  const selectUsernameSuggestion = (suggestion) => {
+    setUsername(suggestion);
+    setUsernameSuggestions([]);
+    setErrors(prev => {
+      const next = { ...prev };
+      delete next.username;
+      return next;
+    });
+    checkUsernameAvailability(suggestion);
+  };
+
+  const renderUsernameInput = () => (
+    <View style={styles.field}>
+      <Text style={[styles.label, { color: mutedText }]}>{t('createProfile.usernameLabel')}</Text>
+      <View
+        style={[
+          styles.inputWrapper,
+          errors.username && styles.inputErrorWrapper,
+          {
+            backgroundColor: ui.inputSurface,
+            borderColor: errors.username ? '#DC2626' : border,
+            position: 'relative',
+          },
+        ]}
+      >
+        <Text style={[styles.prefix, { color: mutedText }]}>@</Text>
+        <TextInput
+          placeholder={t('createProfile.usernamePlaceholder')}
+          placeholderTextColor={mutedText}
+          style={[styles.input, { color: ui.inputColor, paddingRight: 40 }]}
+          value={username}
+          autoCapitalize="none"
+          autoCorrect={false}
+          onChangeText={handleUsernameChange}
+        />
+        <View style={styles.inputStatus}>
+          {isCheckingUsername && (
+            <View style={styles.loadingIndicator}>
+              <ActivityIndicator size="small" color={accent || '#6B7280'} />
+            </View>
+          )}
+          {usernameStatus === 'approved' && !isCheckingUsername && (
+            <View style={styles.successIndicator}>
+              <Icon name="check-circle" size={20} color="#10B981" />
+            </View>
+          )}
+          {usernameStatus === 'taken' && !isCheckingUsername && (
+            <View style={styles.errorIndicator}>
+              <Icon name="x-circle" size={20} color="#DC2626" />
+            </View>
+          )}
+        </View>
+      </View>
+
+      <Text style={[styles.helperText, { color: mutedText }]}>{t('signup.usernameHelper')}</Text>
+
+      {errors.username && (
+        <Text style={styles.errorText}>{errors.username}</Text>
+      )}
+
+      {usernameSuggestions.length > 0 && (
+        <View style={styles.suggestionsContainer}>
+          <Text style={[styles.suggestionsTitle, { color: mutedText }]}>{t('createProfile.suggestions')}</Text>
+          <FlatList
+            data={usernameSuggestions}
+            keyExtractor={(item, index) => index.toString()}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.suggestionChip,
+                  { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : '#F3F4F6', borderColor: border },
+                ]}
+                onPress={() => selectUsernameSuggestion(item)}
+              >
+                <Text style={[styles.suggestionText, { color: ui.labelColor }]}>{item}</Text>
+              </TouchableOpacity>
+            )}
+            contentContainerStyle={styles.suggestionsList}
+          />
+        </View>
+      )}
+    </View>
+  );
+
   const renderDisplayNameInput = () => (
     <View style={styles.field}>
       <Text style={[styles.label, { color: mutedText }]}>{t('createProfile.displayNameLabel')}</Text>
@@ -316,7 +513,7 @@ export default function CreateProfile() {
             {
               color: ui.inputColor,
               backgroundColor: ui.inputSurface,
-              borderColor: border,
+              borderColor: errors.displayName ? '#DC2626' : border,
             },
           ]}
           value={displayName}
@@ -325,7 +522,7 @@ export default function CreateProfile() {
         <View style={styles.inputStatus}>
           {isCheckingDisplayName && (
             <View style={styles.loadingIndicator}>
-              <Text style={styles.loadingText}>{t('createProfile.checkingDisplayName')}</Text>
+              <ActivityIndicator size="small" color={accent || '#6B7280'} />
             </View>
           )}
           {displayNameStatus === 'approved' && !isCheckingDisplayName && (
@@ -341,13 +538,13 @@ export default function CreateProfile() {
         </View>
       </View>
 
-      {errors.displayName && displayNameStatus === 'taken' && (
+      {errors.displayName && (
         <Text style={styles.errorText}>{errors.displayName}</Text>
       )}
 
       {displayNameSuggestions.length > 0 && (
         <View style={styles.suggestionsContainer}>
-          <Text style={styles.suggestionsTitle}>{t('createProfile.suggestions')}</Text>
+          <Text style={[styles.suggestionsTitle, { color: mutedText }]}>{t('createProfile.suggestions')}</Text>
           <FlatList
             data={displayNameSuggestions}
             keyExtractor={(item, index) => index.toString()}
@@ -355,10 +552,13 @@ export default function CreateProfile() {
             showsHorizontalScrollIndicator={false}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={styles.suggestionChip}
+                style={[
+                  styles.suggestionChip,
+                  { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : '#F3F4F6', borderColor: border },
+                ]}
                 onPress={() => selectSuggestion(item)}
               >
-                <Text style={styles.suggestionText}>{item}</Text>
+                <Text style={[styles.suggestionText, { color: ui.labelColor }]}>{item}</Text>
               </TouchableOpacity>
             )}
             contentContainerStyle={styles.suggestionsList}
@@ -503,6 +703,8 @@ export default function CreateProfile() {
       return;
     }
 
+    if (username) await AsyncStorage.setItem('username', username);
+    if (displayName) await AsyncStorage.setItem('currentUsername', displayName);
     // Navigate to KYC verification for non-company users
     navigation.navigate('KycVerifyAuth', { profileData, serverProfile, profile: profileFromRoute });
     //  navigation.navigate('Wallet', { profileData, serverProfile });
@@ -541,34 +743,7 @@ export default function CreateProfile() {
           </View>
 
           <View style={styles.form}>
-            {/* Username Field */}
-            <View style={styles.field}>
-              <Text style={[styles.label, { color: mutedText }]}>{t('createProfile.usernameLabel')}</Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  errors.username && styles.inputErrorWrapper,
-                  {
-                    backgroundColor: ui.inputSurface,
-                    borderColor: border,
-                  },
-                ]}
-              >
-                <Text style={[styles.prefix, { color: mutedText }]}>@</Text>
-                <TextInput
-                  placeholder={t('createProfile.usernamePlaceholder')}
-                  placeholderTextColor={mutedText}
-                  style={[styles.input, { color: ui.inputColor }]}
-                  value={username}
-                  onChangeText={txt => {
-                    setUsername(txt);
-                    setErrors(prev => ({ ...prev, username: validateUsernameField(txt) }));
-                  }}
-                />
-              </View>
-              <Text style={[styles.helperText, { color: mutedText }]}>{t('signup.usernameHelper')}</Text>
-              {errors.username && <Text style={styles.errorText}>{errors.username}</Text>}
-            </View>
+            {renderUsernameInput()}
 
             {renderDisplayNameInput()}
 
