@@ -5701,9 +5701,11 @@
     "failed": "This payment was not completed.",
     "check": "Check payment",
     "checkFailed": "Payment could not be confirmed right now. Please check again.",
-    "close": "Close"
-  ,
+    "close": "Close",
     "startFailed": "Could not start the PIX payment. Please try again.",
-    "minAmountError": "The minimum tip amount is R$ 0.50."
+    "minAmountError": "The minimum tip amount is R$ 0.50.",
+    "invalidAmount": "Enter a valid amount with up to two decimal places.",
+    "supportRefreshFailed": "The support total could not be refreshed. Please try again.",
+    "retrySupport": "Refresh total"
   }
 }

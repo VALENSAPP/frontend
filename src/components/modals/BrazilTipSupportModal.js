@@ -21,7 +21,7 @@ import { useAppTheme } from '../../theme/useApptheme';
 import { useThemeContext } from '../../theme/ThemeContext';
 import { useLanguage } from '../../i18n';
 import { getPaymentProfile } from '../../services/paymentProfile';
-import { formatPixAmount, getPaymentProvider, getPixCheckout } from '../../utils/pixPayment';
+import { formatPixAmount, getPaymentProvider, getPixCheckout, parsePixAmountMinor } from '../../utils/pixPayment';
 import PixPaymentModal from './PixPaymentModal';
 
 const AMOUNTS = [5, 10, 25, 50];
@@ -53,7 +53,7 @@ export default function BrazilTipSupportModal({
 }) {
   const toast = useToast();
   const dispatch = useDispatch();
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
   const { isDarkMode } = useThemeContext();
   const { text, card, cardStyle, accent, mutedText, border } = useAppTheme();
 
@@ -68,9 +68,9 @@ export default function BrazilTipSupportModal({
   visibleRef.current = visible;
   const paymentCompletedRef = useRef(false);
 
-  const finalAmount = Number(selectedAmount || customAmount);
-  const isAmountValid = Number.isFinite(finalAmount) &&
-    Number.isSafeInteger(Math.round(finalAmount * 100)) && finalAmount >= MIN_TIP_AMOUNT;
+  const amountMinor = parsePixAmountMinor(selectedAmount ?? customAmount);
+  const finalAmount = amountMinor == null ? NaN : amountMinor / 100;
+  const isAmountValid = amountMinor != null && finalAmount >= MIN_TIP_AMOUNT;
   const primaryText = isDarkMode ? '#F5F0FF' : (text || '#111827');
   const secondaryText = isDarkMode ? '#C8C4D0' : (mutedText || '#6B7280');
   const actionAccent = accent || '#5a2d82';
@@ -105,10 +105,14 @@ export default function BrazilTipSupportModal({
     paymentCompletedRef.current = true;
     setIsButtonLoading(false);
     dispatch(hideLoader());
-    onTipSuccess?.();
+    onTipSuccess?.({
+      provider: 'PAGBANK',
+      paymentId: pixCheckoutRef.current?.paymentId,
+      receiverUserId: String(vendorId),
+    });
     onClose?.();
-    showToastMessage(toast, 'success', t('tipSupportScreen.tipSuccess'));
-  }, [onClose, onTipSuccess, dispatch, toast, t]);
+    showToastMessage(toast, 'success', t('pixPayment.paid'), 4000);
+  }, [onClose, onTipSuccess, vendorId, dispatch, toast, t]);
 
   const handlePixPaid = useCallback(paymentId => {
     if (visibleRef.current && pixCheckoutRef.current?.paymentId === paymentId) completePayment();
@@ -122,7 +126,7 @@ export default function BrazilTipSupportModal({
     }
 
     if (!isAmountValid) {
-      showToastMessage(toast, 'danger', t('pixPayment.minAmountError'));
+      showToastMessage(toast, 'danger', t(amountMinor == null ? 'pixPayment.invalidAmount' : 'pixPayment.minAmountError'));
       return;
     }
 
@@ -141,7 +145,7 @@ export default function BrazilTipSupportModal({
         receiverUserId: String(vendorId),
       });
       if (!isCurrent()) return;
-      const checkout = getPixCheckout(response, Math.round(finalAmount * 100));
+      const checkout = getPixCheckout(response, amountMinor);
       if (!checkout) throw new Error('Incomplete PIX checkout');
       pixCheckoutRef.current = checkout;
       setPixCheckout(checkout);
@@ -221,7 +225,7 @@ export default function BrazilTipSupportModal({
                       }}
                     >
                       <Text style={[styles.amountText, { color: primaryText }]}>
-                        {formatPixAmount(amt * 100)}
+                        {formatPixAmount(amt * 100, currentLanguage)}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -250,6 +254,12 @@ export default function BrazilTipSupportModal({
                     <Ionicons name="pencil" size={16} color={secondaryText} />
                   </View>
                 </View>
+
+                {customAmount !== '' && !isAmountValid && (
+                  <Text accessibilityLiveRegion="polite" style={[styles.infoText, { color: secondaryText }]}>
+                    {t(amountMinor == null ? 'pixPayment.invalidAmount' : 'pixPayment.minAmountError')}
+                  </Text>
+                )}
 
                 <View style={[styles.infoBox, { backgroundColor: withAlpha(actionAccent, isDarkMode ? 0.2 : 0.12) }]}>
                   <Ionicons name="information-circle" size={20} color={actionAccent} />
