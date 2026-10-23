@@ -1,4 +1,4 @@
-import { formatPixAmount, getPaymentProvider, getPixCheckout, getPixPaymentState } from '../src/utils/pixPayment';
+import { formatPixAmount, getPaymentProvider, getPixCheckout, getPixPaymentState, parsePixAmountMinor } from '../src/utils/pixPayment';
 
 const checkout = {
   provider: 'PAGBANK', paymentId: 'payment-1', orderId: 'order-1', currency: 'BRL',
@@ -49,4 +49,19 @@ describe('PIX tip checkout', () => {
       expect(getPixPaymentState(response({ paymentId: 'payment-1', paymentMethod: 'PAGBANK', rawStatus }), 'payment-1')).toBe(expected);
     },
   );
+
+  test.each([['5,50', 550], ['5.50', 550], ['0,50', 50], ['5', 500], [25, 2500]])(
+    'reads an exact decimal amount without rounding: %s', (input, minor) => {
+      expect(parsePixAmountMinor(input)).toBe(minor);
+    },
+  );
+  test.each(['5,555', '5.555', '1.234,56', '-5', '1e3', 'Infinity', '', '9007199254740992'])(
+    'rejects ambiguous, over-precise or unsafe input: %s', input => {
+      expect(parsePixAmountMinor(input)).toBeNull();
+    },
+  );
+  test('uses the selected language to format BRL', () => {
+    expect(formatPixAmount(123450, 'pt')).toBe('R$ 1.234,50');
+    expect(formatPixAmount(123450, 'en')).toBe('R$ 1,234.50');
+  });
 });

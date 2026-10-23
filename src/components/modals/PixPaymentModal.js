@@ -78,7 +78,7 @@ export default function PixPaymentModal({ visible, checkout, onClose, onPaid }) 
       <View style={styles.overlay}>
         <ScrollView style={[styles.sheet, { backgroundColor: card }]} contentContainerStyle={styles.content}>
           <Text accessibilityRole="header" style={[styles.title, { color: text }]}>{t('pixPayment.title')}</Text>
-          <Text style={[styles.amount, { color: text }]}>{formatPixAmount(checkout.amountMinor)}</Text>
+          <Text style={[styles.amount, { color: text }]}>{formatPixAmount(checkout.amountMinor, currentLanguage)}</Text>
           <Text style={[styles.description, { color: mutedText }]}>{t('pixPayment.instructions')}</Text>
           {!unavailable && (
             <>

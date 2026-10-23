@@ -3804,7 +3804,7 @@
     "mint": "Mint",
     "followers": "Seguidores",
     "following_stat": "Seguindo",
-    "totalSupportReceived": "Suporte total recebido",
+    "totalSupportReceived": "Apoio total recebido",
     "walletNotConnectedTitle": "Carteira não conectada",
     "walletNotConnectedMessage": "{{name}} ainda não conectou uma carteira. O ato de seguir continua ativo.",
     "supportUnavailableTitle": "Suporte indisponível",
@@ -5701,9 +5701,11 @@
     "failed": "Este pagamento não foi concluído.",
     "check": "Verificar pagamento",
     "checkFailed": "Não foi possível confirmar o pagamento agora. Tente verificar novamente.",
-    "close": "Fechar"
-  ,
+    "close": "Fechar",
     "startFailed": "Não foi possível iniciar o pagamento PIX. Tente novamente.",
-    "minAmountError": "O valor mínimo da gorjeta é R$ 0,50."
+    "minAmountError": "O valor mínimo da gorjeta é R$ 0,50.",
+    "invalidAmount": "Informe um valor válido com até duas casas decimais.",
+    "supportRefreshFailed": "Não foi possível atualizar o total de apoio. Tente novamente.",
+    "retrySupport": "Atualizar total"
   }
 }

@@ -6,7 +6,11 @@ Only buyers whose profile country is Brazil use the new PagBank PIX tip checkout
 
 The backend must expose the PIX fields on `POST /billing/send-tip` and `rawStatus` on the authenticated payment-details response before this checkout is released. PagBank credentials belong only on the backend.
 
-Payment utility coverage is in `__tests__/pixPayment.test.js`.
+After confirmation, the PIX checkout shows “Payment confirmed” in English or “Pagamento confirmado” in Portuguese. It notifies its caller with the provider, payment ID and recipient ID. The profile refreshes the matching recipient's support total from the server rather than adding the tip locally; outdated responses cannot overwrite newer totals. A refresh failure preserves the last known total and can be retried.
+
+The support API returns major currency units. Brazilian profile totals use BRL formatting in the selected language; other profiles retain their existing presentation. Custom PIX amounts accept a comma or period decimal separator and reject values requiring cent rounding.
+
+Coverage is in `__tests__/pixPayment.test.js`, `__tests__/pixTipConfirmation.test.js` and `__tests__/tipSupportSummary.test.js`.
 
 
 

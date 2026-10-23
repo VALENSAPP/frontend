@@ -32,6 +32,21 @@ export function getPixPaymentState(response, paymentId) {
   return status === 'pending' ? 'PENDING' : 'UNKNOWN';
 }
 
-export function formatPixAmount(amountMinor) {
-  return `R$ ${(amountMinor / 100).toFixed(2).replace('.', ',')}`;
+export function parsePixAmountMinor(value) {
+  const match = /^(\d+)(?:[.,](\d{0,2}))?$/.exec(String(value ?? '').trim());
+  if (!match) return null;
+  const minor = Number(match[1]) * 100 + Number((match[2] || '').padEnd(2, '0'));
+  return Number.isSafeInteger(minor) ? minor : null;
+}
+
+export function formatBrlAmount(amount, language = 'pt') {
+  const locale = language === 'pt' ? 'pt-BR' : language || 'en';
+  return `R$ ${new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)}`;
+}
+
+export function formatPixAmount(amountMinor, language = 'pt') {
+  return formatBrlAmount(amountMinor / 100, language);
 }
