@@ -20,6 +20,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { cancelSubscription, checkSubscription, createCheckoutSession } from '../../services/stirpe';
 import { createOnboardingLink, getOnboardingStatus } from '../../services/profile';
+import { getOnboardingUrl } from '../../utils/stripeOnboarding';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useThemeContext } from '../../theme/ThemeContext';
 import { useLanguage } from '../../i18n';
@@ -290,8 +291,7 @@ const SubscriptionDetails = ({ route }) => {
 
       if (!isReady) {
         const onboardingLink = await createOnboardingLink();
-        const onboardingUrl = onboardingLink?.data?.onboardingUrl
-          ?? onboardingLink?.data?.data?.onboardingUrl;
+        const onboardingUrl = getOnboardingUrl(onboardingLink);
 
         if (onboardingUrl) {
           setShowActivationPopup(false);

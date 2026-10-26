@@ -20,6 +20,7 @@ import { useBusinessProfileTheme } from '../../theme/useBusinessProfileTheme';
 import { useRoute } from '@react-navigation/native';
 import { useLanguage } from '../../i18n';
 import { useThemeContext } from '../../theme/ThemeContext';
+import { contrastOn } from '../../utils/ctaContrast';
 
 export const ActivityScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -28,10 +29,17 @@ export const ActivityScreen = ({ navigation }) => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [activities, setActivities] = useState([]);
   const [notificationsMuted, setNotificationsMuted] = useState(false);
-  const { bgStyle, textStyle, text, } = useBusinessProfileTheme();
+  const {
+    bgStyle,
+    text,
+    accent,
+    card,
+    border,
+    mutedText,
+    icon,
+  } = useBusinessProfileTheme();
   const { t } = useLanguage();
-
-  const brandPurple = '#513189';
+  const activeLabelColor = contrastOn(accent);
 
   const filters = [
     { key: 'all', label: t('activity.filters.all', 'All'), iconName: null },
@@ -308,10 +316,10 @@ export const ActivityScreen = ({ navigation }) => {
                 style={[
                   styles.filterPillButton,
                   isActive
-                    ? { backgroundColor: text, borderColor: text }
+                    ? { backgroundColor: accent, borderColor: accent }
                     : {
-                      backgroundColor: isDarkMode ? '#1E1B2E' : '#FFFFFF',
-                      borderColor: isDarkMode ? '#2D2844' : '#E5E7EB',
+                      backgroundColor: card,
+                      borderColor: border,
                     },
                 ]}
                 onPress={() => setActiveFilter(filter.key)}
@@ -320,7 +328,7 @@ export const ActivityScreen = ({ navigation }) => {
                   <Ionicons
                     name={filter.iconName}
                     size={16}
-                    color={isActive ? '#FFFFFF' : (isDarkMode ? '#A78BFA' : brandPurple)}
+                    color={isActive ? activeLabelColor : (isDarkMode ? icon : accent)}
                     style={{ marginRight: 6 }}
                   />
                 ) : null}
@@ -328,8 +336,8 @@ export const ActivityScreen = ({ navigation }) => {
                   style={[
                     styles.filterPillText,
                     isActive
-                      ? { color: '#FFFFFF', fontWeight: '700' }
-                      : { color: isDarkMode ? '#D1D5DB' : '#374151', fontWeight: '600' },
+                      ? { color: activeLabelColor, fontWeight: '700' }
+                      : { color: isDarkMode ? mutedText : '#374151', fontWeight: '600' },
                   ]}
                 >
                   {filter.label}

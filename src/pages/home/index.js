@@ -35,6 +35,7 @@ import { setRegularSubscriptionPrompt } from '../../redux/actions/LoginAction';
 import { useAppTheme } from '../../theme/useApptheme';
 import { unReadNotification, updateFcmToken } from '../../services/notifications';
 import { getSocket, initializeSocket } from '../../services/socket';
+import { setCachedMessagesUnread } from '../../services/chatMessage';
 import useSocket from '../../hooks/useSocket';
 import { checkSubscription } from '../../services/stirpe';
 import BusinessSubscriptionPrompt from '../../components/modals/BusinessSubscriptionPrompt';
@@ -388,6 +389,7 @@ export default function HomeScreen({ route }) {
 
     console.log('📊 HomeScreen: Total unread messages:', totalUnread);
     setUnreadCount(totalUnread);
+    setCachedMessagesUnread(totalUnread);
   }, [currentUserId]);
 
   useSocket('newMessage', (message) => {
@@ -408,6 +410,7 @@ export default function HomeScreen({ route }) {
       setUnreadCount(prev => {
         const newCount = prev + 1;
         console.log(`📈 HomeScreen: Unread count updated: ${prev} → ${newCount}`);
+        setCachedMessagesUnread(newCount);
         return newCount;
       });
 

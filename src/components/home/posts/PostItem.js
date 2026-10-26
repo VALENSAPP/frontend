@@ -634,7 +634,7 @@ function PostItem({
   const likeSnapshotRef = useRef(null);
 
 
-  console.log(localLikesCount,"localLikesCountPostItem");
+  // console.log(localLikesCount,"localLikesCountPostItem");
 
   useEffect(() => {
     const snapshot = `${item?.id}:${String(liked)}:${String(likesCount)}`;

@@ -1,5 +1,5 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     View,
     Text,
@@ -36,7 +36,13 @@ import SubscriptionActivationPopup from '../../components/modals/SubscriptionAct
 import ConnectStripeModal from '../../components/modals/ConnectStripeModal';
 import { BusinessPlanModal, BusinessReminderModal, BusinessSuccessModal } from '../../components/modals/BusinessPlanModals';
 import { useStripeOnboarding } from '../../hooks/useStripeOnboarding';
-import { createOnboardingLink, getOnboardingStatus, getStripeErrorMessages } from '../../utils/stripeOnboarding';
+import {
+    createOnboardingLink,
+    describeRequestFailure,
+    getOnboardingStatus,
+    getOnboardingUrl,
+    getStripeErrorMessages,
+} from '../../utils/stripeOnboarding';
 import { createCheckoutSession } from '../../services/stirpe';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { getUserCredentials } from '../../services/post';
@@ -100,6 +106,8 @@ const SubventionSetupScreen = () => {
     const [editingModalVisible, setEditingModalVisible] = useState(false);
 
     const { openOnboarding } = useStripeOnboarding({ fetchOnMount: true });
+    const activationInFlightRef = useRef(false);
+    const credentialRequestRef = useRef(0);
 
     const contentTabs = [
         { id: 'posts', label: t('subventionSetup.tabMint'), icon: 'notebook-edit-outline', iconColor: null },
@@ -169,15 +177,6 @@ const SubventionSetupScreen = () => {
     const isBrowserCancelled = (result) => result?.type === 'cancel' || result?.type === 'dismiss';
     const isOnboardingReady = (status) => status?.canReceivePayments === true && Boolean(status?.accountId);
 
-    const getCachedOnboardingStatus = async () => {
-        try {
-            const raw = await AsyncStorage.getItem(STRIPE_ONBOARDING_STATUS_KEY);
-            return raw ? JSON.parse(raw) : null;
-        } catch (error) {
-            return null;
-        }
-    };
-
     const GetInbordingstatus = async () => {
         try {
             const response = await getOnboardingStatus();
@@ -197,18 +196,21 @@ const SubventionSetupScreen = () => {
 
     const GetInbordingLink = async () => {
         const response = await createOnboardingLink();
-        const onboardingUrl = response?.data?.onboardingUrl ?? response?.data?.data?.onboardingUrl;
+        const onboardingUrl = getOnboardingUrl(response);
 
         if (!onboardingUrl) {
             const latestStatus = await GetInbordingstatus();
             if (isOnboardingReady(latestStatus)) return { alreadyOnboarded: true };
-            const cachedStatus = await getCachedOnboardingStatus();
-            if (isOnboardingReady(cachedStatus)) return { alreadyOnboarded: true };
-            throw new Error('Onboarding link not found');
+            throw new Error(
+                describeRequestFailure(response, stripeErrorMessages, stripeErrorMessages.ONBOARDING_FAILED),
+            );
         }
 
+        setShowActivationPopup(false);
+        setShowBusinessReminderPopup(false);
+        await delay(450);
         if (await InAppBrowser.isAvailable()) {
-            return await InAppBrowser.open(onboardingUrl, {
+            const browserResult = await InAppBrowser.open(onboardingUrl, {
                 dismissButtonStyle: 'close',
                 preferredBarTintColor: '#000',
                 preferredControlTintColor: '#fff',
@@ -217,6 +219,9 @@ const SubventionSetupScreen = () => {
                 enableUrlBarHiding: true,
                 enableDefaultShare: false,
             });
+            credentialRequestRef.current += 1;
+            await delay(400);
+            return browserResult;
         }
 
         await Linking.openURL(onboardingUrl);
@@ -240,6 +245,9 @@ const SubventionSetupScreen = () => {
     };
 
     const handleActivationConfirm = async () => {
+        if (activationInFlightRef.current) return;
+        activationInFlightRef.current = true;
+        credentialRequestRef.current += 1;
         try {
             setShowActivationPopup(false);
             const onboardingStatus = await GetInbordingstatus();
@@ -269,6 +277,7 @@ const SubventionSetupScreen = () => {
             console.log('Activation flow error:', error);
             showToastMessage(toast, 'danger', error?.message || stripeErrorMessages.ONBOARDING_FAILED);
         } finally {
+            activationInFlightRef.current = false;
             setShowActivationPopup(false);
         }
     };
@@ -289,6 +298,8 @@ const SubventionSetupScreen = () => {
     };
 
     const handleBusinessActivationConfirm = async () => {
+        if (activationInFlightRef.current) return;
+        activationInFlightRef.current = true;
         try {
             dispatch(showLoader());
 
@@ -329,6 +340,7 @@ const SubventionSetupScreen = () => {
             console.log('Business activation flow error:', error);
             showToastMessage(toast, 'danger', error?.message || stripeErrorMessages.ONBOARDING_FAILED);
         } finally {
+            activationInFlightRef.current = false;
             dispatch(hideLoader());
         }
     };
@@ -342,10 +354,12 @@ const SubventionSetupScreen = () => {
     };
 
     const getCredential = useCallback(async () => {
+        const requestId = credentialRequestRef.current;
         try {
             const id = await AsyncStorage.getItem('userId');
             if (!id) return;
             const response = await getUserCredentials(id);
+            if (requestId !== credentialRequestRef.current || activationInFlightRef.current) return;
             const data = response?.data ?? response;
             setCredential(data);
             const hasActiveAccess = hasActiveSubscriptionAccess(data);
@@ -529,6 +543,9 @@ const SubventionSetupScreen = () => {
             response = await createCheckoutSession();
             const checkoutUrl = response?.data?.url;
             if (!checkoutUrl) throw new Error('Checkout URL not received');
+            setShowActivationPopup(false);
+            setShowBusinessReminderPopup(false);
+            await delay(450);
             if (await InAppBrowser.isAvailable()) {
                 const browserResult = await InAppBrowser.open(checkoutUrl, {
                     dismissButtonStyle: 'close',
@@ -539,6 +556,10 @@ const SubventionSetupScreen = () => {
                     enableUrlBarHiding: true,
                     enableDefaultShare: false,
                 });
+                // Ignore the focus refresh that runs as the browser closes.
+                // That refresh was reopening this modal and freezing the screen.
+                credentialRequestRef.current += 1;
+                await delay(400);
                 return { response, cancelled: isBrowserCancelled(browserResult) };
             } else {
                 await Linking.openURL(checkoutUrl);
