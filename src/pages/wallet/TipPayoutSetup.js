@@ -18,6 +18,8 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useLanguage } from '../../i18n';
+import { useIsFocused } from '@react-navigation/native';
+import { usePagbankOnboarding } from '../../hooks/usePagbankOnboarding';
 import { saveTipPayoutSetup, maskAccountNumber } from '../../utils/tipPayoutStorage';
 import { getActivePaymentProvider, hydratePaymentProvider, isPagbankProvider } from '../../utils/paymentCurrency';
 import { createOnboardingLink } from '../../services/profile';
@@ -70,6 +72,8 @@ const TipPayoutSetup = ({ navigation, route }) => {
   const { t } = useLanguage();
   const [paymentProvider, setPaymentProvider] = useState(getActivePaymentProvider);
   const isPagbankTip = isPagbankProvider(paymentProvider);
+  const isFocused = useIsFocused();
+  const pagbank = usePagbankOnboarding(isPagbankTip && isFocused);
   const providerName = isPagbankTip ? 'PagBank' : 'Stripe';
   const providerMark = isPagbankTip ? 'P' : 'S';
 
@@ -193,11 +197,14 @@ const TipPayoutSetup = ({ navigation, route }) => {
       }
     } catch (error) {
       Alert.alert(
-        t('tipPayoutSetup.validationTitle'),
-        error?.message || getStripeErrorMessages(t).ONBOARDING_FAILED,
+        t(isPagbankTip ? 'tipPayoutSetup.connectionFailedTitle' : 'tipPayoutSetup.validationTitle'),
+        isPagbankTip
+          ? t('tipPayoutSetup.connectionFailed')
+          : error?.message || getStripeErrorMessages(t).ONBOARDING_FAILED,
       );
     } finally {
       setConnecting(false);
+      if (isPagbankTip) pagbank.refresh();
     }
   };
 
@@ -309,10 +316,18 @@ const TipPayoutSetup = ({ navigation, route }) => {
         {t('tipPayoutSetup.legalNote', { provider: providerName })}
       </Text>
 
+      {isPagbankTip && (
+        <Text accessibilityRole="text" style={[styles.legalNote, { color: mutedText }]}>
+          {t(pagbank.error
+            ? 'tipPayoutSetup.statusUnavailable'
+            : pagbank.loading ? 'tipPayoutSetup.checkingConnection' : 'tipPayoutSetup.authorizationRequired')}
+        </Text>
+      )}
+
       <TouchableOpacity
         style={[styles.primaryBtn, { backgroundColor: cta.backgroundColor }, connecting && styles.primaryBtnDisabled]}
         onPress={handleConnectPayout}
-        disabled={connecting}
+        disabled={connecting || (isPagbankTip && pagbank.loading)}
       >
         {connecting ? (
           <ActivityIndicator color={cta.color} />
@@ -320,6 +335,11 @@ const TipPayoutSetup = ({ navigation, route }) => {
           <Text style={[styles.primaryBtnText, { color: cta.color }]}>{t('tipPayoutSetup.continue')}</Text>
         )}
       </TouchableOpacity>
+      {isPagbankTip && pagbank.error && (
+        <TouchableOpacity style={styles.secondaryBtn} onPress={pagbank.refresh} disabled={pagbank.loading}>
+          <Text style={[styles.secondaryBtnText, { color: text }]}>{t('tipPayoutSetup.checkConnection')}</Text>
+        </TouchableOpacity>
+      )}
       <TouchableOpacity style={styles.secondaryBtn} onPress={handleMaybeLater}>
         <Text style={[styles.secondaryBtnText, { color: text }]}>{t('tipPayoutSetup.maybeLater')}</Text>
       </TouchableOpacity>
@@ -579,11 +599,25 @@ const TipPayoutSetup = ({ navigation, route }) => {
 
   return (
     <View style={[styles.container, bgStyle]}>
-      {step === 'intro' && renderIntro()}
-      {step === 'information' && renderInformation()}
-      {step === 'payout' && renderPayout()}
-      {step === 'verify' && renderVerify()}
-      {step === 'success' && renderSuccess()}
+      {isPagbankTip ? (
+        pagbank.connected === true ? (
+          <ScrollView contentContainerStyle={[styles.scrollBody, styles.successBody]}>
+            <Text style={[styles.screenTitle, { color: text }]}>{t('tipPayoutSetup.pagbankConnectedTitle')}</Text>
+            <Text style={[styles.screenSubtitle, { color: mutedText }]}>{t('tipPayoutSetup.pagbankConnectedSubtitle')}</Text>
+            <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: cta.backgroundColor }]} onPress={goDashboard}>
+              <Text style={[styles.primaryBtnText, { color: cta.color }]}>{t('tipPayoutSetup.goToDashboard')}</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        ) : renderIntro()
+      ) : (
+        <>
+          {step === 'intro' && renderIntro()}
+          {step === 'information' && renderInformation()}
+          {step === 'payout' && renderPayout()}
+          {step === 'verify' && renderVerify()}
+          {step === 'success' && renderSuccess()}
+        </>
+      )}
 
       <Modal visible={pickerModal.visible} transparent animationType="fade" onRequestClose={closePicker}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closePicker}>

@@ -22,7 +22,7 @@ import ImageZoom from 'react-native-image-pan-zoom';
 import { hideLoader, showLoader } from '../../redux/actions/LoaderAction';
 import { useDispatch, useSelector } from 'react-redux';
 import { getLatestTransactions, getRecentActivities, getTokenHistory, getTopCreators, getTotalTokenPurchase } from '../../services/tokens';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { showToastMessage } from '../../components/displaytoastmessage';
 import { useToast } from 'react-native-toast-notifications';
 import { getCreditsLeft, totalMission, totalSupport, totalamount, metaMaskRecived, totalPoints, getTotalFollowers, subscriptionEarningGraph } from '../../services/wallet';
@@ -40,6 +40,7 @@ import { useWalletConnectSupport } from '../../context/WalletConnectSupportConte
 import { appKit } from '../../config/AppKitConfig';
 import { getDragonflyIcon } from '../../components/profile/ProfilePersonalData';
 import { getTipPayoutSetup } from '../../utils/tipPayoutStorage';
+import { usePagbankOnboarding } from '../../hooks/usePagbankOnboarding';
 import MIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   WhiteDragonfly,
@@ -740,6 +741,8 @@ export const WalletDashboardScreen = ({ navigation }) => {
   const [metaMaskAmount, setMetaMaskAmount] = useState(0);
   const [metaMaskLoaded, setMetaMaskLoaded] = useState(false);
   const [paymentProvider, setPaymentProvider] = useState('');
+  const isFocused = useIsFocused();
+  const pagbank = usePagbankOnboarding(isPagbankProvider(paymentProvider) && isFocused);
   const [totalEarningAmount, setTotalEarningAmount] = useState(0);
   const [rewardSummary, setRewardSummary] = useState(DEFAULT_REWARD_POINTS);
   const [kpiData, setKpiData] = useState([
@@ -1070,10 +1073,16 @@ export const WalletDashboardScreen = ({ navigation }) => {
     };
   }, []);
 
-  const tipPayoutReady = !!tipPayoutSetup?.connected;
+  const tipPayoutReady = isPagbankProvider(paymentProvider)
+    ? pagbank.connected === true
+    : !!tipPayoutSetup?.connected;
 
   const fetchTipPayoutStatus = async () => {
     try {
+      if (isPagbankProvider(await hydratePaymentProvider())) {
+        setTipPayoutSetup(null);
+        return;
+      }
       const saved = await getTipPayoutSetup();
       setTipPayoutSetup(saved);
     } catch {
@@ -1082,6 +1091,10 @@ export const WalletDashboardScreen = ({ navigation }) => {
   };
 
   const handleTipPayoutPress = async () => {
+    if (isPagbankProvider(paymentProvider)) {
+      navigation.navigate('TipPayoutSetup');
+      return;
+    }
     const saved = tipPayoutSetup || (await getTipPayoutSetup());
     if (saved?.connected) {
       navigation.navigate('TipPayoutSetup', { initialStep: 'success', saved });
@@ -1636,10 +1649,14 @@ export const WalletDashboardScreen = ({ navigation }) => {
       const isPagbankTip = isPagbankProvider(paymentProvider);
       const tipProviderMark = isPagbankTip ? 'P' : 'S';
       const tipProviderName = isPagbankTip ? 'PagBank' : 'Stripe';
-      const tipStatusText = tipPayoutReady
+      const tipStatusText = isPagbankTip && pagbank.connected === null
+        ? t(pagbank.error ? 'tipPayoutSetup.statusUnavailable' : 'tipPayoutSetup.checkingConnection')
+        : tipPayoutReady
         ? t('walletDashboard.tipPayout.connected')
         : t('walletDashboard.tipPayout.setupRequired');
-      const tipActionText = tipPayoutReady
+      const tipActionText = isPagbankTip && pagbank.error
+        ? t('tipPayoutSetup.checkConnection')
+        : tipPayoutReady
         ? t('walletDashboard.tipPayout.viewDetails')
         : t('walletDashboard.tipPayout.tapToConnect');
 
