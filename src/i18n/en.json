@@ -117,7 +117,11 @@
     "passwordRules": "Password must include uppercase, lowercase, number & special character",
     "countryLabel": "Select your country",
     "countryPlaceholder": "Select your country",
-    "countryRequired": "Please select your country"
+    "countryRequired": "Please select your country",
+    "usernameChecking": "Checking username...",
+    "usernameAvailable": "Username is available!",
+    "usernameTaken": "Username is already taken",
+    "suggestions": "Suggestions:"
   },
   "kyc": {
     "title": "KYC Verification",

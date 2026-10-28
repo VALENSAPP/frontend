@@ -117,7 +117,11 @@
     "passwordRules": "Includi maiuscole, minuscole, numeri e caratteri speciali",
     "countryLabel": "Seleziona il tuo paese",
     "countryPlaceholder": "Seleziona il tuo paese",
-    "countryRequired": "Seleziona il tuo paese"
+    "countryRequired": "Seleziona il tuo paese",
+    "usernameChecking": "Verifica nome utente in corso...",
+    "usernameAvailable": "Il nome utente è disponibile!",
+    "usernameTaken": "Il nome utente è già in uso",
+    "suggestions": "Suggerimenti:"
   },
   "kyc": {
     "title": "Verifica KYC",

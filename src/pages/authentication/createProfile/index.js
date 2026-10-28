@@ -156,10 +156,8 @@ export default function CreateProfile() {
           setDisplayName(resp.data.displayName || '');
           setBio(resp.data.bio || '');
           if (resp.data.displayName) setDisplayNameStatus('approved');
-          if (serverUsername) {
+          if (serverUsername || storedUsername) {
             setUsernameStatus('approved');
-          } else if (storedUsername) {
-            checkUsernameAvailability(storedUsername);
           }
         } else {
           toast.show(resp.message, { type: 'danger' });
@@ -447,7 +445,7 @@ export default function CreateProfile() {
           value={username}
           autoCapitalize="none"
           autoCorrect={false}
-          onChangeText={handleUsernameChange}
+          editable={false}
         />
         <View style={styles.inputStatus}>
           {isCheckingUsername && (
@@ -467,8 +465,6 @@ export default function CreateProfile() {
           )}
         </View>
       </View>
-
-      <Text style={[styles.helperText, { color: mutedText }]}>{t('signup.usernameHelper')}</Text>
 
       {errors.username && (
         <Text style={styles.errorText}>{errors.username}</Text>

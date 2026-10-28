@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,11 @@ import {
   Keyboard,
   Platform,
   TouchableWithoutFeedback,
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useDispatch, useSelector } from 'react-redux';
@@ -21,8 +26,7 @@ import {
   onGoogleButtonPress,
   twitterOAuthLogin,
 } from '../socialLogin';
-import { signup } from '../../../services/authentication';
-import CountryPicker from 'react-native-country-picker-modal';
+import { signup, checkUsername } from '../../../services/authentication';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { AuthHeader } from '../../../components/auth';
 import DeviceInfo from 'react-native-device-info';
@@ -31,6 +35,22 @@ import { setUserProfile } from '../../../redux/actions/UserProfileAction';
 import { setSignupFormData, clearSignupFormData } from '../../../redux/actions/SignupFormAction';
 import { useLanguage } from '../../../i18n';
 import { validateUsername } from '../../../utils/validation';
+import { useDebouncedCallback } from '../../../hooks/useDebouncedCallback';
+
+// Load country data from the installed library's asset
+let ALL_COUNTRIES = [];
+try {
+  const countriesData = require('react-native-country-picker-modal/lib/assets/data/countries-emoji.json');
+  ALL_COUNTRIES = Object.entries(countriesData)
+    .map(([cca2, data]) => ({
+      cca2,
+      name: data && data.name ? (data.name.common || cca2) : cca2,
+      flag: (data && data.flag) ? data.flag : '',
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+} catch (e) {
+  console.warn('Could not load countries data:', e);
+}
 
 export default function SignupScreen() {
   const navigation = useNavigation();
@@ -46,24 +66,145 @@ export default function SignupScreen() {
   const [country, setCountry] = useState('');
   const [countryName, setCountryName] = useState('');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
   const [password, setPassword] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState(null);
+  const [usernameSuggestions, setUsernameSuggestions] = useState([]);
+  const lastCheckedUsernameRef = useRef('');
 
   const profileFromRoute = route?.params?.profile || 'user';
   const styles = useSignupStyles();
   const profile = profileFromRoute;
-  const { bgStyle, text, accent, mutedText, icon } = useAppTheme(profile);
+  const { bgStyle, text, accent, mutedText, bg, card, border } = useAppTheme(profile);
+  const isSignupDisabled = usernameStatus === 'taken' || isCheckingUsername;
+
+  // Filtered country list based on search
+  const filteredCountries = useMemo(() => {
+    if (!countrySearch.trim()) return ALL_COUNTRIES;
+    const q = countrySearch.trim().toLowerCase();
+    return ALL_COUNTRIES.filter(c =>
+      c.name.toLowerCase().includes(q) || c.cca2.toLowerCase().includes(q)
+    );
+  }, [countrySearch]);
+
+  const checkUsernameAvailability = async (name) => {
+    const trimmed = (name || '').trim();
+    if (!trimmed || trimmed.length < 2) {
+      setIsCheckingUsername(false);
+      setUsernameStatus(null);
+      setUsernameSuggestions([]);
+      return;
+    }
+
+    lastCheckedUsernameRef.current = trimmed;
+    setIsCheckingUsername(true);
+    setUsernameStatus('checking');
+    setUsernameSuggestions([]);
+
+    try {
+      const resp = await checkUsername({ userName: trimmed, username: trimmed });
+      console.log('Username check response:', resp);
+
+      if (lastCheckedUsernameRef.current !== trimmed) {
+        return;
+      }
+
+      const isSuccess =
+        resp &&
+        (resp.statusCode === 200 || resp.statusCode === 201) &&
+        resp.success !== false;
+      const data = resp?.data || {};
+      const isAvail =
+        isSuccess &&
+        data.isAvailable !== false &&
+        data.status !== 'taken';
+      const suggestions = data.suggestions || resp?.suggestions || [];
+      const message = data.message || resp?.message;
+
+      if (isAvail) {
+        setUsernameStatus('approved');
+        setUsernameSuggestions([]);
+        setErrors(prev => {
+          const next = { ...prev };
+          delete next.userName;
+          return next;
+        });
+      } else {
+        setUsernameStatus('taken');
+        if (suggestions.length > 0) {
+          setUsernameSuggestions(suggestions);
+        }
+        setErrors(prev => ({
+          ...prev,
+          userName:
+            message ||
+            t('signup.usernameTaken') ||
+            t('createProfile.usernameTaken'),
+        }));
+      }
+    } catch (err) {
+      console.error('Username check error:', err);
+      if (lastCheckedUsernameRef.current === trimmed) {
+        setUsernameStatus(null);
+      }
+    } finally {
+      if (lastCheckedUsernameRef.current === trimmed) {
+        setIsCheckingUsername(false);
+      }
+    }
+  };
+
+  const debouncedCheckUsername = useDebouncedCallback(checkUsernameAvailability, 500);
+
+  const handleUsernameChange = (value) => {
+    setUsername(value);
+    const userNameError = validateUsername(value, t);
+    setErrors(prev => {
+      const next = { ...prev };
+      if (userNameError) next.userName = userNameError;
+      else delete next.userName;
+      return next;
+    });
+
+    const trimmed = value.trim();
+    if (!userNameError && trimmed.length >= 2) {
+      setIsCheckingUsername(true);
+      setUsernameStatus('checking');
+      debouncedCheckUsername(trimmed);
+    } else {
+      setIsCheckingUsername(false);
+      setUsernameStatus(null);
+      setUsernameSuggestions([]);
+    }
+  };
+
+  const selectUsernameSuggestion = (suggestion) => {
+    setUsername(suggestion);
+    setUsernameSuggestions([]);
+    setErrors(prev => {
+      const next = { ...prev };
+      delete next.userName;
+      return next;
+    });
+    checkUsernameAvailability(suggestion);
+  };
 
   useFocusEffect(
     useCallback(() => {
       setEmail(savedFormData?.email || '');
-      setUsername(savedFormData?.userName || '');
+      const savedUser = savedFormData?.userName || '';
+      setUsername(savedUser);
       setPassword(savedFormData?.password || '');
       setReferralCode(savedFormData?.referralCode || '');
       setCountry(savedFormData?.country || '');
       setCountryName(savedFormData?.countryName || '');
+      if (savedUser && savedUser.trim().length >= 2) {
+        checkUsernameAvailability(savedUser);
+      }
     }, [savedFormData])
   );
 
@@ -88,7 +229,11 @@ export default function SignupScreen() {
     }
 
     const userNameError = validateUsername(userName, t);
-    if (userNameError) errs.userName = userNameError;
+    if (userNameError) {
+      errs.userName = userNameError;
+    } else if (usernameStatus === 'taken') {
+      errs.userName = errors.userName || t('signup.usernameTaken') || t('createProfile.usernameTaken');
+    }
 
     if (!country) {
       errs.country = t('signup.countryRequired');
@@ -119,7 +264,62 @@ export default function SignupScreen() {
     const normalizedUserName = userName.trim();
     const normalizedReferralCode = referralCode.trim();
 
+    if (isCheckingUsername) {
+      showToastMessage(
+        toast,
+        'warning',
+        t('signup.usernameChecking') || 'Checking username availability, please wait...'
+      );
+      return;
+    }
+
+    if (usernameStatus === 'taken') {
+      showToastMessage(
+        toast,
+        'danger',
+        errors.userName || t('signup.usernameTaken') || t('createProfile.usernameTaken')
+      );
+      return;
+    }
+
     dispatch(showLoader());
+
+    if (usernameStatus !== 'approved') {
+      try {
+        const checkResp = await checkUsername({
+          userName: normalizedUserName,
+          username: normalizedUserName,
+        });
+        const isSuccess =
+          checkResp &&
+          (checkResp.statusCode === 200 || checkResp.statusCode === 201) &&
+          checkResp.success !== false;
+        const checkData = checkResp?.data || {};
+        const isAvail =
+          isSuccess &&
+          checkData.isAvailable !== false &&
+          checkData.status !== 'taken';
+
+        if (!isAvail) {
+          dispatch(hideLoader());
+          setUsernameStatus('taken');
+          const errMsg =
+            checkData.message ||
+            checkResp?.message ||
+            t('signup.usernameTaken') ||
+            t('createProfile.usernameTaken');
+          const suggestions = checkData.suggestions || checkResp?.suggestions || [];
+          if (suggestions.length > 0) setUsernameSuggestions(suggestions);
+          setErrors(prev => ({ ...prev, userName: errMsg }));
+          showToastMessage(toast, 'danger', errMsg);
+          return;
+        }
+        setUsernameStatus('approved');
+      } catch (checkErr) {
+        console.warn('Username pre-check error:', checkErr);
+      }
+    }
+
     try {
       const signupPayload = {
         email: normalizedEmail,
@@ -197,6 +397,8 @@ export default function SignupScreen() {
   const handleBackPress = () => {
     dispatch(clearSignupFormData());
     dispatch(setUserProfile('user'));
+    setUsernameStatus(null);
+    setUsernameSuggestions([]);
     navigation.navigate('SelectAccountType');
   };
 
@@ -269,21 +471,59 @@ export default function SignupScreen() {
                     placeholder={t('signup.usernamePlaceholder')}
                     placeholderTextColor={mutedText}
                     autoCapitalize="none"
+                    autoCorrect={false}
                     value={userName}
-                    onChangeText={value => {
-                      setUsername(value);
-                      const userNameError = validateUsername(value, t);
-                      setErrors(prev => {
-                        const next = { ...prev };
-                        if (userNameError) next.userName = userNameError;
-                        else delete next.userName;
-                        return next;
-                      });
-                    }}
+                    onChangeText={handleUsernameChange}
                   />
+                  {isCheckingUsername && (
+                    <ActivityIndicator
+                      size="small"
+                      color={accent || '#6B7280'}
+                      style={styles.statusIndicator}
+                    />
+                  )}
+                  {usernameStatus === 'approved' && !isCheckingUsername && (
+                    <Icon
+                      name="checkmark-circle"
+                      size={20}
+                      color="#10B981"
+                      style={styles.statusIndicator}
+                    />
+                  )}
+                  {usernameStatus === 'taken' && !isCheckingUsername && (
+                    <Icon
+                      name="close-circle"
+                      size={20}
+                      color="#EF4444"
+                      style={styles.statusIndicator}
+                    />
+                  )}
                 </View>
-                <Text style={styles.helperText}>{t('signup.usernameHelper')}</Text>
                 {errors.userName && <Text style={styles.errorText}>{errors.userName}</Text>}
+
+                {usernameSuggestions.length > 0 && (
+                  <View style={styles.suggestionsContainer}>
+                    <Text style={styles.suggestionsTitle}>
+                      {t('signup.suggestions') || t('createProfile.suggestions') || 'Suggestions:'}
+                    </Text>
+                    <FlatList
+                      data={usernameSuggestions}
+                      keyExtractor={(item, index) => index.toString()}
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      keyboardShouldPersistTaps="handled"
+                      renderItem={({ item }) => (
+                        <TouchableOpacity
+                          style={styles.suggestionChip}
+                          onPress={() => selectUsernameSuggestion(item)}
+                        >
+                          <Text style={styles.suggestionText}>{item}</Text>
+                        </TouchableOpacity>
+                      )}
+                      contentContainerStyle={styles.suggestionsList}
+                    />
+                  </View>
+                )}
               </View>
 
               {/* Country */}
@@ -291,7 +531,10 @@ export default function SignupScreen() {
                 <Text style={styles.inputLabel}>{t('signup.countryLabel')}</Text>
                 <TouchableOpacity
                   style={[styles.inputGroup, errors.country && styles.inputError]}
-                  onPress={() => setShowCountryPicker(true)}
+                  onPress={() => {
+                    setCountrySearch('');
+                    setShowCountryPicker(true);
+                  }}
                   activeOpacity={0.8}
                 >
                   <View style={[styles.inputIconContainer, bgStyle]}>
@@ -304,37 +547,97 @@ export default function SignupScreen() {
                     ]}
                     numberOfLines={1}
                   >
-                    {countryName || country || t('signup.countryPlaceholder')}
+                    {countryName
+                      ? `${ALL_COUNTRIES.find(c => c.cca2 === country)?.flag || ''} ${countryName}`
+                      : t('signup.countryPlaceholder')}
                   </Text>
                   <Icon name="chevron-down" size={20} color={mutedText} />
                 </TouchableOpacity>
                 {errors.country && <Text style={styles.errorText}>{errors.country}</Text>}
-                <CountryPicker
-                  countryCode={country || 'BR'}
-                  withFilter
-                  withFlag
-                  withEmoji
-                  withAlphaFilter
-                  visible={showCountryPicker}
-                  onClose={() => setShowCountryPicker(false)}
-                  onSelect={selected => {
-                    const nextCode = selected?.cca2 || '';
-                    const nextName =
-                      typeof selected?.name === 'string'
-                        ? selected.name
-                        : selected?.name?.common || nextCode;
-                    setCountry(nextCode);
-                    setCountryName(nextName);
-                    setShowCountryPicker(false);
-                    setErrors(prev => {
-                      const next = { ...prev };
-                      delete next.country;
-                      return next;
-                    });
-                  }}
-                  containerButtonStyle={styles.countryPickerHidden}
-                />
               </View>
+
+              {/* Custom Country Picker Modal */}
+              <Modal
+                visible={showCountryPicker}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setShowCountryPicker(false)}
+              >
+                <View style={styles.countryModalOverlay}>
+                  <SafeAreaView style={[styles.countryModalContainer, { backgroundColor: card }]}>
+                    {/* Modal Header */}
+                    <View style={[styles.countryModalHeader, { borderBottomColor: border }]}>
+                      <Text style={[styles.countryModalTitle, { color: text }]}>
+                        {t('signup.countryLabel')}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => setShowCountryPicker(false)}
+                        style={styles.countryModalClose}
+                      >
+                        <Icon name="close" size={24} color={text} />
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Search Input */}
+                    <View style={[styles.countrySearchWrapper, { backgroundColor: bg, borderColor: border }]}>
+                      <Icon name="search-outline" size={18} color={mutedText} style={{ marginRight: 8 }} />
+                      <TextInput
+                        style={[styles.countrySearchInput, { color: text }]}
+                        placeholder="Search country..."
+                        placeholderTextColor={mutedText}
+                        value={countrySearch}
+                        onChangeText={setCountrySearch}
+                        autoCorrect={false}
+                        autoCapitalize="none"
+                      />
+                      {countrySearch.length > 0 && (
+                        <TouchableOpacity onPress={() => setCountrySearch('')}>
+                          <Icon name="close-circle" size={18} color={mutedText} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Country List */}
+                    <FlatList
+                      data={filteredCountries}
+                      keyExtractor={item => item.cca2}
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator={false}
+                      renderItem={({ item }) => (
+                        <TouchableOpacity
+                          style={[
+                            styles.countryItem,
+                            { borderBottomColor: border },
+                            country === item.cca2 && { backgroundColor: `${accent}18` },
+                          ]}
+                          onPress={() => {
+                            setCountry(item.cca2);
+                            setCountryName(item.name);
+                            setShowCountryPicker(false);
+                            setCountrySearch('');
+                            setErrors(prev => {
+                              const next = { ...prev };
+                              delete next.country;
+                              return next;
+                            });
+                          }}
+                        >
+                          <Text style={styles.countryItemFlag}>{item.flag}</Text>
+                          <Text style={[styles.countryItemName, { color: text }]}>{item.name}</Text>
+                          {country === item.cca2 && (
+                            <Icon name="checkmark" size={18} color={accent} />
+                          )}
+                        </TouchableOpacity>
+                      )}
+                      ListEmptyComponent={
+                        <Text style={[styles.countryEmptyText, { color: mutedText }]}>
+                          No countries found
+                        </Text>
+                      }
+                    />
+                  </SafeAreaView>
+                </View>
+              </Modal>
 
               {/* Password */}
               <View style={styles.inputWrapper}>
@@ -397,8 +700,14 @@ export default function SignupScreen() {
 
               {/* Sign Up Button */}
               <TouchableOpacity
-                style={[styles.signupButton, { backgroundColor: accent }]}
+                style={[
+                  styles.signupButton,
+                  { backgroundColor: accent },
+                  isSignupDisabled && styles.signupButtonDisabled,
+                ]}
+                disabled={isSignupDisabled}
                 onPress={handleSignUp}
+                activeOpacity={isSignupDisabled ? 1 : 0.8}
               >
                 <Text style={styles.signupButtonText}>{t('signup.createAccountButton')}</Text>
               </TouchableOpacity>

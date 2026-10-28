@@ -124,6 +124,37 @@ const useSignupStyles = () => {
       textTransform: 'uppercase',
       letterSpacing: 0.5,
     },
+    statusIndicator: {
+      padding: 4,
+      marginLeft: 6,
+    },
+    suggestionsContainer: {
+      marginTop: 8,
+    },
+    suggestionsTitle: {
+      fontSize: 12,
+      color: mutedText,
+      marginBottom: 6,
+      fontWeight: '500',
+      marginLeft: 4,
+    },
+    suggestionsList: {
+      paddingVertical: 2,
+    },
+    suggestionChip: {
+      backgroundColor: bg,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 14,
+      marginRight: 8,
+      borderWidth: 1,
+      borderColor: accent || border,
+    },
+    suggestionText: {
+      color: text,
+      fontSize: 13,
+      fontWeight: '600',
+    },
     helperText: {
       color: mutedText,
       fontSize: 12,
@@ -138,6 +169,9 @@ const useSignupStyles = () => {
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 24,
+    },
+    signupButtonDisabled: {
+      opacity: 0.5,
     },
     signupButtonText: {
       fontSize: 18,
@@ -275,7 +309,7 @@ const useSignupStyles = () => {
       shadowRadius: 4,
       elevation: 2,
       marginTop: -18,
-      marginBottom: 11
+      marginBottom: 11,
     },
 
     socialSectionHeader: {
@@ -291,7 +325,7 @@ const useSignupStyles = () => {
       flexDirection: 'row',
       alignItems: 'center',
       marginBottom: 10,
-      marginTop: -8
+      marginTop: -8,
     },
     text: {
       marginLeft: 10,
@@ -299,8 +333,69 @@ const useSignupStyles = () => {
       fontWeight: '400',
       color: text,
     },
-    countryPickerHidden: {
-      display: 'none',
+
+    // Country Picker Modal styles
+    countryModalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'flex-end',
+    },
+    countryModalContainer: {
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      maxHeight: '85%',
+      paddingBottom: 16,
+    },
+    countryModalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+    },
+    countryModalTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    countryModalClose: {
+      padding: 4,
+    },
+    countrySearchWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: 16,
+      marginVertical: 12,
+      height: 44,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      paddingHorizontal: 12,
+    },
+    countrySearchInput: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '400',
+    },
+    countryItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      borderBottomWidth: 0.5,
+    },
+    countryItemFlag: {
+      fontSize: 22,
+      marginRight: 12,
+    },
+    countryItemName: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '500',
+    },
+    countryEmptyText: {
+      textAlign: 'center',
+      marginTop: 40,
+      fontSize: 15,
     },
 
   });

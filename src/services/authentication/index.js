@@ -51,6 +51,17 @@ export const signup = async (data) => {
     }
 }
 
+export const checkUsername = async (data) => {
+    const payload = typeof data === 'string'
+      ? { userName: data, username: data }
+      : {
+          userName: data?.userName || data?.username,
+          username: data?.username || data?.userName,
+          ...data,
+        };
+    return axiosinstance.post('user/check-username', payload);
+};
+
 const requestLocationPermission = async () => {
     if (!appPermissionsReady) {
         return false;

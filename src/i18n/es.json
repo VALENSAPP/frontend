@@ -117,7 +117,11 @@
     "passwordRules": "La contraseña debe incluir mayúsculas, minúsculas, número y carácter especial",
     "countryLabel": "Selecciona tu país",
     "countryPlaceholder": "Selecciona tu país",
-    "countryRequired": "Por favor, selecciona tu país"
+    "countryRequired": "Por favor, selecciona tu país",
+    "usernameChecking": "Comprobando nombre de usuario...",
+    "usernameAvailable": "¡El nombre de usuario está disponible!",
+    "usernameTaken": "El nombre de usuario ya está en uso",
+    "suggestions": "Sugerencias:"
   },
   "kyc": {
     "title": "Verificación KYC",
