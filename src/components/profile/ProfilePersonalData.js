@@ -39,6 +39,9 @@ import ReportFlowScreen from '../modals/Report';
 import TradeModal from '../modals/TradeModal';
 import SupportCreatorModal from '../modals/SupportCreatorModal';
 import TipSupportModal from '../modals/TipSupportModal';
+import { useTipSupportSummary } from '../../hooks/useTipSupportSummary';
+import { formatTipSupportAmount } from '../../utils/tipSupportSummary';
+import { getPaymentProvider } from '../../utils/pixPayment';
 import WelcomeValensModal from '../modals/WelcomeValensModal';
 import { showLoader, hideLoader } from '../../redux/actions/LoaderAction';
 import { useDispatch, useSelector } from 'react-redux';
@@ -71,7 +74,6 @@ import { showToastMessage } from '../displaytoastmessage';
 import { useToast } from 'react-native-toast-notifications';
 import StoryComposer from '../home/story.js/StoryComposer';
 import { getUserCredentials } from '../../services/post';
-import { tipRecived } from '../../services/wallet';
 import { battleByUserId, battlePoint } from '../../services/battle';
 import { isBattleLive } from '../../utils/battleCardUtils';
 import { BATTLE_LEVELS, resolveBattleLevel, getBattleLevelDragonflyIcon } from '../../utils/battleLevels';
@@ -136,7 +138,7 @@ const ProfilePersonData = ({
   compactLocked = false,
 }) => {
   const navigation = useNavigation();
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
   const reduxProfileImg = useSelector(state => state.profileImage?.profileImg);
   const [profileImage, setProfileImage] = useState(null);
 
@@ -231,9 +233,7 @@ const ProfilePersonData = ({
   const [followActionsOpen, setFollowActionsOpen] = useState(false);
   const [welcomeModalVisible, setWelcomeModalVisible] = useState(false);
   const [totalSupportOpen, setTotalSupportOpen] = useState(false);
-  const [totalSupportLoading, setTotalSupportLoading] = useState(false);
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
-  const [totalSupportAmount, setTotalSupportAmount] = useState(0);
   const [hasLiveBattle, setHasLiveBattle] = useState(false);
   const [battlePointSummary, setBattlePointSummary] = useState({
     level: 'Rookie',
@@ -300,6 +300,21 @@ const ProfilePersonData = ({
       ).trim(),
     [targetUserId, userData?.id, userData?._id, userData?.userId, userId],
   );
+  const {
+    amount: totalSupportAmount,
+    loading: totalSupportLoading,
+    error: totalSupportError,
+    refresh: fetchReceivedSupportAmount,
+  } = useTipSupportSummary(viewedBattleUserId);
+  const supportCountry = fromUsersProfile ? userData?.country : data?.country || userData?.country;
+  const isBrazilSupport = getPaymentProvider({ country: supportCountry }) === 'PAGBANK';
+  const handleTipSuccess = useCallback(payment => {
+    if (payment?.provider === 'PAGBANK' && payment.paymentId &&
+        String(payment.receiverUserId).trim() === viewedBattleUserId) {
+      void fetchReceivedSupportAmount();
+    }
+  }, [viewedBattleUserId, fetchReceivedSupportAmount]);
+
 
   const resolvedDisplayName =
     displayName ||
@@ -705,32 +720,6 @@ const ProfilePersonData = ({
   const closeFollowActions = useCallback(() => {
     setFollowActionsOpen(false);
   }, []);
-
-  const fetchReceivedSupportAmount = useCallback(async () => {
-    try {
-      setTotalSupportLoading(true);
-      const queryId = viewedBattleUserId || targetUserId || userData?.id || userData?._id || userData?.userId || userId;
-      const params = queryId ? { userId: queryId } : {};
-      const response = await tipRecived(params);
-      console.log(response, 'tipRecived recivedd dd d d d d d ');
-      const rawValue =
-        response?.data?.totalTipEarning ??
-        response?.data?.data?.totalTipEarning ??
-        response?.data?.totalAmount ??
-        response?.data?.data?.totalAmount ??
-        response?.data?.amount ??
-        response?.data?.data?.amount ??
-        response?.data?.totalSupportReceived ??
-        response?.data?.data?.totalSupportReceived ??
-        0;
-      setTotalSupportAmount(Number(rawValue) || 0);
-    } catch (error) {
-      console.error('Error fetching total support amount:', error);
-      setTotalSupportAmount(0);
-    } finally {
-      setTotalSupportLoading(false);
-    }
-  }, [viewedBattleUserId, targetUserId, userData, userId]);
 
   const handleToggleTotalSupport = useCallback(() => {
     if (!totalSupportOpen) {
@@ -1635,8 +1624,18 @@ const ProfilePersonData = ({
                         {t('profilePersonData.totalSupportReceived')}
                       </Text>
                       <Text style={[styles.totalSupportPopoverAmount, { color: accent }]}>
-                        $ {totalSupportAmount.toFixed(2)}
+                        {totalSupportAmount == null ? '—' : formatTipSupportAmount(totalSupportAmount, supportCountry, currentLanguage)}
                       </Text>
+                      {isBrazilSupport && totalSupportError && (
+                        <>
+                          <Text accessibilityLiveRegion="polite" style={{ color: mutedText, textAlign: 'center' }}>
+                            {t('pixPayment.supportRefreshFailed')}
+                          </Text>
+                          <TouchableOpacity accessibilityRole="button" onPress={fetchReceivedSupportAmount}>
+                            <Text style={{ color: accent }}>{t('pixPayment.retrySupport')}</Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
                     </>
                   )}
                 </Animated.View>
@@ -1853,6 +1852,7 @@ const ProfilePersonData = ({
         creatorName={username || userData?.userName || t('profilePersonData.creatorFallback')}
         vendorId={targetUserId ?? userData?.userId ?? userData?.UserId ?? userData?.id}
         onClose={() => setTipSupportVisible(false)}
+        onTipSuccess={handleTipSuccess}
       />
 
       {/* Profile Image Viewer */}
