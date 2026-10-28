@@ -39,6 +39,7 @@ import TextGradient from '../../../assets/textgradient/TextGradient';
 import { AuthHeader } from '../../../components/auth';
 import { setUserProfile } from '../../../redux/actions/UserProfileAction';
 import { persistStripeCustomerId } from '../../../hooks/useStripeCustomer';
+import { persistPaymentProvider } from '../../../utils/paymentCurrency';
 import DeviceInfo from 'react-native-device-info';
 import { getOnboardingStatus } from '../../../services/profile';
 import { ensureCurrentAccountSaved, ADDING_ACCOUNT_FLAG_KEY } from '../../../utils/accountSession';
@@ -312,6 +313,9 @@ export default function LoginScreen() {
         }
         if (response?.data?.user?.email) {
           await AsyncStorage.setItem('email', response?.data?.user?.email);
+        }
+        if (response?.data?.user && Object.prototype.hasOwnProperty.call(response.data.user, 'paymentProvider')) {
+          await persistPaymentProvider(response.data.user.paymentProvider);
         }
         const loginProfileType = String(response?.data?.user?.profile || 'user').toLowerCase();
         const normalizedProfileType =

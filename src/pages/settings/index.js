@@ -37,6 +37,7 @@ import {
   refreshToken,
   extractTokensFromRefreshResponse,
 } from '../../services/authentication';
+import { clearPaymentProvider } from '../../utils/paymentCurrency';
 import { showToastMessage } from '../../components/displaytoastmessage';
 import {
   ADDING_ACCOUNT_FLAG_KEY,
@@ -580,6 +581,7 @@ const Settings = () => {
             }
 
             await AsyncStorage.setItem('isLoggedIn', 'false');
+            await clearPaymentProvider();
             await AsyncStorage.removeItem('token');
             await AsyncStorage.removeItem('refreshToken');
             await AsyncStorage.removeItem('firebaseToken');
@@ -631,10 +633,12 @@ const Settings = () => {
           'walletType',
           'profile',
           'stripeCustomerId',
+          'paymentProvider',
           ADDING_ACCOUNT_FLAG_KEY,
         ]);
 
         await AsyncStorage.setItem('isLoggedIn', 'false');
+        await clearPaymentProvider();
         await clearSavedAccounts();
         dispatch(loggedOut());
       } else {

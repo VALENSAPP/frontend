@@ -54,6 +54,7 @@ import {
 import Svg, { Polygon, Path, Text as SvgText, Defs, LinearGradient as SvgLinearGradient, Stop, Circle, Rect } from 'react-native-svg';
 import { useLanguage } from '../../i18n';
 import { formatDisplayCurrency, formatDisplayNumber, formatDisplayTime } from '../../utils/displayLocale';
+import { hydratePaymentProvider, isPagbankProvider, persistPaymentProvider, readPaymentProvider } from '../../utils/paymentCurrency';
 const { width, height } = Dimensions.get('window');
 const KPI_GRID_GAP = 8;
 const AVATAR_PREVIEW_SIZE = Math.min(width * 0.9, 340);
@@ -419,8 +420,6 @@ const seriesDelta = (points) => {
   return b - a;
 };
 
-const formatSupportUsd = (n) => formatDisplayCurrency(n);
-
 const formatKpiUsd = (n) => formatDisplayCurrency(n);
 
 const formatKpiCount = (n) => formatDisplayNumber(n);
@@ -734,6 +733,13 @@ export const WalletDashboardScreen = ({ navigation }) => {
   const [tokenAddress, setTokenAddress] = useState(null);
   const [isBusinessProfile, setIsBusinessProfile] = useState(false);
   const [missionDonationTotal, setMissionDonationTotal] = useState(0);
+  const [missionActiveCount, setMissionActiveCount] = useState(0);
+  const [missionLoaded, setMissionLoaded] = useState(false);
+  const [supportLoaded, setSupportLoaded] = useState(false);
+  const [earningLoaded, setEarningLoaded] = useState(false);
+  const [metaMaskAmount, setMetaMaskAmount] = useState(0);
+  const [metaMaskLoaded, setMetaMaskLoaded] = useState(false);
+  const [paymentProvider, setPaymentProvider] = useState('');
   const [totalEarningAmount, setTotalEarningAmount] = useState(0);
   const [rewardSummary, setRewardSummary] = useState(DEFAULT_REWARD_POINTS);
   const [kpiData, setKpiData] = useState([
@@ -916,6 +922,16 @@ export const WalletDashboardScreen = ({ navigation }) => {
     }
   };
 
+  useEffect(() => {
+    let cancelled = false;
+    hydratePaymentProvider().then((provider) => {
+      if (!cancelled && provider) setPaymentProvider(provider);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const getUserDetail = async () => {
     try {
       dispatch(showLoader());
@@ -932,6 +948,11 @@ export const WalletDashboardScreen = ({ navigation }) => {
       console.log('API Response: data in thi apiaiaaiaiaai', response);
       setIsBusinessProfile(response?.data?.profile !== 'user');
       setKyc(response?.data?.kyc || null);
+      const profileProvider = readPaymentProvider(response?.data?.user || response?.data);
+      if (profileProvider !== undefined) {
+        const savedProvider = await persistPaymentProvider(profileProvider);
+        setPaymentProvider(savedProvider);
+      }
       console.log(response, 'data in this apiaia for resposne ')
       // 🔥 Adjust keys based on your API response
       const stripeCustomerId =
@@ -1353,6 +1374,7 @@ export const WalletDashboardScreen = ({ navigation }) => {
         0;
       const supportAmount = Number(rawValue) || 0;
       setSupportReceivedUsd(supportAmount);
+      setSupportLoaded(true);
 
       setKpiData(prevKpiData =>
         prevKpiData.map(item =>
@@ -1379,6 +1401,7 @@ export const WalletDashboardScreen = ({ navigation }) => {
         0;
       const totalValue = Number(rawValue) || 0;
       setTotalEarningAmount(totalValue);
+      setEarningLoaded(true);
 
       setKpiData(prevKpiData =>
         prevKpiData.map(item =>
@@ -1401,6 +1424,8 @@ export const WalletDashboardScreen = ({ navigation }) => {
         response?.data?.data?.amount ??
         0;
       const totalValue = Number(rawValue) || 0;
+      setMetaMaskAmount(totalValue);
+      setMetaMaskLoaded(true);
 
       setKpiData(prevKpiData =>
         prevKpiData.map(item =>
@@ -1425,6 +1450,8 @@ export const WalletDashboardScreen = ({ navigation }) => {
       const postCount = Number(activePostCount) || 0;
 
       setMissionDonationTotal(totalAmount);
+      setMissionActiveCount(postCount);
+      setMissionLoaded(true);
 
       setKpiData(prevKpiData =>
         prevKpiData.map(item =>
@@ -1478,6 +1505,24 @@ export const WalletDashboardScreen = ({ navigation }) => {
     onRefresh();
   };
 
+  const formatProviderMoney = (amount) => formatDisplayCurrency(amount, undefined, paymentProvider);
+
+  const resolveKpiValue = (item) => {
+    if (item.id === 'Total Earning' && earningLoaded) {
+      return formatProviderMoney(totalEarningAmount);
+    }
+    if (item.id === 'support' && supportLoaded) {
+      return formatProviderMoney(supportReceivedUsd);
+    }
+    if (item.id === 'Mission Post' && missionLoaded) {
+      return `${formatProviderMoney(missionDonationTotal)} \n${t('walletDashboard.kpi.missionActive', { count: missionActiveCount || 0 })}`;
+    }
+    if (item.id === 'metamask' && metaMaskLoaded) {
+      return formatProviderMoney(metaMaskAmount);
+    }
+    return item.value;
+  };
+
   const renderKPICard = (item) => {
     const isMetaMaskCard = item.id === 'metamask';
     const isTipPayoutCard = item.id === 'tipPayout';
@@ -1503,6 +1548,7 @@ export const WalletDashboardScreen = ({ navigation }) => {
     const supportCardTitle = isSupportCard && typeof item.title === 'string'
       ? item.title.replace(/\s+/, '\n')
       : item.title;
+    const kpiValueText = resolveKpiValue(item);
 
     if (isMetaMaskCard) {
       const normalizedWalletType = String(connectedWalletType || '').trim().toLowerCase();
@@ -1544,7 +1590,7 @@ export const WalletDashboardScreen = ({ navigation }) => {
                       {isMetaMaskConnected ? item.title : t('walletDashboard.Wallet')}
                     </Text>
                     <Text style={[styles.kpiValue, styles.kpiValueMetaMask, { color: gradientText }]} numberOfLines={1}>
-                      {item.value}
+                      {kpiValueText}
                     </Text>
                     <View style={styles.kpiMetaMaskStatusRow}>
                       <View
@@ -1587,6 +1633,9 @@ export const WalletDashboardScreen = ({ navigation }) => {
     }
 
     if (isTipPayoutCard) {
+      const isPagbankTip = isPagbankProvider(paymentProvider);
+      const tipProviderMark = isPagbankTip ? 'P' : 'S';
+      const tipProviderName = isPagbankTip ? 'PagBank' : 'Stripe';
       const tipStatusText = tipPayoutReady
         ? t('walletDashboard.tipPayout.connected')
         : t('walletDashboard.tipPayout.setupRequired');
@@ -1609,12 +1658,12 @@ export const WalletDashboardScreen = ({ navigation }) => {
             >
               <View style={styles.kpiMetaMaskRow}>
                 <View style={styles.kpiMetaMaskLeft}>
-                  <View style={[styles.kpiTipIconWrap, { backgroundColor: '#1FAF5A' }]}>
-                    <Text style={styles.kpiTipIconText}>P</Text>
+                  <View style={[styles.kpiTipIconWrap, { backgroundColor: isPagbankTip ? '#1FAF5A' : '#635BFF' }]}>
+                    <Text style={styles.kpiTipIconText}>{tipProviderMark}</Text>
                   </View>
                   <View style={[styles.kpiMetaMaskText, styles.kpiTipText]}>
                     <Text style={[styles.kpiTitle, styles.kpiIllustratedTitle, { color: text }]} numberOfLines={1}>
-                      {item.title}
+                      {tipProviderName}
                     </Text>
                     <Text style={[styles.kpiTipDescription, { color: text }]}>
                       {t('walletDashboard.tipPayout.description')}
@@ -1642,7 +1691,7 @@ export const WalletDashboardScreen = ({ navigation }) => {
                   </View>
                 </View>
                 <Image
-                  source={butterflyTip}
+                  source={isPagbankTip ? butterflyTip : butterflyIcon}
                   style={[
                     styles.kpiCardMascot,
                     styles.kpiTipMascot,
@@ -1760,7 +1809,7 @@ export const WalletDashboardScreen = ({ navigation }) => {
           ) : null}
         </View>
         <View style={styles.kpiValueWrap}>
-          {String(item.value ?? '').split('\n').map((line, index) => (
+          {String(kpiValueText ?? '').split('\n').map((line, index) => (
             <Text
               key={`${item.id}-value-${index}`}
               style={[
@@ -2161,7 +2210,7 @@ export const WalletDashboardScreen = ({ navigation }) => {
                   <Ionicons name="wallet" size={14} color={activitySupportLine} />
                 </View>
                 <Text style={[styles.activityMetricValue, styles.activityMetricValueCompact, { color: activitySupportLine }]}>
-                  {formatSupportUsd(supportReceivedUsd)}
+                  {formatDisplayCurrency(supportReceivedUsd, undefined, paymentProvider)}
                 </Text>
                 <Text style={[styles.activityMetricLabel, styles.activityMetricLabelCompact, { color: mutedText }]} numberOfLines={1}>
                   {t('walletDashboard.activityOverview.totalSupport')}
@@ -2199,8 +2248,10 @@ export const WalletDashboardScreen = ({ navigation }) => {
                     numberOfLines={2}
                     ellipsizeMode="tail"
                   >
-                    {`${supportTrendDelta >= 0 ? '+' : '-'}${formatSupportUsd(
-                      Math.abs(supportTrendDelta)
+                    {`${supportTrendDelta >= 0 ? '+' : '-'}${formatDisplayCurrency(
+                      Math.abs(supportTrendDelta),
+                      undefined,
+                      paymentProvider,
                     )} ${moneyPeriodLabel}`}
                   </Text>
                 </View>

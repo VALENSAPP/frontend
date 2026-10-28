@@ -10,8 +10,18 @@ import {
 } from "react-native";
 import { useAppTheme } from "../../theme/useApptheme";
 import { useLanguage } from "../../i18n";
+import { formatMembershipAmount } from "../../utils/membershipPricing";
 
-const SubscriptionActivationPopup = ({ visible, onClose, onConfirm, returnToSettingsSub, isBusinessProfile = false }) => {
+const SubscriptionActivationPopup = ({
+  visible,
+  onClose,
+  onConfirm,
+  returnToSettingsSub,
+  isBusinessProfile = false,
+  amount = 9.9,
+  period = 'month',
+  documentCountry = '',
+}) => {
   const [isLoading, setIsLoading] = useState(false);
   const dismissResolverRef = useRef(null);
   const navigation = useNavigation();
@@ -19,6 +29,17 @@ const SubscriptionActivationPopup = ({ visible, onClose, onConfirm, returnToSett
     isBusinessProfile ? 'company' : undefined,
   );
   const { t } = useLanguage();
+  const isYearly = period === 'year' || period === 'annual';
+  const formattedAmount = formatMembershipAmount(amount, documentCountry);
+  const chargeIntroKey = isYearly
+    ? 'subscriptionActivation.chargeIntroYearly'
+    : 'subscriptionActivation.chargeIntroMonthly';
+  const maintenanceFeeKey = isYearly
+    ? 'subscriptionActivation.maintenanceFeeYearly'
+    : 'subscriptionActivation.maintenanceFeeMonthly';
+  const billingAuthKey = isYearly
+    ? 'subscriptionActivation.billingAuthDescYearly'
+    : 'subscriptionActivation.billingAuthDescMonthly';
 
   const handleDismissed = () => {
     const resolve = dismissResolverRef.current;
@@ -84,9 +105,9 @@ const SubscriptionActivationPopup = ({ visible, onClose, onConfirm, returnToSett
           </Text>
 
           <Text style={[styles.text, textStyle]}>
-            {t('subscriptionActivation.chargeIntro')}{' '}
+            {t(chargeIntroKey)}{' '}
             <Text style={{ fontWeight: 'bold' }}>
-              {t('subscriptionActivation.chargeAmount')}
+              {formattedAmount}
             </Text>{' '}
             {t('subscriptionActivation.chargeSuffix')}
           </Text>
@@ -96,7 +117,7 @@ const SubscriptionActivationPopup = ({ visible, onClose, onConfirm, returnToSett
           </Text>
 
           <Text style={[styles.bullet, textStyle]}>
-            {t('subscriptionActivation.maintenanceFee')}
+            {t(maintenanceFeeKey, { amount: formattedAmount })}
           </Text>
           <Text style={[styles.subText, textStyle]}>
             {t('subscriptionActivation.maintenanceFeeDesc')}
@@ -114,7 +135,7 @@ const SubscriptionActivationPopup = ({ visible, onClose, onConfirm, returnToSett
           </Text>
 
           <Text style={[styles.text, textStyle]}>
-            {t('subscriptionActivation.billingAuthDesc')}
+            {t(billingAuthKey)}
           </Text>
 
           <View style={styles.row}>

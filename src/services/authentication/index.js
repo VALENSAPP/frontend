@@ -6,6 +6,7 @@ import { PermissionsAndroid, Platform } from 'react-native';
 import { saveOrUpdateAccount } from '../../utils/accountSession';
 import { setUserProfile } from '../../redux/actions/UserProfileAction';
 import { fetchAndApplyUserLanguage } from '../../i18n';
+import { persistPaymentProvider, readPaymentProvider } from '../../utils/paymentCurrency';
 
 let appPermissionsReady = false;
 
@@ -121,30 +122,69 @@ const getCurrentLocationString = async () => {
     }
 };
 
+
 export const login = async (data) => {
     try {
-        const deviceId = DeviceInfo.getUniqueId ? await Promise.resolve(DeviceInfo.getUniqueId()) : undefined;
-        const deviceName = DeviceInfo.getDeviceName ? await DeviceInfo.getDeviceName() : undefined;
-        const deviceType = DeviceInfo.getSystemName ? DeviceInfo.getSystemName() : undefined;
+        const deviceId = DeviceInfo.getUniqueId
+            ? await Promise.resolve(DeviceInfo.getUniqueId())
+            : undefined;
+
+        const deviceName = DeviceInfo.getDeviceName
+            ? await DeviceInfo.getDeviceName()
+            : undefined;
+
+        const deviceType = DeviceInfo.getSystemName
+            ? DeviceInfo.getSystemName()
+            : undefined;
+
         const location = await getCurrentLocationString();
 
         const devicePayload = {
-            // Prefer backend-friendly camelCase keys
             ...(deviceId ? { deviceId } : {}),
             ...(deviceName ? { deviceName } : {}),
             ...(deviceType ? { deviceType } : {}),
             ...(location ? { location } : {}),
-            // Backward compatible snake_case keys (in case backend expects these)
             ...(deviceId ? { device_id: deviceId } : {}),
             ...(deviceName ? { device_name: deviceName } : {}),
             ...(deviceType ? { device_type: deviceType } : {}),
         };
-        return axiosinstance.post('/auth/login', { ...(data || {}), ...devicePayload });
+
+        const payload = { ...(data || {}), ...devicePayload };
+
+        console.log('Login API Request:', payload);
+
+        const response = await axiosinstance.post('/auth/login', payload);
+
+        console.log('Login API Response:', response.data);
+        console.log('Login API Status:', response.status);
+
+        return response;
     } catch (error) {
-        // Fallback to normal login if device info fails for any reason
-        return axiosinstance.post('/auth/login', data);
+        console.log('Login API Error:', error.response?.data || error.message);
+        console.log('Login API Error Status:', error.response?.status);
+
+        // Fallback to normal login if device info or location fails
+        if (!error.response) {
+            try {
+                const response = await axiosinstance.post('/auth/login', data);
+
+                console.log('Login API Fallback Response:', response.data);
+                console.log('Login API Fallback Status:', response.status);
+
+                return response;
+            } catch (fallbackError) {
+                console.log(
+                    'Login API Fallback Error:',
+                    fallbackError.response?.data || fallbackError.message
+                );
+                throw fallbackError;
+            }
+        }
+
+        throw error;
     }
-}
+};
+
 
 export const forgotPassword = async (data) => {
     return axiosinstance.post('/user/forgot-password', data);
@@ -361,7 +401,11 @@ export const persistSwitchedUser = async (res, user, dispatch, id) => {
     if (user.profile != null && user.profile !== '') {
         await AsyncStorage.setItem('profile', String(user.profile));
     }
-     dispatch(setUserProfile(user.profile || (await AsyncStorage.getItem('profile'))));
+    const switchedProvider = readPaymentProvider(user) ?? readPaymentProvider(res);
+    if (switchedProvider !== undefined) {
+        await persistPaymentProvider(switchedProvider);
+    }
+    dispatch(setUserProfile(user.profile || (await AsyncStorage.getItem('profile'))));
     // Try to also save to account session, but don't fail if it errors
     try {
         await saveOrUpdateAccount({

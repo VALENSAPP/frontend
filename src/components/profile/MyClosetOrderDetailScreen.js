@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   SafeAreaView,
@@ -39,6 +39,8 @@ import ShippingDetailsModal from '../modals/ShippingDetailsModal';
 import DeliverOtpModal from '../modals/DeliverOtpModal';
 import { withAlpha } from '../../utils/closetTheme';
 import { DetailImageCarousel } from './MyClosetBuyerFlow';
+import ViewShot from 'react-native-view-shot';
+import Share from 'react-native-share';
 
 // ── Status meta + flow (kept in sync with the orders list screen) ─────────
 const STATUS_META = {
@@ -498,7 +500,7 @@ const findOrderByReferences = (orders, references) => {
   });
 };
 
-const Header = ({ onBack, title }) => {
+const Header = ({ onBack, title, onPrint, printLabel }) => {
   const { accent, textStyle } = useAppTheme();
   const { isDarkMode } = useThemeContext();
   const chipSurface = isDarkMode ? 'rgba(255,255,255,0.08)' : '#ffffff';
@@ -513,7 +515,18 @@ const Header = ({ onBack, title }) => {
         <Ionicons name="chevron-back" size={22} color={accent} />
       </TouchableOpacity>
       <Text style={[styles.headerTitle, textStyle]}>{title}</Text>
-      <View style={styles.iconButton} />
+      {onPrint ? (
+        <TouchableOpacity
+          onPress={onPrint}
+          accessibilityLabel={printLabel}
+          style={[styles.iconButton, { backgroundColor: chipSurface }]}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="print-outline" size={20} color={accent} />
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.iconButton} />
+      )}
     </View>
   );
 };
@@ -684,6 +697,7 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
   const paymentId = route?.params?.paymentId;
   const returnTo = route?.params?.returnTo;
   const toast = useToast();
+  const receiptRef = useRef(null);
   const dispatch = useDispatch();
   const { accent, bgStyle, cardStyle, textStyle, mutedTextStyle, border, card } = useAppTheme();
   const { isDarkMode } = useThemeContext();
@@ -1005,6 +1019,34 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
     );
   }
 
+  const receiptAddress = (
+    order.isLocalPickup ? order.pickupAddressLines : getAddressLines(order.address)
+  ).filter(Boolean).join('\n');
+  const partyLabel = canUpdateStatus
+    ? t('myClosetOrderDetail.buyer')
+    : t('myClosetOrderDetail.seller');
+
+  const printReceipt = async () => {
+    try {
+      const uri = await receiptRef.current?.capture?.();
+      if (!uri) throw new Error('missing receipt');
+      const fileUrl = uri.startsWith('file://') ? uri : `file://${uri}`;
+      await Share.open({
+        url: fileUrl,
+        type: 'image/png',
+        filename: `receipt-${order.orderNumber}`,
+        title: t('myClosetOrderDetail.receiptShareTitle'),
+        message: t('myClosetOrderDetail.receiptShareMessage'),
+        subject: t('myClosetOrderDetail.receiptShareTitle'),
+        failOnCancel: false,
+      });
+    } catch (err) {
+      const message = String(err?.message || '').toLowerCase();
+      if (message.includes('cancel') || message.includes('did not share')) return;
+      showToastMessage(toast, 'danger', t('myClosetOrderDetail.receiptFailed'));
+    }
+  };
+
   const meta = STATUS_META[order.status];
   const pickupAddressLines = order.pickupAddressLines || [];
   const pickupAddressTitle = pickupAddressLines[0] || t('myClosetOrderDetail.pickupPoint');
@@ -1020,7 +1062,57 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
   console.log("order----------------------------", order)
   return (
     <SafeAreaView style={[styles.safeArea, bgStyle]}>
-      <Header onBack={goBack} title={t('myClosetOrderDetail.orderNumberTitle', { orderNumber: order.orderNumber })} />
+      <Header
+        onBack={goBack}
+        title={t('myClosetOrderDetail.orderNumberTitle', { orderNumber: order.orderNumber })}
+        onPrint={printReceipt}
+        printLabel={t('myClosetOrderDetail.printReceipt')}
+      />
+      <View style={styles.receiptCapture} pointerEvents="none" collapsable={false}>
+        <ViewShot
+          ref={receiptRef}
+          options={{ format: 'png', quality: 1, result: 'tmpfile' }}
+          style={styles.receiptSheet}
+        >
+          <Text style={styles.receiptBrand}>Valens</Text>
+          <Text style={styles.receiptHeading}>{t('myClosetOrderDetail.receiptTitle')}</Text>
+          <Text style={styles.receiptOrder}>#{order.orderNumber}</Text>
+          <Text style={styles.receiptMeta}>{order.createdAt}</Text>
+          <Text style={styles.receiptMeta}>{order.orderStatusLabel}</Text>
+          <View style={styles.receiptDivider} />
+          <Text style={styles.receiptLabel}>{partyLabel}</Text>
+          <Text style={styles.receiptValue}>{toTitleCase(order.buyerName)}</Text>
+          <View style={styles.receiptDivider} />
+          <Text style={styles.receiptLabel}>{t('myClosetOrderDetail.items', { count: order.totalItemCount })}</Text>
+          {order.lines.length ? order.lines.map(line => (
+            <View key={`receipt-${line.id}`} style={styles.receiptLine}>
+              <Text style={styles.receiptItemName}>{line.name}</Text>
+              <Text style={styles.receiptItemMeta}>
+                {t('myClosetOrderDetail.qty', { count: line.quantity })} · {line.lineTotal}
+              </Text>
+            </View>
+          )) : (
+            <Text style={styles.receiptValue}>{t('myClosetOrderDetail.noItemDetails')}</Text>
+          )}
+          <View style={styles.receiptDivider} />
+          <View style={styles.receiptTotalRow}>
+            <Text style={styles.receiptTotalLabel}>{t('myClosetOrderDetail.orderTotal')}</Text>
+            <Text style={styles.receiptTotalValue}>{order.totalAmount}</Text>
+          </View>
+          {receiptAddress ? (
+            <>
+              <View style={styles.receiptDivider} />
+              <Text style={styles.receiptLabel}>
+                {order.isLocalPickup
+                  ? t('myClosetOrderDetail.pickupLocation')
+                  : t('myClosetOrderDetail.shippingAddress')}
+              </Text>
+              <Text style={styles.receiptValue}>{receiptAddress}</Text>
+            </>
+          ) : null}
+          <Text style={styles.receiptFooter}>{t('transactionDetails.officialReceiptTitle')}</Text>
+        </ViewShot>
+      </View>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>
           <Text style={[styles.orderDate, mutedTextStyle]}>{order.createdAt}</Text>
@@ -1259,6 +1351,31 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '900',
   },
+  receiptCapture: {
+    position: 'absolute',
+    left: -1200,
+    top: 0,
+    width: 360,
+  },
+  receiptSheet: {
+    width: 360,
+    backgroundColor: '#ffffff',
+    padding: 24,
+  },
+  receiptBrand: { fontSize: 13, fontWeight: '800', letterSpacing: 1, color: '#6d28d9' },
+  receiptHeading: { marginTop: 8, fontSize: 22, fontWeight: '800', color: '#111827' },
+  receiptOrder: { marginTop: 6, fontSize: 16, fontWeight: '700', color: '#111827' },
+  receiptMeta: { marginTop: 4, fontSize: 13, color: '#6b7280' },
+  receiptDivider: { height: 1, backgroundColor: '#e5e7eb', marginVertical: 14 },
+  receiptLabel: { fontSize: 12, fontWeight: '700', color: '#6b7280', textTransform: 'uppercase' },
+  receiptValue: { marginTop: 4, fontSize: 15, color: '#111827', lineHeight: 21 },
+  receiptLine: { marginTop: 10 },
+  receiptItemName: { fontSize: 15, fontWeight: '700', color: '#111827' },
+  receiptItemMeta: { marginTop: 2, fontSize: 13, color: '#4b5563' },
+  receiptTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  receiptTotalLabel: { fontSize: 16, fontWeight: '800', color: '#111827' },
+  receiptTotalValue: { fontSize: 18, fontWeight: '800', color: '#6d28d9' },
+  receiptFooter: { marginTop: 18, fontSize: 12, color: '#6b7280', lineHeight: 18 },
 
   content: { paddingHorizontal: 20, paddingBottom: 120 },
 

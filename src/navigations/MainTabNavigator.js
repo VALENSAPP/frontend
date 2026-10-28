@@ -420,6 +420,8 @@ export default function MainTabNavigator() {
         <Stack.Screen name="MyClosetBattles" component={MyClosetBattlesScreen} />
         <Stack.Screen name="BattleLive" component={BattleLiveScreen} />
         <Stack.Screen name="BattleResultsScreen" component={BattleResultsScreen} />
+        <Stack.Screen name="BattleResults" component={BattleResults} />
+        <Stack.Screen name="BattleInProgress" component={BattleInProgress} />
         <Stack.Screen name="BattleInsightsActions" component={BattleInsightsActionsScreen} />
         <Stack.Screen name="BoostWinningItem" component={BoostWinningItemScreen} />
         <Stack.Screen name="ReviewBoost" component={ReviewBoostScreen} />

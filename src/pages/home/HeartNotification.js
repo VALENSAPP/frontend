@@ -30,6 +30,7 @@ import { useLanguage } from '../../i18n';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getPrivateCircleDashboard, getPvtCircleMembers, isPrivateCircleApiSuccess, parsePrivateCircleDashboard, parsePrivateCircleSetup } from '../../services/privatecircle';
 import { resolveOrderIdFromPaymentId } from '../../services/myCloset';
+import { resolveBattleNotificationRoute } from '../../utils/battleNotificationNavigation';
 
 const { width } = Dimensions.get('window');
 
@@ -204,7 +205,9 @@ const isBattleNotificationType = type =>
     'battle_declined',
     'battle_invite_expired',
     'battle_forecast_missed',
-    'battle_closed',
+    'battle_ended',
+    'battle_finished',
+    'battle_end',
     'battle_new',
     'marketplace_battle_live',
     'marketplace_battle_is_live',
@@ -802,11 +805,25 @@ export default function Notifications() {
 
   const openBattleFlow = useCallback(
     item => {
+      const battleData =
+        item?.raw?.data?.battle ||
+        item?.raw?.battle ||
+        item?.data?.battle ||
+        item?.battle ||
+        {};
       const payload = item?.actionPayload ?? extractBattleActionPayload(item);
-      const rawBattleId = payload?.battleId || battleData?.id || battleData?._id || item?.id || '';
+      const rawBattleId = payload?.battleId || battleData?.id || battleData?._id || '';
       const battleId = String(rawBattleId || '').includes(':')
         ? String(rawBattleId).split(':').pop()
         : String(rawBattleId || '');
+
+      if (!battleId) {
+        const battleRoute = resolveBattleNotificationRoute(item);
+        if (battleRoute) {
+          navigation.navigate(battleRoute.screen, battleRoute.params);
+        }
+        return;
+      }
 
       const normType = normalizeNotificationType(item?.type);
       const status = String(item?.status || battleData?.status || '').toUpperCase();
@@ -832,15 +849,12 @@ export default function Notifications() {
         String(item?.raw?.data?.rawTitle || '').toLowerCase().includes('battle closed');
 
       if (isBattleClosed && isPrediction) {
-        navigation.navigate('ProfileMain', {
-          screen: 'BattleInProgress',
-          params: {
-            battleId: payload?.battleId || battleData?.id || battleData?._id || battleId,
-            invitationId: payload?.invitationId || battleData?.invitationId || item?.raw?.data?.invitationId || '',
-            battle: battleData,
-            entryPoint: 'notifications',
-            returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
-          },
+        navigation.navigate('BattleInProgress', {
+          battleId: payload?.battleId || battleData?.id || battleData?._id || battleId,
+          invitationId: payload?.invitationId || battleData?.invitationId || item?.raw?.data?.invitationId || '',
+          battle: battleData,
+          entryPoint: 'notifications',
+          returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
         });
         return;
       }
@@ -853,7 +867,12 @@ export default function Notifications() {
         normType === 'marketplace_battle_finished' ||
         normType === 'battle_completed' ||
         normType === 'battle_closed' ||
-        normType === 'battle_victory';
+        normType === 'battle_victory' ||
+        normType === 'battle_result' ||
+        normType === 'battle_ended' ||
+        normType === 'battle_finished' ||
+        normType === 'battle_end' ||
+        normType === 'battle_forecast_missed';
 
       const isMarketplace =
         item?.format === 'MARKETPLACE' ||
@@ -866,10 +885,7 @@ export default function Notifications() {
           normType === 'marketplace_battle_challenge_received'
         ) {
           if (battleId) {
-            navigation.navigate('ProfileMain', {
-              screen: 'ChallengeReceived',
-              params: { battleId },
-            });
+            navigation.navigate('ChallengeReceived', { battleId });
             return;
           }
         }
@@ -886,50 +902,36 @@ export default function Notifications() {
               ? 'expired'
               : 'accepted';
           if (battleId) {
-            navigation.navigate('ProfileMain', {
-              screen: 'ChallengeAccepted',
-              params: { battleId, status: chStatus },
-            });
+            navigation.navigate('ChallengeAccepted', { battleId, status: chStatus });
             return;
           }
         }
 
         if (isEnded) {
-          navigation.navigate('ProfileMain', {
-            screen: 'BattleResultsScreen',
-            params: {
-              battleId,
-              returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
-            },
+          navigation.navigate('BattleResultsScreen', {
+            battleId,
+            returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
           });
         } else {
-          navigation.navigate('ProfileMain', {
-            screen: 'BattleLive',
-            params: {
-              battleId,
-              returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
-            },
+          navigation.navigate('BattleLive', {
+            battleId,
+            returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
           });
         }
       } else {
         if (isEnded) {
-          navigation.navigate('ProfileMain', {
-            screen: 'BattleResultsScreen',
-            params: {
-              battleId,
-              returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
-            },
+          navigation.navigate('BattleResults', {
+            battleId,
+            battle: battleData,
+            returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
           });
         } else {
-          navigation.navigate('ProfileMain', {
-            screen: 'BattleInProgress',
-            params: {
-              battleId: payload?.battleId || battleData?.id || battleData?._id || '',
-              invitationId: payload?.invitationId || '',
-              battle: battleData,
-              entryPoint: 'notifications',
-              returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
-            },
+          navigation.navigate('BattleInProgress', {
+            battleId: payload?.battleId || battleData?.id || battleData?._id || '',
+            invitationId: payload?.invitationId || '',
+            battle: battleData,
+            entryPoint: 'notifications',
+            returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
           });
         }
       }
@@ -1550,7 +1552,6 @@ export default function Notifications() {
           item?.raw?.battle_id,
           item?.battleId,
           item?.battle_id,
-          item?.id,
         );
         const battleId = String(rawBattleId || '').includes(':')
           ? String(rawBattleId).split(':').pop()
@@ -1576,15 +1577,12 @@ export default function Notifications() {
           rawTitleLower.includes('battle closed');
 
         if (isBattleClosed && isPrediction && battleId) {
-          navigation.navigate('ProfileMain', {
-            screen: 'BattleInProgress',
-            params: {
-              battleId,
-              invitationId: payload?.invitationId || battleData?.invitationId || item?.raw?.data?.invitationId || '',
-              battle: battleData,
-              entryPoint: 'notifications',
-              returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
-            },
+          navigation.navigate('BattleInProgress', {
+            battleId,
+            invitationId: payload?.invitationId || battleData?.invitationId || item?.raw?.data?.invitationId || '',
+            battle: battleData,
+            entryPoint: 'notifications',
+            returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
           });
           return;
         }
@@ -1603,10 +1601,7 @@ export default function Notifications() {
 
         if (isMarketplaceChallengeReceived) {
           if (battleId) {
-            navigation.navigate('ProfileMain', {
-              screen: 'ChallengeReceived',
-              params: { battleId },
-            });
+            navigation.navigate('ChallengeReceived', { battleId });
             return;
           }
         }
@@ -1622,10 +1617,7 @@ export default function Notifications() {
               ? 'expired'
               : 'accepted';
           if (battleId) {
-            navigation.navigate('ProfileMain', {
-              screen: 'ChallengeAccepted',
-              params: { battleId, status },
-            });
+            navigation.navigate('ChallengeAccepted', { battleId, status });
             return;
           }
         }
@@ -1641,12 +1633,9 @@ export default function Notifications() {
 
         if (isMarketplaceBattleLive) {
           if (battleId) {
-            navigation.navigate('ProfileMain', {
-              screen: 'BattleLive',
-              params: {
-                battleId,
-                returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
-              },
+            navigation.navigate('BattleLive', {
+              battleId,
+              returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
             });
             return;
           }
@@ -1661,40 +1650,47 @@ export default function Notifications() {
 
         if (isMarketplaceBattleEnded) {
           if (battleId) {
-            navigation.navigate('ProfileMain', {
-              screen: 'BattleResultsScreen',
-              params: {
-                battleId,
-                returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
-              },
+            navigation.navigate('BattleResultsScreen', {
+              battleId,
+              returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
             });
             return;
           }
         }
 
-        if (isBattleNotificationType(item.type)) {
-          const isEnded = ['battle_completed', 'battle_closed', 'battle_victory', 'battle_result', 'battle_forecast_missed'].includes(normType);
-          if (battleId) {
-            if (isEnded) {
-              navigation.navigate('ProfileMain', {
-                screen: 'BattleResultsScreen',
-                params: {
-                  battleId,
-                  returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
-                },
-              });
-            } else {
-              navigation.navigate('ProfileMain', {
-                screen: 'BattleInProgress',
-                params: {
-                  battleId,
-                  invitationId: payload?.invitationId || battleData?.invitationId || '',
-                  battle: battleData,
-                  entryPoint: 'notifications',
-                  returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
-                },
-              });
-            }
+        if (isBattleNotificationType(item.type) || titleLower.includes('battle') || bodyLower.includes('battle')) {
+          const isEnded = [
+            'battle_completed',
+            'battle_closed',
+            'battle_victory',
+            'battle_result',
+            'battle_forecast_missed',
+            'battle_ended',
+            'battle_finished',
+            'battle_end',
+          ].includes(normType)
+            || /\b(ended|completed|closed|finished|victory|result)\b/.test(`${titleLower} ${bodyLower}`);
+          const resolvedBattleId = battleId && String(rawBattleId) !== String(item?.id) ? battleId : '';
+          const battleRoute = resolveBattleNotificationRoute({
+            ...item,
+            battleId: resolvedBattleId || undefined,
+          });
+          if (battleRoute) {
+            navigation.navigate(battleRoute.screen, {
+              ...battleRoute.params,
+              battle: battleData,
+              invitationId: payload?.invitationId || battleData?.invitationId || '',
+            });
+            return;
+          }
+          if (resolvedBattleId) {
+            navigation.navigate(isEnded ? 'BattleResults' : 'BattleInProgress', {
+              battleId: resolvedBattleId,
+              invitationId: payload?.invitationId || battleData?.invitationId || '',
+              battle: battleData,
+              entryPoint: 'notifications',
+              returnTo: { tab: 'HomeMain', screen: 'HeartNotification' },
+            });
             return;
           }
         }

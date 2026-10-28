@@ -21,6 +21,7 @@ import { useLanguage } from './i18n';
 import { useNotificationToast } from './utils/useNotificationToast';
 import { initializeSocket } from './services/socket';
 import { getUserCredentials } from './services/post';
+import { hydratePaymentProvider, persistPaymentProvider, readPaymentProvider } from './utils/paymentCurrency';
 import { getAllUser } from './services/users';
 import useNotificationSetup from './utils/useNotificationSetup';
 import { requestUserPermission } from './services/NotificationService';
@@ -125,6 +126,7 @@ export default function Main({ onSplashFinish }) {
 
   const navigationRef = useRef(null);
   const pendingNotificationNav = useRef(false);
+  const pendingBattleRoute = useRef(null);
   const isNavigationReadyRef = useRef(false);
   const isLoggedInRef = useRef(false);
   const isLoadingRef = useRef(true);
@@ -172,8 +174,39 @@ export default function Main({ onSplashFinish }) {
     initializeSocket().catch(e => console.warn('Socket init failed', e));
   }, []);
 
+  const openBattleNotification = React.useCallback(route => {
+    if (!route?.screen) return;
+    if (
+      !navigationRef.current ||
+      !isNavigationReadyRef.current ||
+      !isLoggedInRef.current ||
+      isLoadingRef.current
+    ) {
+      pendingBattleRoute.current = route;
+      return;
+    }
+    pendingBattleRoute.current = null;
+    navigationRef.current.navigate('MainApp', {
+      screen: 'HomeMain',
+      params: {
+        screen: route.screen,
+        params: route.params,
+      },
+    });
+  }, []);
+
+  useEffect(() => {
+    if (pendingBattleRoute.current) {
+      openBattleNotification(pendingBattleRoute.current);
+    }
+  }, [isLoading, isLoggedIn, isNavigationReady, openBattleNotification]);
+
   // ── Notifications (all FCM + Notifee wiring lives in this hook) ───────────
-  useNotificationSetup({ showNotificationToast, setMessage });
+  useNotificationSetup({
+    showNotificationToast,
+    setMessage,
+    onNotificationOpen: openBattleNotification,
+  });
 
   // ─────────────────────────────────────────────────────────────────────────
   // HeartNotification navigation
@@ -227,6 +260,10 @@ export default function Main({ onSplashFinish }) {
       if (response?.statusCode !== 200) return;
 
       const userData = response?.data?.user || response?.data || response;
+      const paymentProvider = readPaymentProvider(userData);
+      if (paymentProvider !== undefined) {
+        await persistPaymentProvider(paymentProvider);
+      }
       const kycStatus = userData?.kycStatus !== 'APPROVED';
       const profile = userData?.profile;
       const kycApproved = userData?.kyc === true || String(userData?.kyc || '').toLowerCase() === 'true';
@@ -411,6 +448,7 @@ export default function Main({ onSplashFinish }) {
           AsyncStorage.getItem('device_id'),
           AsyncStorage.getItem('userId'),
           AsyncStorage.getItem('token'),
+          hydratePaymentProvider(),
         ]);
 
         if (loggedI !== 'true') {
