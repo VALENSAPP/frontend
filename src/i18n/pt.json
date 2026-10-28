@@ -3272,6 +3272,14 @@
     "minAmountError": "O valor mínimo da gorjeta é R$0.50."
   },
   "tipPayoutSetup": {
+    "connectionFailedTitle": "Não foi possível conectar ao PagBank",
+    "connectionFailed": "Não foi possível abrir a autorização do PagBank. Tente novamente.",
+    "statusUnavailable": "Não foi possível verificar sua conexão com o PagBank. Tente novamente.",
+    "checkingConnection": "Verificando sua conexão com o PagBank…",
+    "authorizationRequired": "Conclua a autorização na página do PagBank para conectar sua conta.",
+    "checkConnection": "Verificar conexão",
+    "pagbankConnectedTitle": "Conta PagBank conectada",
+    "pagbankConnectedSubtitle": "Sua conta PagBank está conectada à Valens.",
     "connectTitle": "Conectar GORJETA",
     "connectSubtitle": "Configure sua conta de recebimento com {{provider}}.",
     "bullet1": "Receba gorjetas via {{provider}}",
