@@ -3272,6 +3272,14 @@
     "minAmountError": "Minimum tip amount is $0.50."
   },
   "tipPayoutSetup": {
+    "connectionFailedTitle": "Could not connect to PagBank",
+    "connectionFailed": "Could not open PagBank authorization. Please try again.",
+    "statusUnavailable": "Could not verify your PagBank connection. Please try again.",
+    "checkingConnection": "Checking your PagBank connection…",
+    "authorizationRequired": "Complete authorization on the PagBank page to connect your account.",
+    "checkConnection": "Check connection",
+    "pagbankConnectedTitle": "PagBank account connected",
+    "pagbankConnectedSubtitle": "Your PagBank account is connected to Valens.",
     "connectTitle": "Connect TIP",
     "connectSubtitle": "Set up your payout account with {{provider}}.",
     "bullet1": "Receive tips via {{provider}}",
