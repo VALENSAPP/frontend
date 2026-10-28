@@ -17,6 +17,7 @@ import {
     PENDING_NOTIFICATION_MODAL_KEY,
     displayFcmAsExpandable,
 } from '../services/NotificationService';
+import { resolveBattleNotificationRoute } from './battleNotificationNavigation';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -248,15 +249,17 @@ const logTypedNotification = (tag, data = {}, type = '(no type)') => {
  * @param {function} params.showNotificationToast
  * @param {function} params.setMessage  – setter from Main's useState
  */
-const useNotificationSetup = ({ showNotificationToast, setMessage }) => {
+const useNotificationSetup = ({ showNotificationToast, setMessage, onNotificationOpen }) => {
     // Stable refs so callbacks never capture stale closures
     const showNotificationToastRef = useRef(showNotificationToast);
     const setMessageRef            = useRef(setMessage);
+    const onNotificationOpenRef    = useRef(onNotificationOpen);
 
     useEffect(() => {
         showNotificationToastRef.current = showNotificationToast;
         setMessageRef.current            = setMessage;
-    }, [showNotificationToast, setMessage]);
+        onNotificationOpenRef.current    = onNotificationOpen;
+    }, [showNotificationToast, setMessage, onNotificationOpen]);
 
     useEffect(() => {
         console.log('[NOTIF] 🔧 Registering notification listeners (once)');
@@ -276,7 +279,7 @@ const useNotificationSetup = ({ showNotificationToast, setMessage }) => {
                 await AsyncStorage.removeItem(PENDING_NOTIFICATION_MODAL_KEY);
                 const parsed = JSON.parse(raw);
                 console.log('[NOTIF] ✅ Parsed pending notification:', JSON.stringify(parsed, null, 2));
-                showNotificationToastRef.current(parsed);
+                openNotification(parsed);
             } catch (error) {
                 console.log('[NOTIF] ❌ Failed to parse pending notification:', error?.message || error);
             }
@@ -286,6 +289,15 @@ const useNotificationSetup = ({ showNotificationToast, setMessage }) => {
         // Receives messages when the app is in the foreground.
         // Background + quit-state messages are handled by registerBackgroundHandler
         // in index.js — do NOT register messaging().onMessage here for those.
+        const openNotification = remoteMessage => {
+            const battleRoute = resolveBattleNotificationRoute(remoteMessage);
+            if (battleRoute && onNotificationOpenRef.current) {
+                onNotificationOpenRef.current(battleRoute);
+                return;
+            }
+            showNotificationToastRef.current(remoteMessage);
+        };
+
         const unsubscribeOnMessage = messaging().onMessage(async remoteMessage => {
             console.log('[NOTIF] 🟢 ──────────────────────────────────────────');
             console.log('[NOTIF] 🟢 FOREGROUND MESSAGE RECEIVED');
@@ -331,7 +343,7 @@ const useNotificationSetup = ({ showNotificationToast, setMessage }) => {
             console.log('[NOTIF] 🟡 BACKGROUND TAP');
             const body = remoteMessage?.notification?.body ?? remoteMessage?.data?.body ?? '';
             setMessageRef.current(body);
-            showNotificationToastRef.current(remoteMessage);
+            openNotification(remoteMessage);
         });
 
         // ── QUIT-STATE TAP (app was killed, user taps notification) ───────────
@@ -341,7 +353,7 @@ const useNotificationSetup = ({ showNotificationToast, setMessage }) => {
                 console.log('[NOTIF] 🔴 QUIT STATE TAP');
                 const body = remoteMessage?.notification?.body ?? remoteMessage?.data?.body ?? '';
                 setMessageRef.current(body);
-                showNotificationToastRef.current(remoteMessage);
+                openNotification(remoteMessage);
             }
         });
 
@@ -359,8 +371,8 @@ const useNotificationSetup = ({ showNotificationToast, setMessage }) => {
             console.log('[NOTIF] 🔔 Data:', JSON.stringify(detail?.notification?.data, null, 2));
 
             if (type === EventType.PRESS && detail?.notification) {
-                console.log('[NOTIF] 🔔 User PRESSED notifee notification — showing toast');
-                showNotificationToastRef.current({
+                console.log('[NOTIF] 🔔 User PRESSED notifee notification — opening target');
+                openNotification({
                     notification: {
                         title: detail.notification?.title,
                         body:  detail.notification?.body,

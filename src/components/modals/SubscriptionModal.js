@@ -25,8 +25,9 @@ import {
     getPaymentSessionUrl,
     STRIPE_BROWSER_OPTIONS,
     getStripeErrorMessages,
-    createOnboardingLink,
-    getOnboardingStatus,
+    isNetworkFailureResponse,
+    getResponseMessage,
+    messageFromThrown,
 } from '../../utils/stripeOnboarding';
 import { useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../../i18n';
@@ -44,6 +45,8 @@ const SubscribeFlowModal = ({
     onClose,
     membershipPrice = 19.99,
     onPaymentDone,
+    onPaymentActivityChange,
+    onCheckoutDismissed,
     displayName,
     userData,
     dashboard,
@@ -51,6 +54,8 @@ const SubscribeFlowModal = ({
 }) => {
     const step1Ref = useRef(null);
     const step2Ref = useRef(null);
+    const paymentInFlightRef = useRef(false);
+    const openStep1TimerRef = useRef(null);
 
     const [acceptedTerms, setAcceptedTerms] = useState(false);
     const [subscriptionAmount, setSubscriptionAmount] = useState();
@@ -91,66 +96,70 @@ const SubscribeFlowModal = ({
     const cancelTextColor = { color: text };
 
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-    const isBrowserCancelled = (result) => result?.type === 'cancel' || result?.type === 'dismiss';
-    const isOnboardingReady = (status) => status?.canReceivePayments === true && Boolean(status?.accountId);
 
-    const GetInbordingstatus = async () => {
-        try {
-            const response = await getOnboardingStatus();
-            if (response?.statusCode === 200) return response?.data ?? null;
-            return null;
-        } catch (_error) {
-            return null;
-        }
-    };
-
-    const GetInbordingLink = async () => {
-        const response = await createOnboardingLink();
-        const onboardingUrl = response?.data?.onboardingUrl ?? response?.data?.data?.onboardingUrl;
-
-        if (!onboardingUrl) {
-            const latestStatus = await GetInbordingstatus();
-            if (isOnboardingReady(latestStatus)) return { alreadyOnboarded: true };
-            throw new Error('Onboarding link not found');
-        }
-
+    const openBrowser = async (url) => {
         if (await InAppBrowser.isAvailable()) {
-            return await InAppBrowser.open(onboardingUrl, {
+            return InAppBrowser.open(url, {
                 ...STRIPE_BROWSER_OPTIONS,
                 forceCloseOnRedirection: true,
             });
         }
-
-        await Linking.openURL(onboardingUrl);
+        await Linking.openURL(url);
         return { type: 'opened_external' };
     };
 
-    const waitForOnboardingCompletion = async () => {
-        for (let attempt = 0; attempt < 10; attempt += 1) {
-            const status = await GetInbordingstatus();
-            if (isOnboardingReady(status)) return status;
-            await delay(2000);
+    const clearStep1OpenTimer = () => {
+        if (openStep1TimerRef.current) {
+            clearTimeout(openStep1TimerRef.current);
+            openStep1TimerRef.current = null;
         }
-        return null;
+    };
+
+    const closeSheets = () => {
+        clearStep1OpenTimer();
+        step1Ref.current?.close();
+        step2Ref.current?.close();
     };
 
     const closeAllModals = () => {
-        step1Ref.current?.close();
-        step2Ref.current?.close();
+        closeSheets();
         setAcceptedTerms(false);
         onClose?.();
     };
 
+    // RBSheet presents a native modal. Wait until that dismiss finishes
+    // before opening another modal (Stripe), or the screen stays frozen.
+    const dismissSheets = () =>
+        new Promise((resolve) => {
+            closeSheets();
+            setTimeout(resolve, 500);
+        });
+
     useEffect(() => {
-        if (visible) {
+        if (!visible) {
+            closeSheets();
             setAcceptedTerms(false);
-            setTimeout(() => { step1Ref.current?.open(); }, 300);
-            fetchAllData();
-            fetchSubscriptionByUserId();
-            fetchSubscriptionAmount();
-        } else {
-            closeAllModals();
+            return undefined;
         }
+
+        if (paymentInFlightRef.current) return undefined;
+
+        setAcceptedTerms(false);
+        openStep1TimerRef.current = setTimeout(() => {
+            openStep1TimerRef.current = null;
+            if (!paymentInFlightRef.current) {
+                step1Ref.current?.open();
+            }
+        }, 300);
+        fetchAllData();
+        fetchSubscriptionByUserId();
+        fetchSubscriptionAmount();
+
+        return () => {
+            clearStep1OpenTimer();
+        };
+        // Re-open only when the parent shows the sheet again, not when fetch helpers change.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
     const handleConfirm = () => {
@@ -164,6 +173,8 @@ const SubscribeFlowModal = ({
     };
 
     const getSubscription = async () => {
+        if (paymentInFlightRef.current) return;
+
         const amount = Number(subscriptionAmount);
 
         if (!amount || Number.isNaN(amount)) {
@@ -171,12 +182,17 @@ const SubscribeFlowModal = ({
             return;
         }
 
+        if (!targetUserId) {
+            showToastMessage(toast, 'danger', stripeErrorMessages.RECIPIENT_NOT_READY);
+            return;
+        }
+
+        paymentInFlightRef.current = true;
+        onPaymentActivityChange?.(true);
         dispatch(showLoader());
 
         try {
             const payload = { amount, contentUserId: targetUserId };
-
-            const onboardingStatus = await GetInbordingstatus();
 
             const isActiveStatus = (value) => {
                 if (value === true) return true;
@@ -186,6 +202,7 @@ const SubscribeFlowModal = ({
             const verifyFanSubscriptionActive = async () => {
                 try {
                     const statusResponse = await getFansubscriptionStatus(targetUserId);
+                    console.log(statusResponse,"statusResponse..")
                     const data = statusResponse?.data;
                     if (
                         isActiveStatus(statusResponse?.status) ||
@@ -220,59 +237,59 @@ const SubscribeFlowModal = ({
 
             const openPayment = async () => {
                 const response = await FanPageSubscription(payload);
+                if (isNetworkFailureResponse(response)) return { kind: 'network' };
                 const url = getPaymentSessionUrl(response);
                 if (!url) {
-                    showToastMessage(
-                        toast,
-                        'danger',
-                        response?.message ||
-                        response?.data?.message ||
-                        stripeErrorMessages.RECIPIENT_NOT_READY
-                    );
-                    return false;
+                    return { kind: 'no_url', message: getResponseMessage(response) };
                 }
-                if (await InAppBrowser.isAvailable()) {
-                    await InAppBrowser.open(url, { ...STRIPE_BROWSER_OPTIONS, forceCloseOnRedirection: true });
-                } else {
-                    await Linking.openURL(url);
-                }
+                // Close the subscribe sheet before Stripe opens. If it is still
+                // presented when the browser returns, iOS/Android leave a modal
+                // layer that swallows every touch.
+                dispatch(hideLoader());
+                await dismissSheets();
 
-                // After returning from payment, wait a bit for backend/Stripe webhooks to sync.
+                await openBrowser(url);
+
+                // Returning from Stripe often reports "cancel" even after a
+                // successful payment. Close the pay sheet and do not open it again.
+                onCheckoutDismissed?.();
+                closeAllModals();
+                setTimeout(() => closeSheets(), 400);
+
                 const active = await waitForSubscriptionActivation();
                 if (active) {
                     onPaymentDone?.({ contentUserId: targetUserId, status: 'ACTIVE' });
+                    return { kind: 'paid' };
                 }
-                return active;
+                return { kind: 'unconfirmed' };
             };
 
-            if (isOnboardingReady(onboardingStatus)) {
-                if (await openPayment()) closeAllModals();
+            const showPaymentFailure = (result) => {
+                if (!result || result.kind === 'paid' || result.kind === 'unconfirmed') return;
+                if (result.kind === 'network') {
+                    showToastMessage(toast, 'danger', stripeErrorMessages.NETWORK_ERROR);
+                    return;
+                }
+                showToastMessage(
+                    toast,
+                    'danger',
+                    result.message || stripeErrorMessages.SESSION_FAILED,
+                );
+            };
+
+            // pay-following creates the Stripe customer when stripeCustomerId is missing.
+            // billing/customer-setup-link is not a backend route.
+            const result = await openPayment();
+            if (result.kind === 'paid' || result.kind === 'unconfirmed') {
+                closeAllModals();
                 return;
             }
-
-            const onboardingResult = await GetInbordingLink();
-
-            if (onboardingResult?.alreadyOnboarded) {
-                if (await openPayment()) closeAllModals();
-                return;
-            }
-
-            if (isBrowserCancelled(onboardingResult)) return;
-
-            const updatedStatus = await waitForOnboardingCompletion();
-            if (isOnboardingReady(updatedStatus)) {
-                if (await openPayment()) closeAllModals();
-                return;
-            }
-
-            showToastMessage(toast, 'warning', t('subscribeFlow.onboardingIncomplete'));
+            showPaymentFailure(result);
         } catch (error) {
-            showToastMessage(
-                toast,
-                'danger',
-                error?.response?.data?.message || stripeErrorMessages.NETWORK_ERROR
-            );
+            showToastMessage(toast, 'danger', messageFromThrown(error, stripeErrorMessages));
         } finally {
+            paymentInFlightRef.current = false;
+            onPaymentActivityChange?.(false);
             dispatch(hideLoader());
         }
     };

@@ -1,4 +1,4 @@
-import React, { memo, useState, useCallback, useMemo, useEffect } from 'react';
+import React, { memo, useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Dimensions
 } from 'react-native';
@@ -54,6 +54,9 @@ const ProfileTabs = memo(({
   const [activeTab, setActiveTab] = useState(0);
   const [showSubscribeModal, setShowSubscribeModal] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const subscriptionPaymentInFlightRef = useRef(false);
+  const isSubscribedRef = useRef(false);
+  const blockAutoSubscribeRef = useRef(false);
   const [privateKey, setPrivatKey] = useState(0);
   const [mediaTab, setMediaTab] = useState('photo');
   const [hasCreatedShop, setHasCreatedShop] = useState(false);
@@ -157,6 +160,7 @@ const ProfileTabs = memo(({
       isSubscribedProp === true ||
       String(isSubscribedProp || '').toUpperCase() === 'ACTIVE' ||
       String(isSubscribedProp || '').toLowerCase() === 'true';
+    isSubscribedRef.current = normalizedIsSubscribed;
     setIsSubscribed(normalizedIsSubscribed);
   }, [isSubscribedProp]);
 
@@ -182,10 +186,17 @@ const ProfileTabs = memo(({
       } else if (typeof data?.isSubscribed === 'boolean') {
         isActive = data.isSubscribed;
       }
+      if (!isActive && subscriptionPaymentInFlightRef.current) {
+        return false;
+      }
+      isSubscribedRef.current = isActive;
       setIsSubscribed(isActive);
       return isActive;
     } catch (error) {
-      setIsSubscribed(false);
+      if (!subscriptionPaymentInFlightRef.current) {
+        isSubscribedRef.current = false;
+        setIsSubscribed(false);
+      }
       return false;
     }
   }, [isOwnProfile, isActiveStatus]);
@@ -525,6 +536,7 @@ const ProfileTabs = memo(({
       }
     }
     setActiveTab(0);
+    blockAutoSubscribeRef.current = false;
     setShowSubscribeModal(false);
   }, [targetProfileId]);
 
@@ -541,8 +553,18 @@ const ProfileTabs = memo(({
       // Subscription popup is only for Private Content.
       // Private Circle (invite/member access) must never trigger it.
       if (initialTab !== 'privateContent') return;
+      if (
+        subscriptionPaymentInFlightRef.current ||
+        isSubscribedRef.current ||
+        blockAutoSubscribeRef.current
+      ) return;
       const hasActive = await getSubscriptionStatus(targetProfileId);
-      if (!hasActive) {
+      if (
+        !hasActive &&
+        !subscriptionPaymentInFlightRef.current &&
+        !isSubscribedRef.current &&
+        !blockAutoSubscribeRef.current
+      ) {
         setPrivatKey(p => p + 1);
         setShowSubscribeModal(true);
       }
@@ -566,11 +588,22 @@ const ProfileTabs = memo(({
 
       const checkModalOnFocus = async () => {
         if (!loggedInUserId || isOwnProfile || isSubscribed) return;
+        if (
+          subscriptionPaymentInFlightRef.current ||
+          isSubscribedRef.current ||
+          blockAutoSubscribeRef.current
+        ) return;
 
         const currentTabKey = tabs[activeTab]?.key;
         if (currentTabKey === 'privateContent') {
           const hasActive = await getSubscriptionStatus(targetProfileId);
-          if (!hasActive && !isCancelled) {
+          if (
+            !hasActive &&
+            !isCancelled &&
+            !subscriptionPaymentInFlightRef.current &&
+            !isSubscribedRef.current &&
+            !blockAutoSubscribeRef.current
+          ) {
             setPrivatKey(p => p + 1);
             setShowSubscribeModal(true);
           }
@@ -623,22 +656,29 @@ const ProfileTabs = memo(({
         ))}
       </View>
 
-      {!isSubscribed && (
-        <SubscribeModal
-          visible={showSubscribeModal}
-          onClose={() => setShowSubscribeModal(false)}
-          membershipPrice={19.99}
-          onPaymentDone={() => {
-            setIsSubscribed(true);
-            setShowSubscribeModal(false);
-            setPrivatKey(p => p + 1);
-          }}
-          displayName={displayName}
-          userData={userData}
-          dashboard={dashboard}
-          targetUserId={targetProfileId}
-        />
-      )}
+      <SubscribeModal
+        visible={showSubscribeModal && !isSubscribed}
+        onClose={() => setShowSubscribeModal(false)}
+        onCheckoutDismissed={() => {
+          blockAutoSubscribeRef.current = true;
+          setShowSubscribeModal(false);
+        }}
+        onPaymentActivityChange={(active) => {
+          subscriptionPaymentInFlightRef.current = active;
+        }}
+        membershipPrice={19.99}
+        onPaymentDone={() => {
+          isSubscribedRef.current = true;
+          subscriptionPaymentInFlightRef.current = false;
+          setIsSubscribed(true);
+          setShowSubscribeModal(false);
+          setPrivatKey(p => p + 1);
+        }}
+        displayName={displayName}
+        userData={userData}
+        dashboard={dashboard}
+        targetUserId={targetProfileId}
+      />
     </View>
   );
 });

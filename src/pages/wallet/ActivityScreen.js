@@ -20,6 +20,7 @@ import { useBusinessProfileTheme } from '../../theme/useBusinessProfileTheme';
 import { useRoute } from '@react-navigation/native';
 import { useLanguage } from '../../i18n';
 import { useThemeContext } from '../../theme/ThemeContext';
+import { contrastOn } from '../../utils/ctaContrast';
 
 export const ActivityScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -28,10 +29,17 @@ export const ActivityScreen = ({ navigation }) => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [activities, setActivities] = useState([]);
   const [notificationsMuted, setNotificationsMuted] = useState(false);
-  const { bgStyle, textStyle, text, } = useBusinessProfileTheme();
+  const {
+    bgStyle,
+    text,
+    accent,
+    card,
+    border,
+    mutedText,
+    icon,
+  } = useBusinessProfileTheme();
   const { t } = useLanguage();
-
-  const brandPurple = '#513189';
+  const activeLabelColor = contrastOn(accent);
 
   const filters = [
     { key: 'all', label: t('activity.filters.all', 'All'), iconName: null },
@@ -71,15 +79,18 @@ export const ActivityScreen = ({ navigation }) => {
     const activityType = String(item.activityType || item.type || '').toLowerCase();
     const interactionType = String(item.interactionType || '').toLowerCase();
 
+    const description = String(item.body || item.message || item.title || '').toLowerCase();
+    const kind = `${activityType} ${interactionType} ${description}`;
+
     let type = 'follow';
-    if (activityType.includes('unfollow') || interactionType.includes('unfollow')) {
+    if (kind.includes('unfollow')) {
       type = 'unfollow';
+    } else if (kind.includes('comment')) {
+      type = 'comment';
+    } else if (kind.includes('like')) {
+      type = 'like';
     } else if (activityType.includes('drop') || interactionType.includes('story')) {
       type = 'drop';
-    } else if (interactionType.includes('comment')) {
-      type = 'comment';
-    } else if (interactionType.includes('like') || activityType.includes('like')) {
-      type = 'like';
     } else if (activityType.includes('flip') || interactionType.includes('flip')) {
       type = 'flip';
     }
@@ -100,6 +111,24 @@ export const ActivityScreen = ({ navigation }) => {
     }
 
     const subtitle = item.subtitle || item.postCaption || item.storyCaption || undefined;
+    const post = item.post && typeof item.post === 'object' ? item.post : null;
+    const nested = item.data && typeof item.data === 'object' ? item.data : null;
+    const postId = [
+      item.postId,
+      item.post_id,
+      item.postID,
+      item.targetPostId,
+      nested?.postId,
+      nested?.post_id,
+      nested?.post?.id,
+      post?.id,
+      post?._id,
+      post?.postId,
+      type === 'like' || type === 'comment' ? item.contentId : null,
+      type === 'like' || type === 'comment' ? item.targetId : null,
+      type === 'like' || type === 'comment' ? item.referenceId : null,
+      type === 'like' || type === 'comment' ? item.entityId : null,
+    ].find(value => value != null && String(value).trim() !== '');
 
     return {
       id: item.id || item.activityId || [
@@ -114,7 +143,10 @@ export const ActivityScreen = ({ navigation }) => {
       actionText,
       subtitle,
       actorImage: item.actorImage || null,
-      userId: item.actorId || item.followerId || item.userId || item.id,
+      userId: item.actorId || item.followerId || item.userId,
+      postId: postId ? String(postId) : '',
+      post,
+      postOwnerId: item.postOwnerId || item.ownerId || post?.userId || post?.ownerId || null,
       time: formatTime(item.createdAt),
       type,
       createdAt: new Date(item.createdAt || Date.now()).getTime(),
@@ -150,6 +182,7 @@ export const ActivityScreen = ({ navigation }) => {
               ...(rawData.drops || []),
               ...(rawData.flips || []),
               ...(rawData.likes || []),
+              ...(rawData.comments || []),
             ];
           }
         } else if (filterKey === 'following' && rawData.following?.length) {
@@ -195,6 +228,43 @@ export const ActivityScreen = ({ navigation }) => {
     });
   };
 
+  const navigateToActivityPost = (activity) => {
+    if (!activity?.postId) {
+      navigateToActivityUser(activity);
+      return;
+    }
+
+    const postPayload = activity.post && typeof activity.post === 'object'
+      ? { ...activity.post, id: activity.post.id || activity.postId }
+      : { id: activity.postId };
+    const isComment = activity.type === 'comment';
+
+    navigation.navigate('ProfileMain', {
+      screen: 'PostView',
+      params: {
+        postData: postPayload,
+        startIndex: 0,
+        userChat: true,
+        fromScreen: 'Activity',
+        hideTabBar: true,
+        isOwnProfile: false,
+        returnTo: 'wallet',
+        returnParams: { screen: 'Activity' },
+        openCommentsOnMount: isComment,
+        commentPostId: activity.postId,
+        commentPostOwnerId: activity.postOwnerId || null,
+      },
+    });
+  };
+
+  const handleActivityPress = (activity) => {
+    if ((activity?.type === 'like' || activity?.type === 'comment') && activity?.postId) {
+      navigateToActivityPost(activity);
+      return;
+    }
+    navigateToActivityUser(activity);
+  };
+
   const getActivityBadgeStyle = (type) => {
     switch (type) {
       case 'unfollow':
@@ -231,7 +301,7 @@ export const ActivityScreen = ({ navigation }) => {
     return (
       <TouchableOpacity
         activeOpacity={0.88}
-        onPress={() => navigateToActivityUser(item)}
+        onPress={() => handleActivityPress(item)}
         style={[
           styles.activityCardItem,
           {
@@ -308,10 +378,10 @@ export const ActivityScreen = ({ navigation }) => {
                 style={[
                   styles.filterPillButton,
                   isActive
-                    ? { backgroundColor: text, borderColor: text }
+                    ? { backgroundColor: accent, borderColor: accent }
                     : {
-                      backgroundColor: isDarkMode ? '#1E1B2E' : '#FFFFFF',
-                      borderColor: isDarkMode ? '#2D2844' : '#E5E7EB',
+                      backgroundColor: card,
+                      borderColor: border,
                     },
                 ]}
                 onPress={() => setActiveFilter(filter.key)}
@@ -320,7 +390,7 @@ export const ActivityScreen = ({ navigation }) => {
                   <Ionicons
                     name={filter.iconName}
                     size={16}
-                    color={isActive ? '#FFFFFF' : (isDarkMode ? '#A78BFA' : brandPurple)}
+                    color={isActive ? activeLabelColor : (isDarkMode ? icon : accent)}
                     style={{ marginRight: 6 }}
                   />
                 ) : null}
@@ -328,8 +398,8 @@ export const ActivityScreen = ({ navigation }) => {
                   style={[
                     styles.filterPillText,
                     isActive
-                      ? { color: '#FFFFFF', fontWeight: '700' }
-                      : { color: isDarkMode ? '#D1D5DB' : '#374151', fontWeight: '600' },
+                      ? { color: activeLabelColor, fontWeight: '700' }
+                      : { color: isDarkMode ? mutedText : '#374151', fontWeight: '600' },
                   ]}
                 >
                   {filter.label}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Modal, StyleSheet, Text, TouchableOpacity, View, Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
@@ -7,7 +7,13 @@ import { showToastMessage } from '../displaytoastmessage';
 import { createCheckoutSession } from '../../services/stirpe';
 import { useAppTheme } from '../../theme/useApptheme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createOnboardingLink, getOnboardingStatus } from '../../services/profile';
+import {
+  createOnboardingLink,
+  describeRequestFailure,
+  getOnboardingStatus,
+  getOnboardingUrl,
+  getStripeErrorMessages,
+} from '../../utils/stripeOnboarding';
 import { useLanguage } from '../../i18n';
 
 const BusinessSubscriptionPrompt = ({
@@ -18,6 +24,7 @@ const BusinessSubscriptionPrompt = ({
 }) => {
   const [step, setStep] = useState(1);
   const [isActivating, setIsActivating] = useState(false);
+  const activationInFlightRef = useRef(false);
   const [resolvedSubscriptionStatus, setResolvedSubscriptionStatus] = useState('');
   const toast = useToast();
   const { textStyle, cardStyle, border, mutedText, accent, icon } = useAppTheme('company');
@@ -70,6 +77,8 @@ const BusinessSubscriptionPrompt = ({
   };
 
   const handleActivateNow = async () => {
+    if (activationInFlightRef.current) return;
+    activationInFlightRef.current = true;
     try {
       setIsActivating(true);
 
@@ -119,11 +128,16 @@ const BusinessSubscriptionPrompt = ({
       }
 
       const onboardingResponse = await createOnboardingLink();
-      const onboardingUrl =
-        onboardingResponse?.data?.onboardingUrl ?? onboardingResponse?.data?.data?.onboardingUrl;
+      const onboardingUrl = getOnboardingUrl(onboardingResponse);
 
       if (!onboardingUrl) {
-        throw new Error('Unable to create Stripe onboarding link.');
+        throw new Error(
+          describeRequestFailure(
+            onboardingResponse,
+            getStripeErrorMessages(t),
+            t('subventionSetup.subscriptionStartFail'),
+          ),
+        );
       }
 
       if (await InAppBrowser.isAvailable()) {
@@ -169,6 +183,7 @@ const BusinessSubscriptionPrompt = ({
         error?.response?.data?.message || error?.message || t('subventionSetup.subscriptionStartFail'),
       );
     } finally {
+      activationInFlightRef.current = false;
       setIsActivating(false);
     }
   };

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,22 @@ import {
   FlatList,
   Platform,
   Alert,
+  Linking,
+  ActivityIndicator,
 } from 'react-native';
+import InAppBrowser from 'react-native-inappbrowser-reborn';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useLanguage } from '../../i18n';
 import { saveTipPayoutSetup, maskAccountNumber } from '../../utils/tipPayoutStorage';
+import { getActivePaymentProvider, hydratePaymentProvider, isPagbankProvider } from '../../utils/paymentCurrency';
+import { createOnboardingLink } from '../../services/profile';
+import {
+  STRIPE_BROWSER_OPTIONS,
+  describeRequestFailure,
+  getStripeErrorMessages,
+} from '../../utils/stripeOnboarding';
 import { primaryCtaColors } from '../../utils/ctaContrast';
 
 const withAlpha = (hex, alpha = 0.12) => {
@@ -49,15 +59,29 @@ const CONFETTI_DOTS = [
   { bottom: 20, right: 48, color: '#F472B6', size: 6 },
 ];
 
-const PagBankMark = ({ size = 48 }) => (
-  <View style={[styles.pagBankMark, { width: size, height: size, borderRadius: size / 2 }]}>
-    <Text style={[styles.pagBankMarkText, { fontSize: size * 0.45 }]}>P</Text>
+const ProviderMark = ({ size = 48, mark = 'S', color = '#635BFF' }) => (
+  <View style={[styles.pagBankMark, { width: size, height: size, borderRadius: size / 2, backgroundColor: color }]}>
+    <Text style={[styles.pagBankMarkText, { fontSize: size * 0.45 }]}>{mark}</Text>
   </View>
 );
 
 const TipPayoutSetup = ({ navigation, route }) => {
   const { text, card, border, mutedText, accent, bgStyle, cardStyle } = useAppTheme();
   const { t } = useLanguage();
+  const [paymentProvider, setPaymentProvider] = useState(getActivePaymentProvider);
+  const isPagbankTip = isPagbankProvider(paymentProvider);
+  const providerName = isPagbankTip ? 'PagBank' : 'Stripe';
+  const providerMark = isPagbankTip ? 'P' : 'S';
+
+  useEffect(() => {
+    let cancelled = false;
+    hydratePaymentProvider().then((provider) => {
+      if (!cancelled && provider) setPaymentProvider(provider);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const cta = primaryCtaColors(accent || text);
   const fieldBorder = border || '#E5E7EB';
 
@@ -96,6 +120,7 @@ const TipPayoutSetup = ({ navigation, route }) => {
   const [proofOfAddress, setProofOfAddress] = useState(null);
   const [completedSummary, setCompletedSummary] = useState(null);
   const [pickerModal, setPickerModal] = useState({ visible: false, type: null, options: [] });
+  const [connecting, setConnecting] = useState(false);
 
   const savedSummary = route?.params?.saved || {};
 
@@ -131,6 +156,50 @@ const TipPayoutSetup = ({ navigation, route }) => {
   const goDashboard = useCallback(() => {
     navigation.navigate('Dashboard');
   }, [navigation]);
+
+  const readOnboardingUrl = (response) => {
+    const data = response?.data && typeof response.data === 'object' ? response.data : {};
+    const nested = data.data && typeof data.data === 'object' ? data.data : {};
+    const candidates = [
+      data.onboardingUrl,
+      data.accountLinkUrl,
+      data.url,
+      data.link,
+      nested.onboardingUrl,
+      nested.url,
+      response?.onboardingUrl,
+      response?.url,
+    ];
+    const found = candidates.find(value => typeof value === 'string' && /^https?:\/\//i.test(value.trim()));
+    return found ? found.trim() : '';
+  };
+
+  const handleConnectPayout = async () => {
+    if (connecting) return;
+    setConnecting(true);
+    try {
+      const response = await createOnboardingLink();
+      const onboardingUrl = readOnboardingUrl(response);
+      if (!onboardingUrl) {
+        throw new Error(describeRequestFailure(response, getStripeErrorMessages(t)));
+      }
+      if (await InAppBrowser.isAvailable()) {
+        await InAppBrowser.open(onboardingUrl, {
+          ...STRIPE_BROWSER_OPTIONS,
+          forceCloseOnRedirection: true,
+        });
+      } else {
+        await Linking.openURL(onboardingUrl);
+      }
+    } catch (error) {
+      Alert.alert(
+        t('tipPayoutSetup.validationTitle'),
+        error?.message || getStripeErrorMessages(t).ONBOARDING_FAILED,
+      );
+    } finally {
+      setConnecting(false);
+    }
+  };
 
   const handleMaybeLater = () => {
     if (navigation.canGoBack()) {
@@ -181,10 +250,10 @@ const TipPayoutSetup = ({ navigation, route }) => {
   };
 
   const introBullets = useMemo(() => [
-    t('tipPayoutSetup.bullet1'),
-    t('tipPayoutSetup.bullet2'),
+    t('tipPayoutSetup.bullet1', { provider: providerName }),
+    t(isPagbankTip ? 'tipPayoutSetup.bullet2' : 'tipPayoutSetup.bullet2Stripe'),
     t('tipPayoutSetup.bullet3'),
-  ], [t]);
+  ], [t, providerName, isPagbankTip]);
 
   const renderUploadField = (label, placeholder, value, onPress, iconName = 'document-text-outline') => (
     <View style={styles.fieldBlock}>
@@ -213,14 +282,16 @@ const TipPayoutSetup = ({ navigation, route }) => {
   const renderIntro = () => (
     <ScrollView contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
       <Text style={[styles.screenTitle, { color: text }]}>{t('tipPayoutSetup.connectTitle')}</Text>
-      <Text style={[styles.screenSubtitle, { color: mutedText }]}>{t('tipPayoutSetup.connectSubtitle')}</Text>
+      <Text style={[styles.screenSubtitle, { color: mutedText }]}>
+        {t('tipPayoutSetup.connectSubtitle', { provider: providerName })}
+      </Text>
 
       <View style={styles.flowGraphic}>
         <View style={[styles.flowIconWrap, { backgroundColor: withAlpha(text, 0.12) }]}>
           <Ionicons name="settings-outline" size={28} color={text} />
         </View>
         <View style={[styles.flowDash, { borderColor: withAlpha(text, 0.35) }]} />
-        <PagBankMark size={52} />
+        <ProviderMark size={52} mark={providerMark} color={isPagbankTip ? '#1FAF5A' : '#635BFF'} />
         <View style={[styles.flowDash, { borderColor: withAlpha(text, 0.35) }]} />
         <View style={[styles.flowIconWrap, { backgroundColor: withAlpha(text, 0.12) }]}>
           <Ionicons name="business-outline" size={28} color={mutedText} />
@@ -234,10 +305,20 @@ const TipPayoutSetup = ({ navigation, route }) => {
         </View>
       ))}
 
-      <Text style={[styles.legalNote, { color: mutedText }]}>{t('tipPayoutSetup.legalNote')}</Text>
+      <Text style={[styles.legalNote, { color: mutedText }]}>
+        {t('tipPayoutSetup.legalNote', { provider: providerName })}
+      </Text>
 
-      <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: cta.backgroundColor }]} onPress={() => setStep('information')}>
-        <Text style={[styles.primaryBtnText, { color: cta.color }]}>{t('tipPayoutSetup.continue')}</Text>
+      <TouchableOpacity
+        style={[styles.primaryBtn, { backgroundColor: cta.backgroundColor }, connecting && styles.primaryBtnDisabled]}
+        onPress={handleConnectPayout}
+        disabled={connecting}
+      >
+        {connecting ? (
+          <ActivityIndicator color={cta.color} />
+        ) : (
+          <Text style={[styles.primaryBtnText, { color: cta.color }]}>{t('tipPayoutSetup.continue')}</Text>
+        )}
       </TouchableOpacity>
       <TouchableOpacity style={styles.secondaryBtn} onPress={handleMaybeLater}>
         <Text style={[styles.secondaryBtnText, { color: text }]}>{t('tipPayoutSetup.maybeLater')}</Text>
@@ -656,6 +737,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
+  },
+  primaryBtnDisabled: {
+    opacity: 0.7,
   },
   primaryBtnText: {
     fontSize: 16,

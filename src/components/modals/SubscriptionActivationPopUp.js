@@ -1,5 +1,5 @@
 import { DrawerActions, useNavigation } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -10,18 +10,62 @@ import {
 } from "react-native";
 import { useAppTheme } from "../../theme/useApptheme";
 import { useLanguage } from "../../i18n";
+import { formatMembershipAmount } from "../../utils/membershipPricing";
 
-const SubscriptionActivationPopup = ({ visible, onClose, onConfirm, returnToSettingsSub, isBusinessProfile = false }) => {
+const SubscriptionActivationPopup = ({
+  visible,
+  onClose,
+  onConfirm,
+  returnToSettingsSub,
+  isBusinessProfile = false,
+  amount = 9.9,
+  period = 'month',
+  documentCountry = '',
+}) => {
   const [isLoading, setIsLoading] = useState(false);
+  const dismissResolverRef = useRef(null);
   const navigation = useNavigation();
   const { bgStyle, textStyle, card, text, accent, border } = useAppTheme(
     isBusinessProfile ? 'company' : undefined,
   );
   const { t } = useLanguage();
+  const isYearly = period === 'year' || period === 'annual';
+  const formattedAmount = formatMembershipAmount(amount, documentCountry);
+  const chargeIntroKey = isYearly
+    ? 'subscriptionActivation.chargeIntroYearly'
+    : 'subscriptionActivation.chargeIntroMonthly';
+  const maintenanceFeeKey = isYearly
+    ? 'subscriptionActivation.maintenanceFeeYearly'
+    : 'subscriptionActivation.maintenanceFeeMonthly';
+  const billingAuthKey = isYearly
+    ? 'subscriptionActivation.billingAuthDescYearly'
+    : 'subscriptionActivation.billingAuthDescMonthly';
+
+  const handleDismissed = () => {
+    const resolve = dismissResolverRef.current;
+    dismissResolverRef.current = null;
+    resolve?.();
+  };
+
+  const waitUntilClosed = () => new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      dismissResolverRef.current = null;
+      resolve();
+    };
+    dismissResolverRef.current = finish;
+    onClose?.();
+    // Android does not emit Modal.onDismiss. Don't open Stripe until this
+    // modal is actually gone, or the screen freezes when payment returns.
+    setTimeout(finish, 500);
+  });
 
   const handleAccept = async () => {
     setIsLoading(true);
     try {
+      await waitUntilClosed();
       await onConfirm?.();
     } finally {
       setIsLoading(false);
@@ -51,7 +95,7 @@ const SubscriptionActivationPopup = ({ visible, onClose, onConfirm, returnToSett
       transparent
       animationType="fade"
       onRequestClose={onClose}
-      pointerEvents="auto"
+      onDismiss={handleDismissed}
     >
       <View style={styles.overlay} pointerEvents="auto">
         <View style={[styles.box, bgStyle, { backgroundColor: card }]}>
@@ -61,9 +105,9 @@ const SubscriptionActivationPopup = ({ visible, onClose, onConfirm, returnToSett
           </Text>
 
           <Text style={[styles.text, textStyle]}>
-            {t('subscriptionActivation.chargeIntro')}{' '}
+            {t(chargeIntroKey)}{' '}
             <Text style={{ fontWeight: 'bold' }}>
-              {t('subscriptionActivation.chargeAmount')}
+              {formattedAmount}
             </Text>{' '}
             {t('subscriptionActivation.chargeSuffix')}
           </Text>
@@ -73,7 +117,7 @@ const SubscriptionActivationPopup = ({ visible, onClose, onConfirm, returnToSett
           </Text>
 
           <Text style={[styles.bullet, textStyle]}>
-            {t('subscriptionActivation.maintenanceFee')}
+            {t(maintenanceFeeKey, { amount: formattedAmount })}
           </Text>
           <Text style={[styles.subText, textStyle]}>
             {t('subscriptionActivation.maintenanceFeeDesc')}
@@ -91,7 +135,7 @@ const SubscriptionActivationPopup = ({ visible, onClose, onConfirm, returnToSett
           </Text>
 
           <Text style={[styles.text, textStyle]}>
-            {t('subscriptionActivation.billingAuthDesc')}
+            {t(billingAuthKey)}
           </Text>
 
           <View style={styles.row}>

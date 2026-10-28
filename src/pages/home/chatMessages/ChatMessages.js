@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
-import { getAllConversations, sendMessage as sendMessageAPI, getClosetChatThreadsApi } from '../../../services/chatMessage';
+import { getAllConversations, sendMessage as sendMessageAPI, getClosetChatThreadsApi, getCachedMessagesUnread, setCachedMessagesUnread, sumConversationUnread } from '../../../services/chatMessage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useAppTheme } from '../../../theme/useApptheme';
@@ -96,6 +96,7 @@ export default function ChatMessages() {
   const route = useRoute();
   const [search, setSearch] = useState('');
   const [conversations, setConversations] = useState([]);
+  const [messagesUnreadPreview, setMessagesUnreadPreview] = useState(getCachedMessagesUnread);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -117,13 +118,24 @@ export default function ChatMessages() {
   // ✅ Active tab: 'messages' | 'closet'
   const [activeTab, setActiveTab] = useState(CHAT_TABS.MESSAGES);
   const [closetThreads, setClosetThreads] = useState([]);
+  const [closetUnreadTotal, setClosetUnreadTotal] = useState(null);
   const [isClosetLoading, setIsClosetLoading] = useState(false);
   const [closetError, setClosetError] = useState(null);
+
+  const readClosetUnreadTotal = (payload) => {
+    if (!payload || Array.isArray(payload)) return null;
+    const raw = payload.totalUnreadcount ?? payload.totalUnreadCount ?? payload.totalUnread;
+    const count = Number(raw);
+    return Number.isFinite(count) ? count : null;
+  };
+
+  const closetThreadsCountRef = useRef(0);
+  closetThreadsCountRef.current = closetThreads.length;
 
   const fetchClosetConversations = useCallback(async () => {
     if (!currentUserId) return;
     try {
-      if (closetThreads.length === 0) setIsClosetLoading(true);
+      if (closetThreadsCountRef.current === 0) setIsClosetLoading(true);
       console.log('📡 ChatMessages: Fetching closet threads via API');
       const response = await getClosetChatThreadsApi();
       console.log('📥 API getClosetChatThreads response:', response);
@@ -132,6 +144,7 @@ export default function ChatMessages() {
           ? response.data
           : (response.data?.threads || []);
         setClosetThreads(received);
+        setClosetUnreadTotal(readClosetUnreadTotal(response.data));
         setClosetError(null);
       } else {
         setClosetError(response?.message || 'Failed to fetch closet chat threads');
@@ -142,7 +155,36 @@ export default function ChatMessages() {
     } finally {
       setIsClosetLoading(false);
     }
-  }, [currentUserId, closetThreads.length]);
+  }, [currentUserId]);
+
+  // Load closet unread as soon as Messages opens, before the closet tab is tapped.
+  useEffect(() => {
+    if (!currentUserId || !isScreenFocused) return;
+    fetchClosetConversations();
+  }, [currentUserId, isScreenFocused, fetchClosetConversations]);
+
+  // Messages unread does not wait for the socket. Home already has this total,
+  // and this request fills it if that cache is still empty.
+  useEffect(() => {
+    if (!currentUserId || !isScreenFocused) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const response = await getAllConversations();
+        if (cancelled || !response?.success || !Array.isArray(response.data)) return;
+        const total = sumConversationUnread(response.data);
+        setCachedMessagesUnread(total);
+        setMessagesUnreadPreview(total);
+      } catch (error) {
+        console.warn('❌ ChatMessages: messages unread prefetch failed', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId, isScreenFocused]);
 
   const isBusinessProfile = String(profileType || '').toLowerCase() === 'company'
     || String(profileType || '').toLowerCase() === 'business';
@@ -590,6 +632,7 @@ export default function ChatMessages() {
   useSocket('closetChatThreads', (data) => {
     console.log('📨 ChatMessages: Received closetChatThreads data');
     setClosetThreads(Array.isArray(data) ? data : data?.threads || []);
+    setClosetUnreadTotal(readClosetUnreadTotal(data));
     setIsClosetLoading(false);
     setClosetError(null);
   }, []);
@@ -1155,7 +1198,7 @@ export default function ChatMessages() {
       avatar: otherUser.avatar || otherUser.image || ONLINE_PLACEHOLDER,
       lastMessage: lastMsgText,
       timestamp: formatTimestamp(lastMsgTime),
-      unreadCount: thread.unreadCount || 0,
+      unreadCount: Number(thread.unreadCount ?? thread.unreadcount) || 0,
       isOnline: otherUser.isOnline || false,
       otherUser: otherUser,
       orderInfo: thread.orderInfo || thread.order,
@@ -1179,6 +1222,28 @@ export default function ChatMessages() {
   const filteredConversations = activeConversations.filter(c =>
     c.username.toLowerCase().includes(search.toLowerCase())
   );
+
+  const liveMessagesUnread = conversations.reduce((acc, conversation) => {
+    if (conversation.isHidden === true) {
+      return acc;
+    }
+    const unread = conversation.unreadCount || 0;
+    return acc + unread;
+  }, 0);
+  const hasLiveMessages = dataSource !== 'none' || conversations.length > 0;
+  const messagesUnread = hasLiveMessages ? liveMessagesUnread : messagesUnreadPreview;
+
+  useEffect(() => {
+    if (!hasLiveMessages) return;
+    setCachedMessagesUnread(liveMessagesUnread);
+  }, [hasLiveMessages, liveMessagesUnread]);
+
+  const closetUnreadFromThreads = closetThreads.reduce((acc, thread) => {
+    return acc + (Number(thread.unreadCount ?? thread.unreadcount) || 0);
+  }, 0);
+  const closetUnread = closetUnreadTotal == null ? closetUnreadFromThreads : closetUnreadTotal;
+
+  const formatTabUnread = (count) => (count > 99 ? '99+' : String(count));
 
   const activeLoading = activeTab === CHAT_TABS.CLOSET ? isClosetLoading : isLoading;
   const activeError = activeTab === CHAT_TABS.CLOSET ? closetError : error;
@@ -1220,16 +1285,23 @@ export default function ChatMessages() {
           onPress={() => setActiveTab(CHAT_TABS.MESSAGES)}
           activeOpacity={0.7}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === CHAT_TABS.MESSAGES
-                ? { color: accent, fontWeight: '700' }
-                : mutedTextStyle,
-            ]}
-          >
-            {t('chatMessages.messagesLabel')}
-          </Text>
+          <View style={styles.tabLabelRow}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === CHAT_TABS.MESSAGES
+                  ? { color: accent, fontWeight: '700' }
+                  : mutedTextStyle,
+              ]}
+            >
+              {t('chatMessages.messagesLabel')}
+            </Text>
+            {messagesUnread > 0 && (
+              <View style={[styles.tabUnreadBadge, { backgroundColor: accent }]}>
+                <Text style={styles.tabUnreadBadgeText}>{formatTabUnread(messagesUnread)}</Text>
+              </View>
+            )}
+          </View>
           {activeTab === CHAT_TABS.MESSAGES && (
             <View style={[styles.tabUnderline, { backgroundColor: accent }]} />
           )}
@@ -1240,16 +1312,23 @@ export default function ChatMessages() {
           onPress={() => setActiveTab(CHAT_TABS.CLOSET)}
           activeOpacity={0.7}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === CHAT_TABS.CLOSET
-                ? { color: accent, fontWeight: '700' }
-                : mutedTextStyle,
-            ]}
-          >
-            {closetChatTitle}
-          </Text>
+          <View style={styles.tabLabelRow}>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === CHAT_TABS.CLOSET
+                  ? { color: accent, fontWeight: '700' }
+                  : mutedTextStyle,
+              ]}
+            >
+              {closetChatTitle}
+            </Text>
+            {closetUnread > 0 && (
+              <View style={[styles.tabUnreadBadge, { backgroundColor: accent }]}>
+                <Text style={styles.tabUnreadBadgeText}>{formatTabUnread(closetUnread)}</Text>
+              </View>
+            )}
+          </View>
           {activeTab === CHAT_TABS.CLOSET && (
             <View style={[styles.tabUnderline, { backgroundColor: accent }]} />
           )}
@@ -1440,10 +1519,27 @@ const styles = StyleSheet.create({
     marginRight: 24,
     paddingBottom: 8,
   },
+  tabLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   tabText: {
     fontSize: 15,
     fontWeight: '600',
-    fontWeight: '600',
+  },
+  tabUnreadBadge: {
+    marginLeft: 6,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabUnreadBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
   },
   tabUnderline: {
     marginTop: 6,

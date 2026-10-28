@@ -9,6 +9,7 @@ import {
   Linking,
   DeviceEventEmitter,
   ScrollView,
+  Image,
   useWindowDimensions,
   Platform,
   BackHandler,
@@ -20,38 +21,24 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { cancelSubscription, checkSubscription, createCheckoutSession } from '../../services/stirpe';
 import { createOnboardingLink, getOnboardingStatus } from '../../services/profile';
+import { getOnboardingUrl } from '../../utils/stripeOnboarding';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useThemeContext } from '../../theme/ThemeContext';
 import { useLanguage } from '../../i18n';
 import SubscriptionActivationPopup from '../../components/modals/SubscriptionActivationPopUp';
 import { LogoIcon } from '../../assets/icons';
 import { formatLocalizedDateTime } from '../../utils/dateTimeFormatter';
+import { formatMembershipAmount, getMembershipPlan, readDocumentCountry } from '../../utils/membershipPricing';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUserCredentials } from '../../services/post';
+import { kycStatus } from '../../services/kycverification';
 
 const PAYMENT_POLL_ATTEMPTS = 8;
 const PAYMENT_POLL_DELAY_MS = 1500;
 
-const PLANS = {
-  monthly: {
-    id: 'monthly',
-    price: 9.9,
-    originalPrice: null,
-    periodKey: 'perMonth',
-    titleKey: 'monthlyPlan',
-    descKey: 'monthlyDesc',
-    badgeKey: 'mostPopular',
-    badgeTone: 'accent',
-  },
-  annual: {
-    id: 'annual',
-    price: 95,
-    originalPrice: 118.8,
-    periodKey: 'perYear',
-    titleKey: 'annualPlan',
-    descKey: 'annualDesc',
-    badgeKey: 'save20',
-    badgeTone: 'success',
-  },
-};
+const PLAN_IDS = ['monthly', 'annual'];
+const NORMAL_ACCOUNT_FLY = require('../../assets/icons/pngicons/joy.png');
+const BUSINESS_ACCOUNT_FLY = require('../../assets/icons/pngicons/JoyfulGfly.png');
 
 const BENEFITS = [
   { icon: 'sword-cross', titleKey: 'battleShop', descKey: 'battleShopDesc' },
@@ -80,8 +67,8 @@ const withAlpha = (hex, alpha = 0.12) => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-const formatMoney = (value, currency = '$') =>
-  `${currency}${Number(value ?? 0).toFixed(2)}`;
+const formatMoney = (value, documentCountry) =>
+  formatMembershipAmount(value, documentCountry);
 
 const SubscriptionDetails = ({ route }) => {
   const navigation = useNavigation();
@@ -133,7 +120,50 @@ const SubscriptionDetails = ({ route }) => {
   const [cancelling, setCancelling] = useState(false);
   const [showActivationPopup, setShowActivationPopup] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('monthly');
+  const [documentCountry, setDocumentCountry] = useState('');
+  const [isBusinessProfile, setIsBusinessProfile] = useState(false);
   const paymentPollRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const userId = await AsyncStorage.getItem('userId');
+        if (!userId || cancelled) return;
+        const [profileResponse, kycResponse] = await Promise.all([
+          getUserCredentials(userId).catch(() => null),
+          kycStatus(userId).catch(() => null),
+        ]);
+        const profile = profileResponse?.data?.user || profileResponse?.data || profileResponse;
+        const kyc = kycResponse?.data?.user || kycResponse?.data || kycResponse;
+        const country = readDocumentCountry(kyc) || readDocumentCountry(profile);
+        const storedProfile = await AsyncStorage.getItem('profile');
+        const apiProfile = profileResponse?.data?.profile;
+        const accountType = String(
+          (typeof apiProfile === 'string' ? apiProfile : '') || profile?.profile || storedProfile || 'user',
+        ).toLowerCase();
+        if (!cancelled) {
+          setDocumentCountry(country);
+          setIsBusinessProfile(accountType !== 'user' && accountType !== 'normal');
+        }
+      } catch (error) {
+        console.log('subscription document country load failed', error?.message || error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const activePlan = useMemo(
+    () => getMembershipPlan(selectedPlan, documentCountry),
+    [selectedPlan, documentCountry],
+  );
+
+  const formatPlanMoney = useCallback(
+    (value) => formatMoney(value, documentCountry),
+    [documentCountry],
+  );
 
   const benefitCardWidth = Math.min(168, Math.max(148, width * 0.42));
   const themeColors = useMemo(() => ({
@@ -239,6 +269,13 @@ const SubscriptionDetails = ({ route }) => {
     subscription?.current_period_end,
   ].find((value) => formatLocalizedDateTime(value, currentLanguage));
 
+  const getSelectedPlanRenewalDate = () => {
+    const date = new Date();
+    if (selectedPlan === 'annual') date.setFullYear(date.getFullYear() + 1);
+    else date.setMonth(date.getMonth() + 1);
+    return date.toISOString();
+  };
+
   const getTimeRemaining = (endDate) => {
     if (!endDate) return t('subscription.notAvailable');
     const now = new Date();
@@ -290,8 +327,7 @@ const SubscriptionDetails = ({ route }) => {
 
       if (!isReady) {
         const onboardingLink = await createOnboardingLink();
-        const onboardingUrl = onboardingLink?.data?.onboardingUrl
-          ?? onboardingLink?.data?.data?.onboardingUrl;
+        const onboardingUrl = getOnboardingUrl(onboardingLink);
 
         if (onboardingUrl) {
           setShowActivationPopup(false);
@@ -331,7 +367,13 @@ const SubscriptionDetails = ({ route }) => {
         }
       }
 
-      const response = await createCheckoutSession();
+      const checkoutPlan = getMembershipPlan(selectedPlan, documentCountry);
+      const response = await createCheckoutSession({
+        plan: selectedPlan,
+        interval: selectedPlan === 'annual' ? 'year' : 'month',
+        amount: checkoutPlan.price,
+        currency: checkoutPlan.currency,
+      });
       const checkoutUrl = response?.data?.url;
       if (!checkoutUrl) throw new Error('Checkout URL not received');
 
@@ -374,16 +416,23 @@ const SubscriptionDetails = ({ route }) => {
   );
 
   const renderHeroIllustration = () => (
-    <View style={styles.heroArtWrap}>
-      <View style={[styles.heroArtGlow, { backgroundColor: withAlpha(text, 0.12) }]} />
-      <View style={styles.logoBackground}>
-        <LogoIcon height={88} width={88} />
-      </View>
-      <View style={[styles.heroArtFloat, styles.heroArtFloatLeft, { backgroundColor: card }]}>
-        <Ionicons name="lock-closed-outline" size={14} color={text} />
-      </View>
-      <View style={[styles.heroArtFloat, styles.heroArtFloatRight, { backgroundColor: card }]}>
-        <Ionicons name="chatbubble-ellipses-outline" size={14} color={text} />
+    <View style={styles.heroArtColumn}>
+      <Image
+        source={isBusinessProfile ? BUSINESS_ACCOUNT_FLY : NORMAL_ACCOUNT_FLY}
+        style={styles.heroFly}
+        resizeMode="contain"
+      />
+      <View style={styles.heroArtWrap}>
+        <View style={[styles.heroArtGlow, { backgroundColor: withAlpha(text, 0.12) }]} />
+        <View style={styles.logoBackground}>
+          <LogoIcon height={72} width={72} />
+        </View>
+        <View style={[styles.heroArtFloat, styles.heroArtFloatLeft, { backgroundColor: card }]}>
+          <Ionicons name="lock-closed-outline" size={14} color={text} />
+        </View>
+        <View style={[styles.heroArtFloat, styles.heroArtFloatRight, { backgroundColor: card }]}>
+          <Ionicons name="chatbubble-ellipses-outline" size={14} color={text} />
+        </View>
       </View>
     </View>
   );
@@ -471,7 +520,7 @@ const SubscriptionDetails = ({ route }) => {
   );
 
   const renderPlanOption = (planKey) => {
-    const plan = PLANS[planKey];
+    const plan = getMembershipPlan(planKey, documentCountry);
     const selected = selectedPlan === planKey;
     return (
       <TouchableOpacity
@@ -509,7 +558,7 @@ const SubscriptionDetails = ({ route }) => {
         <View style={styles.planPriceRow}>
           <View style={styles.planPriceRow}>
             <Text style={[styles.planPrice, { color: themeColors.bodyText }]}>
-              {formatMoney(plan.price, t('subscription.currency'))}
+              {formatPlanMoney(plan.price)}
             </Text>
 
             <Text style={[styles.planPeriod, { color: themeColors.subText }]}>
@@ -519,7 +568,7 @@ const SubscriptionDetails = ({ route }) => {
         </View>
         {plan.originalPrice ? (
           <Text style={[styles.planOriginalPrice, { color: themeColors.subText }]}>
-            {formatMoney(plan.originalPrice)}
+            {formatPlanMoney(plan.originalPrice)}
           </Text>
         ) : null}
       </TouchableOpacity>
@@ -532,8 +581,7 @@ const SubscriptionDetails = ({ route }) => {
       <Text style={[styles.sectionSubtitle, { color: themeColors.subText }]}>
         {t('subscription.choosePlanSubtitle')}
       </Text>
-      {renderPlanOption('monthly')}
-      {renderPlanOption('annual')}
+      {PLAN_IDS.map(renderPlanOption)}
     </View>
   );
 
@@ -579,7 +627,8 @@ const SubscriptionDetails = ({ route }) => {
         ) : (
           <>
             {renderDetailRow('card-outline', t('subscription.billingLabel'), billingLabel)}
-            {renderDetailRow('time-outline', t('subscription.renewsOnLabel'), formatDateISO(getSubscriptionEndDate()))}
+            {renderDetailRow('pricetag-outline', t('subscription.priceLabel'), formatPlanMoney(activePlan.price))}
+            {renderDetailRow('time-outline', t('subscription.renewsOnLabel'), formatDateISO(getSelectedPlanRenewalDate()))}
             {renderDetailRow('close-circle-outline', t('subscription.cancelAnytimeLabel'), t('subscription.cancelAnytimeYes'))}
           </>
         )}
@@ -650,7 +699,7 @@ const SubscriptionDetails = ({ route }) => {
   );
 
   const renderInactiveFooter = () => {
-    const selected = PLANS[selectedPlan];
+    const selected = activePlan;
     return (
       <View style={[styles.footerBar, cardStyle, { borderTopColor: withAlpha(text, 0.1) }]}>
         <View style={styles.footerPriceBlock}>
@@ -658,7 +707,7 @@ const SubscriptionDetails = ({ route }) => {
             {t('subscription.totalToday')}
           </Text>
           <Text style={[styles.footerPriceValue, { color: themeColors.bodyText }]}>
-            {formatMoney(selected.price, t('subscription.currency'))}
+            {formatPlanMoney(selected.price)}
           </Text>
         </View>
         <TouchableOpacity
@@ -796,6 +845,9 @@ const SubscriptionDetails = ({ route }) => {
         onClose={() => setShowActivationPopup(false)}
         onConfirm={handleActivationConfirm}
         returnToSettingsSub
+        amount={activePlan.price}
+        period={selectedPlan === 'annual' ? 'year' : 'month'}
+        documentCountry={documentCountry}
       />
     </View>
   );
@@ -867,8 +919,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   statusPillText: { fontSize: 12, fontWeight: '700' },
-  heroArtWrap: { width: 108, height: '28%', alignItems: 'center', justifyContent: 'center' },
-  heroArtGlow: { position: 'absolute', width: 92, height: 92, borderRadius: 46 },
+  heroArtColumn: { width: 112, alignItems: 'center' },
+  heroFly: { width: 84, height: 84, marginBottom: 2 },
+  heroArtWrap: { width: 108, height: 96, alignItems: 'center', justifyContent: 'center' },
+  heroArtGlow: { position: 'absolute', width: 76, height: 76, borderRadius: 38 },
   logoBackground: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -882,8 +936,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     elevation: 2,
   },
-  heroArtFloatLeft: { top: 8, left: 0 },
-  heroArtFloatRight: { top: 18, right: 0 },
+  heroArtFloatLeft: { top: 4, left: 0 },
+  heroArtFloatRight: { top: 14, right: 0 },
   section: { gap: 12 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   sectionTitle: { fontSize: 18, fontWeight: '800', flex: 1 },

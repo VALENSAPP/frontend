@@ -1,7 +1,9 @@
 import axiosInstance from "..";
 
-export const createCheckoutSession = async () => {
-    return axiosInstance.post('billing/subscribe');
+export const createCheckoutSession = async (data) => {
+    return data
+        ? axiosInstance.post('billing/subscribe', data)
+        : axiosInstance.post('billing/subscribe');
 }
 
 export const cancelSubscription = async () => {

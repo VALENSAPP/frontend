@@ -25,8 +25,69 @@ export const STRIPE_BROWSER_OPTIONS = {
   forceCloseOnRedirection: false,
 };
 
+function firstHttpsUrl(...values) {
+  for (const value of values) {
+    if (typeof value === 'string' && /^https?:\/\//i.test(value.trim())) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+/**
+ * Axios returns error bodies instead of rejecting. Treat only missing transport
+ * and statusCode 0 as network failures. 4xx/5xx stay backend failures.
+ */
+export function isNetworkFailureResponse(response) {
+  if (!response || typeof response !== 'object') return true;
+  if (response.statusCode == null || response.statusCode === '') return false;
+  const code = Number(response.statusCode);
+  return !Number.isFinite(code) || code === 0;
+}
+
+export function isSuccessResponse(response) {
+  if (!response || typeof response !== 'object') return false;
+  if (response.error === true) return false;
+  if (response.success === false) return false;
+  if (typeof response.error === 'string' && response.error.trim()) return false;
+  if (isNetworkFailureResponse(response)) return false;
+  const code = response.statusCode;
+  if (code == null || code === '') {
+    if (getResponseMessage(response) && response.success !== true) return false;
+    return true;
+  }
+  const numeric = Number(code);
+  return numeric === 200 || numeric === 201;
+}
+
+export function getResponseMessage(response) {
+  if (!response || typeof response !== 'object') return '';
+  const candidates = [response.message, response.data?.message, response.error];
+  for (const value of candidates) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
+}
+
+export function describeRequestFailure(response, messages = STRIPE_ERROR_MESSAGES, fallbackMessage) {
+  const resolvedMessages = messages || STRIPE_ERROR_MESSAGES;
+  const fallback = fallbackMessage || resolvedMessages.ONBOARDING_FAILED;
+  if (isNetworkFailureResponse(response)) return resolvedMessages.NETWORK_ERROR;
+  return getResponseMessage(response) || fallback;
+}
+
+export function messageFromThrown(error, messages = STRIPE_ERROR_MESSAGES) {
+  const resolvedMessages = messages || STRIPE_ERROR_MESSAGES;
+  const apiMessage = error?.response?.data?.message;
+  if (typeof apiMessage === 'string' && apiMessage.trim()) return apiMessage.trim();
+  const message = typeof error?.message === 'string' ? error.message.trim() : '';
+  if (!message || /^network error\.?$/i.test(message)) return resolvedMessages.NETWORK_ERROR;
+  return message;
+}
+
 /**
  * Extract payment session URL from API response (handles data vs data.data).
+ * Status check matches the previous payment screens: only 200 and 201.
  * @param {object} response - API response
  * @returns {string|null} sessionUrl or null
  */
@@ -37,12 +98,23 @@ export function getPaymentSessionUrl(response) {
 }
 
 /**
- * Extract Stripe onboarding URL from create-onboarding-link response.
+ * Extract Stripe Connect onboarding URL from create-onboarding-link.
+ * onboardingUrl is accepted as before. A generic data.url is accepted only when
+ * it is a Stripe Connect link, so a checkout url cannot be treated as onboarding.
  */
 export function getOnboardingUrl(response) {
   if (!response || (response.statusCode !== 200 && response.statusCode !== 201)) return null;
-  const data = response.data || {};
-  return data.onboardingUrl ?? data.data?.onboardingUrl ?? null;
+  const data = response.data && typeof response.data === 'object' ? response.data : {};
+  const explicit = firstHttpsUrl(
+    data.onboardingUrl,
+    data.data?.onboardingUrl,
+    data.accountLinkUrl,
+    response.onboardingUrl,
+  );
+  if (explicit) return explicit;
+  const fallback = firstHttpsUrl(data.url, data.link, response.url);
+  if (fallback && /connect\.stripe\.com/i.test(fallback)) return fallback;
+  return null;
 }
 
 /**
@@ -53,12 +125,12 @@ export function getOnboardingUrl(response) {
 export async function openStripeOnboarding(options = {}) {
   const { onComplete, t } = options;
   const stripeErrorMessages = getStripeErrorMessages(t);
+  const response = await createOnboardingLink();
+  const url = getOnboardingUrl(response);
+  if (!url) {
+    throw new Error(describeRequestFailure(response, stripeErrorMessages, stripeErrorMessages.ONBOARDING_FAILED));
+  }
   try {
-    const response = await createOnboardingLink();
-    const url = getOnboardingUrl(response);
-    if (!url) {
-      throw new Error(stripeErrorMessages.ONBOARDING_FAILED);
-    }
     if (await InAppBrowser.isAvailable()) {
       await InAppBrowser.open(url, STRIPE_BROWSER_OPTIONS);
     } else {
@@ -66,8 +138,7 @@ export async function openStripeOnboarding(options = {}) {
     }
     onComplete?.();
   } catch (error) {
-    const message = error?.response?.data?.message ?? error?.message ?? stripeErrorMessages.ONBOARDING_FAILED;
-    throw new Error(message);
+    throw new Error(messageFromThrown(error, stripeErrorMessages));
   }
 }
 
@@ -111,10 +182,12 @@ export function getStripeErrorMessages(t) {
 export async function openCustomerSetup(options = {}) {
   const { onComplete, t } = options;
   const stripeErrorMessages = getStripeErrorMessages(t);
+  const response = await createCustomerSetupLink();
+  const url = getPaymentSessionUrl(response);
+  if (!url) {
+    throw new Error(describeRequestFailure(response, stripeErrorMessages, stripeErrorMessages.CUSTOMER_SETUP_FAILED));
+  }
   try {
-    const response = await createCustomerSetupLink();
-    const url = getPaymentSessionUrl(response);
-    if (!url) throw new Error(stripeErrorMessages.CUSTOMER_SETUP_FAILED);
     if (await InAppBrowser.isAvailable()) {
       await InAppBrowser.open(url, STRIPE_BROWSER_OPTIONS);
     } else {
@@ -122,7 +195,6 @@ export async function openCustomerSetup(options = {}) {
     }
     onComplete?.();
   } catch (error) {
-    const message = error?.response?.data?.message ?? error?.message ?? stripeErrorMessages.CUSTOMER_SETUP_FAILED;
-    throw new Error(message);
+    throw new Error(messageFromThrown(error, stripeErrorMessages));
   }
 }

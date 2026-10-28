@@ -25,6 +25,7 @@ import OTPTextInput from 'react-native-otp-textinput';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getProfile } from '../../../services/createProfile';
 import { persistStripeCustomerId } from '../../../hooks/useStripeCustomer';
+import { persistPaymentProvider } from '../../../utils/paymentCurrency';
 import { useAppTheme } from '../../../theme/useApptheme';
 import { useThemeContext } from '../../../theme/ThemeContext';
 import { loggedIn } from '../../../redux/actions/LoginAction';
@@ -210,6 +211,9 @@ export default function OTPScreen() {
         }
         if (response?.data?.user?.email) {
           await AsyncStorage.setItem('email', response?.data?.user?.email);
+        }
+        if (response?.data?.user && Object.prototype.hasOwnProperty.call(response.data.user, 'paymentProvider')) {
+          await persistPaymentProvider(response.data.user.paymentProvider);
         }
         await persistStripeCustomerId(response?.data?.user?.stripeCustomerId ?? null, dispatch);
         if (

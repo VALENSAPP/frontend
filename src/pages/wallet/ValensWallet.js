@@ -40,6 +40,7 @@ import { useLanguage } from '../../i18n';
 import { resolveTransactionAmount } from '../../utils/transactionAmount';
 import { formatLocalizedActivityDate } from '../../utils/dateTimeFormatter';
 import { formatDisplayCurrency } from '../../utils/displayLocale';
+import { persistPaymentProvider, readPaymentProvider } from '../../utils/paymentCurrency';
 
 
 const WALLET_ICON_BY_TYPE = {
@@ -107,6 +108,15 @@ const ValensWallet = ({ navigation }) => {
                 totalSupport(),
                 transationActivity({ page: 1, limit: 10 }),
             ]);
+
+            if (userRes.status === 'fulfilled' && userRes.value) {
+                const profileProvider = readPaymentProvider(
+                    userRes.value?.data?.user || userRes.value?.data || userRes.value,
+                );
+                if (profileProvider !== undefined) {
+                    await persistPaymentProvider(profileProvider);
+                }
+            }
 
             if (totalRes.status === 'fulfilled') {
                 const response = totalRes.value;

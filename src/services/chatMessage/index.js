@@ -1,5 +1,22 @@
 import axiosInstance from '../../services';
 
+let cachedMessagesUnread = 0;
+
+export const getCachedMessagesUnread = () => cachedMessagesUnread;
+
+export const setCachedMessagesUnread = (count) => {
+    const next = Number(count);
+    cachedMessagesUnread = Number.isFinite(next) && next > 0 ? next : 0;
+};
+
+export const sumConversationUnread = (conversations) => {
+    if (!Array.isArray(conversations)) return 0;
+    return conversations.reduce((acc, conversation) => {
+        if (conversation?.isHidden === true) return acc;
+        return acc + (Number(conversation?.unreadCount) || 0);
+    }, 0);
+};
+
 export const sendMessage = async (body) => {
     return axiosInstance.post('post/sendMessage',body);
 }
