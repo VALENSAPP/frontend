@@ -43,6 +43,7 @@ module.exports = (async () => {
   } = await defaultConfig;
 
   return mergeConfig(defaultConfig, {
+    maxWorkers: 2,
     transformer: {
       babelTransformerPath: require.resolve('react-native-svg-transformer'),
       getTransformOptions: async () => ({
@@ -53,6 +54,11 @@ module.exports = (async () => {
       }),
     },
     resolver: {
+      blockList: [
+        /.*[/\\]android[/\\]app[/\\](build|\.cxx)[/\\].*/,
+        /.*[/\\]android[/\\]\.gradle[/\\].*/,
+        /.*[/\\]ios[/\\](build|Pods)[/\\].*/,
+      ],
       unstable_enablePackageExports: false,
       assetExts: assetExts.filter(ext => ext !== 'svg'),
       sourceExts: [...sourceExts, 'svg'],

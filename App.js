@@ -14,6 +14,7 @@ import { appKit, wagmiAdapter } from './src/config/AppKitConfig';
 import { WalletConnectSupportProvider } from './src/context/WalletConnectSupportContext';
 import { ThemeProvider } from './src/theme/ThemeContext';
 import { LanguageProvider } from './src/i18n';
+import ErrorBoundary from './src/components/common/ErrorBoundary';
 import appsFlyer from 'react-native-appsflyer';
 import {
   getTrackingStatus,
@@ -100,7 +101,9 @@ const App = () => {
                     <Loader>
                       <LanguageProvider>
                         <WalletConnectSupportProvider>
-                          <Main onSplashFinish={handleSplashFinish} />
+                          <ErrorBoundary>
+                            <Main onSplashFinish={handleSplashFinish} />
+                          </ErrorBoundary>
                         </WalletConnectSupportProvider>
                       </LanguageProvider>
                     </Loader>
