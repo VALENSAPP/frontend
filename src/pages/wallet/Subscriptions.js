@@ -46,6 +46,13 @@ import {
 import { createCheckoutSession } from '../../services/stirpe';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { getUserCredentials } from '../../services/post';
+import {
+    formatProviderAmount,
+    getActivePaymentProvider,
+    hydratePaymentProvider,
+    persistPaymentProvider,
+    readPaymentProvider,
+} from '../../utils/paymentCurrency';
 import { useLanguage } from '../../i18n';
 import { formatLocalizedDate } from '../../utils/dateTimeFormatter';
 import FanSubscriptionIntroBanner from '../../components/wallet/FanSubscriptionIntroBanner';
@@ -85,6 +92,10 @@ const SubventionSetupScreen = () => {
     const { isDarkMode } = useThemeContext();
     const [credential, setCredential] = useState(null);
     const { t, currentLanguage } = useLanguage();
+    const [paymentProvider, setPaymentProvider] = useState(getActivePaymentProvider);
+    const currencySign = formatProviderAmount(0, paymentProvider).replace(/0\.00$/, '');
+    const maxPriceLabel = `${currencySign}1000`;
+    const feeLabel = formatProviderAmount(9.9, paymentProvider);
     const stripeErrorMessages = getStripeErrorMessages(t);
 
     const [composerVisible, setComposerVisible] = useState(false);
@@ -353,6 +364,16 @@ const SubventionSetupScreen = () => {
         showToastMessage(toast, 'warning', t('subventionSetup.businessBasicMode'));
     };
 
+    useEffect(() => {
+        let cancelled = false;
+        hydratePaymentProvider().then((provider) => {
+            if (!cancelled && provider) setPaymentProvider(provider);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     const getCredential = useCallback(async () => {
         const requestId = credentialRequestRef.current;
         try {
@@ -362,6 +383,11 @@ const SubventionSetupScreen = () => {
             if (requestId !== credentialRequestRef.current || activationInFlightRef.current) return;
             const data = response?.data ?? response;
             setCredential(data);
+            const profileProvider = readPaymentProvider(data?.user || data);
+            if (profileProvider !== undefined) {
+                const savedProvider = await persistPaymentProvider(profileProvider);
+                if (requestId === credentialRequestRef.current) setPaymentProvider(savedProvider);
+            }
             const hasActiveAccess = hasActiveSubscriptionAccess(data);
             if (hasActiveAccess) {
                 setShowActivationPopup(false);
@@ -786,8 +812,8 @@ const SubventionSetupScreen = () => {
                         mutedText={mutedText}
                         isDarkMode={isDarkMode}
                         isBusinessProfile={isBusinessProfile}
-                        body1={t('subventionSetup.introBody1')}
-                        body2={t('subventionSetup.introBody2')}
+                        body1={t('subventionSetup.introBody1', { maxPrice: maxPriceLabel })}
+                        body2={t('subventionSetup.introBody2', { fee: feeLabel })}
                     />
 
                     {/* Price Setup Section */}
@@ -797,7 +823,7 @@ const SubventionSetupScreen = () => {
 
                         <View style={styles.priceInputContainer}>
                             <Text style={[styles.currencySymbol, { color: accent }]}>
-                                {t('subscription.currency')}
+                                {currencySign}
                             </Text>
                             <TextInput
                                 style={[styles.priceInput, textStyle, { borderBottomColor: accent }]}
@@ -814,11 +840,11 @@ const SubventionSetupScreen = () => {
 
                         <View style={styles.priceRange}>
                             <Text style={[styles.rangeText, { color: mutedText }]}>
-                                {t('subventionSetup.minPrice')}: {t('subscription.currency')}9
+                                {t('subventionSetup.minPrice')}: {currencySign}9
                             </Text>
 
                             <Text style={[styles.rangeText, { color: mutedText }]}>
-                                {t('subventionSetup.maxPrice')}: {t('subscription.currency')}1000
+                                {t('subventionSetup.maxPrice')}: {currencySign}1000
                             </Text>
                         </View>
 
@@ -1117,6 +1143,8 @@ const SubventionSetupScreen = () => {
                         visible={showActivationPopup}
                         onClose={() => { setShowModal(false); setShowActivationPopup(false); }}
                         onConfirm={handleActivationConfirm}
+                        amount={9.9}
+                        period="month"
                     />
                 )}
 

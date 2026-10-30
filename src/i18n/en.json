@@ -2256,8 +2256,8 @@
   },
   "subventionSetup": {
     "introTitle": "Fan Subscriptions",
-    "introBody1": "Fan Subscriptions where Creators set their own price for exclusive fan access, up to $1,000/month — open pricing.",
-    "introBody2": "Valens charges $9.90/month for creators to activate their subscription channel.",
+    "introBody1": "Fan Subscriptions where Creators set their own price for exclusive fan access, up to {{maxPrice}}/month — open pricing.",
+    "introBody2": "Valens charges {{fee}}/month for creators to activate their subscription channel.",
     "priceSectionTitle": "💰 Subscription Price",
     "priceSectionSubtitle": "Set your monthly rate per subscriber",
     "perMonth": "/month",
@@ -2581,7 +2581,7 @@
     "creditsRemaining": "{{count}} / 5 remaining",
     "subscriptionHits": "Subscription credits",
     "purchasedHits": "Purchased credits",
-    "buyCredits": "Get Mission Post ($1.99 each)",
+    "buyCredits": "Get Mission Post ({{price}} each)",
     "referralPoints": "Referral Points",
     "referralPts": "{{count}} pts",
     "missionPostTitle": "What is Mission Post?",
@@ -2590,7 +2590,7 @@
     "monthlyMembersTitle": "Monthly Members",
     "monthlyMembersDescription": "Your Valens membership includes 5 Mission Posts per month at no additional cost.",
     "nonMembersTitle": "Non-Members",
-    "nonMembersDescription": "Mission Posts are $1.99 each, with a maximum of 5 Mission Posts per month.",
+    "nonMembersDescription": "Mission Posts are {{price}} each, with a maximum of 5 Mission Posts per month.",
     "monthlyLimitTitle": "Monthly Limit",
     "monthlyLimitDescription": "Everyone can create up to 5 Mission Posts per month. Unused Mission Posts do not roll over. At the start of each new month, your limit resets to 5.",
     "maxCreditsReached": "You already have maximum credits.",
@@ -4075,6 +4075,7 @@
     "settings": "Settings",
     "ebook": "Ebook",
     "services": "Services",
+    "soon": "coming soon",
     "manageSubscribers": "Manage my subscribers",
     "darkMode": "Dark Mode"
   },
@@ -5703,5 +5704,28 @@
     "chapter2Fallback": "Create content that connects",
     "chapter3Fallback": "Monetize your knowledge",
     "chapter4Fallback": "Grow your audience"
+  },
+  "servicesComingSoon": {
+    "header": "Services",
+    "comingSoon": "Coming Soon",
+    "headline": "Services\non Valens",
+    "body": "Activate your services and start monetizing your expertise. Offer mentorships, consultations, appointments, events, and monthly packages — all in one place.",
+    "launchingTitle": "Launching Soon",
+    "launchingSubtitle": "Get ready to sell, book and manage your services on Valens.",
+    "notifyMe": "Notify Me",
+    "notified": "You're in",
+    "notifySuccess": "We'll notify you when Services launch.",
+    "notifyRemoved": "You won't get a launch notification.",
+    "offerTitle": "What you'll be able to offer",
+    "offer": {
+      "mentorships": "Mentorships",
+      "consultations": "Consultations",
+      "appointments": "Appointments",
+      "events": "Events",
+      "packages": "Monthly Packages"
+    },
+    "builtTitle": "Built for creators and experts",
+    "builtBody": "Grow your business, get paid securely, and build lasting relationships with your community.",
+    "infoMessage": "Services on Valens will let you sell mentorships, consultations, appointments, events, and monthly packages from one place."
   }
 }

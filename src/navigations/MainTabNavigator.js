@@ -97,6 +97,7 @@ import ReviewChangesScreen from '../pages/wallet/ReviewChangesScreen';
 import ManageSubscribersScreen from '../pages/wallet/ManageSubscribersScreen';
 import CancelSubscriptionFlowScreen from '../pages/wallet/CancelSubscriptionFlowScreen';
 import EbookPublisherScreen from '../pages/wallet/EbookPublisher';
+import ServicesComingSoonScreen from '../pages/wallet/ServicesComingSoon';
 import TipPayoutSetupScreen from '../pages/wallet/TipPayoutSetup';
 import KYCVerification from '../pages/authentication/kycVerification';
 import FlipsScreen from '../pages/reels';
@@ -1165,6 +1166,11 @@ export default function MainTabNavigator() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
+            name="ServicesComingSoon"
+            component={ServicesComingSoonScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="TipPayoutSetup"
             component={TipPayoutSetupScreen}
             options={{ headerTitle: t('drawerNav.dashboard') }}
@@ -1648,8 +1654,12 @@ export default function MainTabNavigator() {
         <Tab.Screen
           name="wallet"
           component={WalletStack}
-          options={{
-            tabBarStyle: defaultTabBarStyle,
+          options={({ route }) => {
+            const nested = getFocusedRouteNameFromRoute(route);
+            const hideTabBar = nested === 'ServicesComingSoon';
+            return {
+              tabBarStyle: hideTabBar ? hiddenTabBarStyle : defaultTabBarStyle,
+            };
           }}
           listeners={({ navigation }) => ({
             tabPress: e => {

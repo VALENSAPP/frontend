@@ -324,14 +324,19 @@ const CustomDrawerContent = (props) => {
       </TouchableOpacity>
 
       <TouchableOpacity
-        onPress={() => { }}
+        onPress={() => navigateToWalletScreen('ServicesComingSoon')}
         activeOpacity={0.75}
-        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 18, opacity: 0.75 }}
+        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 18 }}
       >
         <Ionicons name="briefcase-outline" size={20} color={drawerColors.inactive} style={{ marginRight: 16 }} />
         <Text style={{ fontSize: 15, color: drawerColors.inactive, fontWeight: '600' }}>
           {t('drawerNav.services', 'Services')}
         </Text>
+        <View style={{ marginLeft: 8, backgroundColor: '#E6D5F7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
+          <Text style={{ fontSize: 10, color: '#5a2d82', fontWeight: 'bold' }}>
+            {t('servicesComingSoon.comingSoon', 'Coming Soon')}
+          </Text>
+        </View>
       </TouchableOpacity>
 
       <TouchableOpacity

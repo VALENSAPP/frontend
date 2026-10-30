@@ -343,8 +343,10 @@ const useSignupStyles = () => {
     countryModalContainer: {
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
-      maxHeight: '85%',
-      paddingBottom: 16,
+      overflow: 'hidden',
+    },
+    countryList: {
+      flex: 1,
     },
     countryModalHeader: {
       flexDirection: 'row',

@@ -12,6 +12,7 @@ import {
   Modal,
   SafeAreaView,
   StatusBar,
+  useWindowDimensions,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useDispatch, useSelector } from 'react-redux';
@@ -37,6 +38,19 @@ import { useLanguage } from '../../../i18n';
 import { validateUsername } from '../../../utils/validation';
 import { useDebouncedCallback } from '../../../hooks/useDebouncedCallback';
 
+const countryCodeToFlag = (cca2 = '') => {
+  const code = String(cca2).trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) return '';
+  return String.fromCodePoint(
+    ...[...code].map(char => 0x1f1e6 - 65 + char.charCodeAt(0)),
+  );
+};
+
+const isEmojiFlag = value =>
+  typeof value === 'string' &&
+  value.length >= 2 &&
+  !value.toLowerCase().startsWith('flag-');
+
 // Load country data from the installed library's asset
 let ALL_COUNTRIES = [];
 try {
@@ -45,7 +59,7 @@ try {
     .map(([cca2, data]) => ({
       cca2,
       name: data && data.name ? (data.name.common || cca2) : cca2,
-      flag: (data && data.flag) ? data.flag : '',
+      flag: isEmojiFlag(data?.flag) ? data.flag : countryCodeToFlag(cca2),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 } catch (e) {
@@ -67,6 +81,8 @@ export default function SignupScreen() {
   const [countryName, setCountryName] = useState('');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
+  const [countryKeyboardHeight, setCountryKeyboardHeight] = useState(0);
+  const { height: windowHeight } = useWindowDimensions();
   const [password, setPassword] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [errors, setErrors] = useState({});
@@ -90,6 +106,32 @@ export default function SignupScreen() {
       c.name.toLowerCase().includes(q) || c.cca2.toLowerCase().includes(q)
     );
   }, [countrySearch]);
+
+  useEffect(() => {
+    if (!showCountryPicker) {
+      setCountryKeyboardHeight(0);
+      return undefined;
+    }
+
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = event => {
+      setCountryKeyboardHeight(event?.endCoordinates?.height || 0);
+    };
+    const onHide = () => setCountryKeyboardHeight(0);
+    const showSub = Keyboard.addListener(showEvent, onShow);
+    const hideSub = Keyboard.addListener(hideEvent, onHide);
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [showCountryPicker]);
+
+  const countrySheetHeight = useMemo(() => {
+    const closedHeight = Math.round(windowHeight * 0.85);
+    if (!countryKeyboardHeight) return closedHeight;
+    return Math.max(Math.round(windowHeight * 0.42), windowHeight - countryKeyboardHeight);
+  }, [windowHeight, countryKeyboardHeight]);
 
   const checkUsernameAvailability = async (name) => {
     const trimmed = (name || '').trim();
@@ -563,8 +605,24 @@ export default function SignupScreen() {
                 transparent={true}
                 onRequestClose={() => setShowCountryPicker(false)}
               >
-                <View style={styles.countryModalOverlay}>
-                  <SafeAreaView style={[styles.countryModalContainer, { backgroundColor: card }]}>
+                <View
+                  style={[
+                    styles.countryModalOverlay,
+                    countryKeyboardHeight > 0 && {
+                      justifyContent: 'flex-end',
+                      paddingBottom: countryKeyboardHeight,
+                    },
+                  ]}
+                >
+                  <SafeAreaView
+                    style={[
+                      styles.countryModalContainer,
+                      {
+                        backgroundColor: card,
+                        height: countrySheetHeight,
+                      },
+                    ]}
+                  >
                     {/* Modal Header */}
                     <View style={[styles.countryModalHeader, { borderBottomColor: border }]}>
                       <Text style={[styles.countryModalTitle, { color: text }]}>
@@ -601,7 +659,9 @@ export default function SignupScreen() {
                     <FlatList
                       data={filteredCountries}
                       keyExtractor={item => item.cca2}
+                      style={styles.countryList}
                       keyboardShouldPersistTaps="handled"
+                      keyboardDismissMode="on-drag"
                       showsVerticalScrollIndicator={false}
                       renderItem={({ item }) => (
                         <TouchableOpacity

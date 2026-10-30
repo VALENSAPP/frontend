@@ -2256,8 +2256,8 @@
   },
   "subventionSetup": {
     "introTitle": "Assinaturas de fãs",
-    "introBody1": "Assinaturas de fãs em que os criadores definem o próprio preço pelo acesso exclusivo, até R$ 1.000/mês — preços abertos.",
-    "introBody2": "A Valens cobra R$9,90/mês dos criadores para ativar o canal de assinatura.",
+    "introBody1": "Assinaturas de fãs em que os criadores definem o próprio preço pelo acesso exclusivo, até {{maxPrice}}/mês — preços abertos.",
+    "introBody2": "A Valens cobra {{fee}}/mês dos criadores para ativar o canal de assinatura.",
     "priceSectionTitle": "💰 Preço da assinatura",
     "priceSectionSubtitle": "Defina sua taxa mensal por assinante",
     "perMonth": "/mês",
@@ -2581,7 +2581,7 @@
     "creditsRemaining": "{{count}} / 5 restantes",
     "subscriptionHits": "Créditos de assinatura",
     "purchasedHits": "Créditos comprados",
-    "buyCredits": "Adquirir Mission Post (R$ 1,99 cada)",
+    "buyCredits": "Adquirir Mission Post ({{price}} cada)",
     "referralPoints": "Pontos de indicação",
     "referralPts": "{{count}} pts",
     "missionPostTitle": "O que é Mission Post?",
@@ -2590,7 +2590,7 @@
     "monthlyMembersTitle": "Membros mensais",
     "monthlyMembersDescription": "Sua assinatura Valens inclui 5 posts de missão por mês sem custo adicional.",
     "nonMembersTitle": "Não membros",
-    "nonMembersDescription": "Cada Mission Post custa R$ 1,99, com um máximo de 5 por mês.",
+    "nonMembersDescription": "Cada Mission Post custa {{price}}, com um máximo de 5 por mês.",
     "monthlyLimitTitle": "Limite mensal",
     "monthlyLimitDescription": "Todos podem criar até 5 posts de missão por mês. As publicações não utilizadas não se acumulam. No início de cada novo mês, seu limite volta para 5.",
     "maxCreditsReached": "Você já possui o número máximo de créditos.",
@@ -5703,5 +5703,28 @@
     "chapter2Fallback": "Crie conteúdo relevante",
     "chapter3Fallback": "Monetize seu conhecimento",
     "chapter4Fallback": "Aumente seu público"
+  },
+  "servicesComingSoon": {
+    "header": "Serviços",
+    "comingSoon": "Em breve",
+    "headline": "Serviços\nno Valens",
+    "body": "Ative seus serviços e comece a monetizar sua expertise. Ofereça mentorias, consultas, agendamentos, eventos e pacotes mensais — tudo em um só lugar.",
+    "launchingTitle": "Lançamento em breve",
+    "launchingSubtitle": "Prepare-se para vender, agendar e gerenciar seus serviços no Valens.",
+    "notifyMe": "Avise-me",
+    "notified": "Você está na lista",
+    "notifySuccess": "Avisaremos você quando os Serviços forem lançados.",
+    "notifyRemoved": "Você não receberá aviso de lançamento.",
+    "offerTitle": "O que você poderá oferecer",
+    "offer": {
+      "mentorships": "Mentorias",
+      "consultations": "Consultas",
+      "appointments": "Agendamentos",
+      "events": "Eventos",
+      "packages": "Pacotes mensais"
+    },
+    "builtTitle": "Feito para criadores e especialistas",
+    "builtBody": "Faça seu negócio crescer, receba com segurança e construa relações duradouras com sua comunidade.",
+    "infoMessage": "Os serviços no Valens permitirão vender mentorias, consultas, agendamentos, eventos e pacotes mensais em um só lugar."
   }
 }

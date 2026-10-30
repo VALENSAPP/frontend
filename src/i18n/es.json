@@ -2256,8 +2256,8 @@
   },
   "subventionSetup": {
     "introTitle": "Suscripciones de fans",
-    "introBody1": "Suscripciones de fans donde los creadores fijan su propio precio por acceso exclusivo, hasta $1,000/mes — precios abiertos.",
-    "introBody2": "Valens cobra $9.90/mes a los creadores para activar su canal de suscripción.",
+    "introBody1": "Suscripciones de fans donde los creadores fijan su propio precio por acceso exclusivo, hasta {{maxPrice}}/mes — precios abiertos.",
+    "introBody2": "Valens cobra {{fee}}/mes a los creadores para activar su canal de suscripción.",
     "priceSectionTitle": "💰 Precio de suscripción",
     "priceSectionSubtitle": "Configura tu tarifa mensual por suscriptor",
     "perMonth": "/mes",
@@ -2581,7 +2581,7 @@
     "creditsRemaining": "{{count}} / 5 restantes",
     "subscriptionHits": "Créditos de suscripción",
     "purchasedHits": "Créditos comprados",
-    "buyCredits": "Obtener publicación de misión ($1.99 cada una)",
+    "buyCredits": "Obtener publicación de misión ({{price}} cada una)",
     "referralPoints": "Puntos de referencia",
     "referralPts": "{{count}} pts",
     "missionPostTitle": "¿Qué es Mission Post?",
@@ -2590,7 +2590,7 @@
     "monthlyMembersTitle": "Miembros mensuales",
     "monthlyMembersDescription": "Tu membresía de Valens incluye 5 publicaciones de misión por mes sin costo adicional.",
     "nonMembersTitle": "Personas sin membresía",
-    "nonMembersDescription": "Las publicaciones de misión cuestan $1.99 cada una, con un máximo de 5 por mes.",
+    "nonMembersDescription": "Las publicaciones de misión cuestan {{price}} cada una, con un máximo de 5 por mes.",
     "monthlyLimitTitle": "Límite mensual",
     "monthlyLimitDescription": "Todas las personas pueden crear hasta 5 publicaciones de misión por mes. Las publicaciones no utilizadas no se acumulan. Al inicio de cada mes, tu límite se restablece a 5.",
     "maxCreditsReached": "Ya tienes el máximo de créditos.",
@@ -4075,6 +4075,7 @@
     "settings": "Configuración",
     "ebook": "Ebook",
     "services": "Servicios",
+    "soon": "próximamente",
     "manageSubscribers": "Gestionar mis suscriptores",
     "darkMode": "Modo oscuro"
   },
@@ -5703,5 +5704,28 @@
     "chapter2Fallback": "Crea contenido que conecte",
     "chapter3Fallback": "Monetiza tus conocimientos",
     "chapter4Fallback": "Haz crecer tu audiencia"
+  },
+  "servicesComingSoon": {
+    "header": "Servicios",
+    "comingSoon": "Próximamente",
+    "headline": "Servicios\nen Valens",
+    "body": "Activa tus servicios y empieza a monetizar tu experiencia. Ofrece mentorías, consultas, citas, eventos y paquetes mensuales, todo en un solo lugar.",
+    "launchingTitle": "Lanzamiento próximo",
+    "launchingSubtitle": "Prepárate para vender, reservar y gestionar tus servicios en Valens.",
+    "notifyMe": "Avísame",
+    "notified": "Listo",
+    "notifySuccess": "Te avisaremos cuando se lancen los Servicios.",
+    "notifyRemoved": "No recibirás un aviso de lanzamiento.",
+    "offerTitle": "Lo que podrás ofrecer",
+    "offer": {
+      "mentorships": "Mentorías",
+      "consultations": "Consultas",
+      "appointments": "Citas",
+      "events": "Eventos",
+      "packages": "Paquetes mensuales"
+    },
+    "builtTitle": "Hecho para creadores y expertos",
+    "builtBody": "Haz crecer tu negocio, cobra de forma segura y construye relaciones duraderas con tu comunidad.",
+    "infoMessage": "Los servicios en Valens te permitirán vender mentorías, consultas, citas, eventos y paquetes mensuales desde un solo lugar."
   }
 }

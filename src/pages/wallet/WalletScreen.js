@@ -41,6 +41,13 @@ import { useLanguage } from "../../i18n";
 import { getDragonflyIcon } from "../../components/profile/ProfilePersonalData";
 import { BASE_URL } from "../../config/urls";
 import { primaryCtaColors } from "../../utils/ctaContrast";
+import {
+    getActivePaymentProvider,
+    hydratePaymentProvider,
+    persistPaymentProvider,
+    readPaymentProvider,
+} from "../../utils/paymentCurrency";
+import { formatProviderAmount } from "../../utils/paymentCurrency";
 
 const WalletAddress = '0xf8652b01';
 const userCredits = { current: 3, total: 5, renewal: "Oct 1" };
@@ -61,6 +68,7 @@ export default function WalletComponent() {
     const [tokenAddress, setTokenAddress] = useState(null);
     const [showCreditModal, setShowCreditModal] = useState(false);
     const [profile, setProfile] = useState(null);
+    const [paymentProvider, setPaymentProvider] = useState(getActivePaymentProvider);
 
     const navigation = useNavigation();
     const dispatch = useDispatch();
@@ -86,6 +94,7 @@ export default function WalletComponent() {
     const creditsLabelColor = isDarkMode
         ? (isBusinessProfile ? '#F3E2B8' : '#F4ECFF')
         : accent;
+    const missionPostPrice = formatProviderAmount(1.99, paymentProvider);
     const creditsGradient = isBusinessProfile
         ? (isDarkMode ? ['#2A2318', '#3A2E18', '#241E14'] : ['#FFF9F0', '#F4DDB4', '#FFF6E8'])
         : (isDarkMode ? ['#241433', '#3A2158', '#1C1028'] : ['#F7F1FF', '#E3CCFF', '#F4E9FF']);
@@ -119,6 +128,16 @@ export default function WalletComponent() {
         return Number.isFinite(points) ? points : 0;
     }, [userData?.referPoints, userData?.referralPoints, userData?.referPoint]);
 
+    useEffect(() => {
+        let cancelled = false;
+        hydratePaymentProvider().then((provider) => {
+            if (!cancelled && provider) setPaymentProvider(provider);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     const loadProfileType = useCallback(async () => {
         const type = await AsyncStorage.getItem('profile');
         setProfile(type);
@@ -148,6 +167,11 @@ export default function WalletComponent() {
                     userDataToSet.image = formattedImageUrl;
                 }
                 setUserData(userDataToSet);
+                const profileProvider = readPaymentProvider(userDataToSet);
+                if (profileProvider !== undefined) {
+                    const savedProvider = await persistPaymentProvider(profileProvider);
+                    setPaymentProvider(savedProvider);
+                }
             } else {
                 showToastMessage(toast, 'danger', response.data.message);
             }
@@ -568,7 +592,9 @@ export default function WalletComponent() {
                                 adjustsFontSizeToFit
                                 minimumFontScale={0.8}
                             >
-                                {t('walletScreen.buyCredits')}
+                                {t('walletScreen.buyCredits', {
+                                    price: missionPostPrice,
+                                })}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -612,7 +638,9 @@ export default function WalletComponent() {
                                     </View>
                                     <View style={styles.missionRuleContent}>
                                         <Text style={[styles.missionRuleTitle, labelStyle]}>{t('walletScreen.nonMembersTitle')}</Text>
-                                        <Text style={[styles.missionRuleText, accentTextStyle]}>{t('walletScreen.nonMembersDescription')}</Text>
+                                        <Text style={[styles.missionRuleText, accentTextStyle]}>
+                                            {t('walletScreen.nonMembersDescription', { price: missionPostPrice })}
+                                        </Text>
                                     </View>
                                 </View>
                                 <View style={[styles.missionRule, styles.missionRuleBorder, { borderTopColor: border }]}>
