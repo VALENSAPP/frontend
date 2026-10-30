@@ -1010,6 +1010,16 @@ export default function MainTabNavigator() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
+            name="ShareProfile"
+            component={ShareProfile}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Invite"
+            component={InviteScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="UseYourPoints"
             component={UseYourPointsScreen}
             options={{ headerShown: false }}
@@ -1656,7 +1666,10 @@ export default function MainTabNavigator() {
           component={WalletStack}
           options={({ route }) => {
             const nested = getFocusedRouteNameFromRoute(route);
-            const hideTabBar = nested === 'ServicesComingSoon';
+            const hideTabBar =
+              nested === 'ServicesComingSoon' ||
+              nested === 'ShareProfile' ||
+              nested === 'Invite';
             return {
               tabBarStyle: hideTabBar ? hiddenTabBarStyle : defaultTabBarStyle,
             };
