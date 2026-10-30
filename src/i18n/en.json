@@ -1764,6 +1764,7 @@
       "referPointsInfoBody1": "Share your referral link with your friends.",
       "referPointsInfoBody2": "If they download the app and register using your referral code, you earn {{points}} points.",
       "referPointsInfoCta": "Got it",
+      "referPointsInfoInvite": "Invite now",
       "usedPoints": "Used Points"
     },
     "activityOverview": {

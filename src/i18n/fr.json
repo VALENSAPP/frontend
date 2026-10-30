@@ -1764,6 +1764,7 @@
       "referPointsInfoBody1": "Partagez votre lien de parrainage avec vos amis.",
       "referPointsInfoBody2": "S'ils téléchargent l'application et s'inscrivent avec votre code de parrainage, vous gagnez {{points}} points.",
       "referPointsInfoCta": "Compris",
+      "referPointsInfoInvite": "Inviter maintenant",
       "usedPoints": "Points utilisés"
     },
     "activityOverview": {

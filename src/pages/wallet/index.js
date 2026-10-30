@@ -2542,6 +2542,38 @@ export const WalletDashboardScreen = ({ navigation }) => {
                   {t('walletDashboard.battlePoints.referPointsInfoCta')}
                 </Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.referPointsInfoSecondaryCta,
+                  { borderColor: accent, backgroundColor: card },
+                ]}
+                onPress={() => {
+                  closeReferPointsInfo();
+                  const shareParams = {
+                    userData: {
+                      userName: userProfile?.name || '',
+                      username: userProfile?.name || '',
+                      image: profileImage || userProfile?.image,
+                      id: userId,
+                      userId: userId,
+                    },
+                  };
+                  try {
+                    navigation.navigate('ShareProfile', shareParams);
+                  } catch {
+                    navigation.navigate('ProfileMain', {
+                      screen: 'ShareProfile',
+                      params: shareParams,
+                    });
+                  }
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.referPointsInfoSecondaryCtaText, { color: accent }]}>
+                  {t('walletDashboard.battlePoints.referPointsInfoInvite')}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -3039,6 +3071,19 @@ const styles = StyleSheet.create({
   },
   referPointsInfoCtaText: {
     color: '#fff',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  referPointsInfoSecondaryCta: {
+    marginTop: 10,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  referPointsInfoSecondaryCtaText: {
     fontSize: 13,
     fontWeight: '800',
   },

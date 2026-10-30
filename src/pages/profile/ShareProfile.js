@@ -16,6 +16,7 @@ import { CameraRoll } from '@react-native-camera-roll/camera-roll';
 import RNFS from 'react-native-fs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Feather from 'react-native-vector-icons/Feather';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useToast } from 'react-native-toast-notifications';
 import { showToastMessage } from '../../components/displaytoastmessage';
 import LinearGradient from 'react-native-linear-gradient';
@@ -38,16 +39,22 @@ const ShareProfile = ({ navigation }) => {
   const routeParams = useRoute().params || {};
   const { userData, targetUserId, fromUsersProfile } = routeParams;
   const viewShotRef = useRef(null);
-  const profile = useMemo(() => (
-    userData?.user && typeof userData.user === 'object'
-      ? userData.user
-      : (userData || {})
-  ), [userData]);
-  const [username, setUsername] = useState('');
   const ownProfileImage = useSelector(state => state.profileImage?.profileImg);
   const currentUser = useSelector(state => state.user?.profile || state.auth?.user);
 
-  const qrSize = 180;
+  const profile = useMemo(() => {
+    if (userData?.user && typeof userData.user === 'object') {
+      return userData.user;
+    }
+    if (userData && Object.keys(userData).length > 0) {
+      return userData;
+    }
+    return currentUser || {};
+  }, [currentUser, userData]);
+
+  const [username, setUsername] = useState('');
+
+  const qrSize = 200;
   const qrAvatarSize = 56;
   const qrAvatarPos = (qrSize / 2) - (qrAvatarSize / 2);
 
@@ -62,7 +69,7 @@ const ShareProfile = ({ navigation }) => {
   const profileActionGradient =
     resolvedProfileType === 'company'
       ? ['#C9A15a', '#e0e0c7']
-      : ['#513189bd', '#e54ba0'];
+      : ['#50288a', '#7b2bb2', '#9f32bf', '#d942b0'];
 
   const requestPermission = async () => {
     if (Platform.OS === 'android') {
@@ -273,15 +280,15 @@ const ShareProfile = ({ navigation }) => {
     },
     {
       id: 'download',
-      icon: 'download-outline',
-      iconFamily: 'Ionicons',
+      icon: 'download',
+      iconFamily: 'Feather',
       onPress: downloadQRCode,
       label: t('shareProfile.save'),
     },
     {
       id: 'share',
-      icon: 'share-outline',
-      iconFamily: 'Ionicons',
+      icon: 'share',
+      iconFamily: 'Feather',
       onPress: onShare,
       label: t('shareProfile.share'),
     },
@@ -296,6 +303,20 @@ const ShareProfile = ({ navigation }) => {
       end={{ x: 1, y: 1 }}
       style={styles.gradientContainer}
     >
+      {/* Background Decorative Sparkles */}
+      <View style={styles.sparkle1} pointerEvents="none">
+        <MaterialCommunityIcons name="star-four-points" size={24} color="#FFFFFF" />
+      </View>
+      <View style={styles.sparkle2} pointerEvents="none">
+        <MaterialCommunityIcons name="star-four-points" size={18} color="#FFFFFF" />
+      </View>
+      <View style={styles.sparkle3} pointerEvents="none">
+        <MaterialCommunityIcons name="star-four-points" size={22} color="#FFFFFF" />
+      </View>
+      <View style={styles.sparkle4} pointerEvents="none">
+        <MaterialCommunityIcons name="star-four-points" size={14} color="#FFFFFF" />
+      </View>
+
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
@@ -322,12 +343,19 @@ const ShareProfile = ({ navigation }) => {
           ]}
         >
           <View style={styles.shareCard}>
+            {/* Mascot on top-right */}
+            {/* <Image
+              source={require('../../assets/icons/pngicons/shareMascot.png')}
+              style={styles.mascotImage}
+              pointerEvents="none"
+            /> */}
+
             <View style={styles.profileRow}>
               <HexAvatar
                 uri={resolvedAvatarUri}
-                size={54}
-                borderWidth={2}
-                borderColor="rgba(255,255,255,0.35)"
+                size={58}
+                borderWidth={2.5}
+                borderColor="rgba(255,255,255,0.4)"
               />
               <View style={styles.profileText}>
                 <Text style={styles.brandText}>{t('shareProfile.brandName')}</Text>
@@ -362,7 +390,7 @@ const ShareProfile = ({ navigation }) => {
                         uri={resolvedAvatarUri}
                         size={qrAvatarSize}
                         borderWidth={2.5}
-                        borderColor={text}
+                        borderColor={text || '#50288a'}
                       />
                     </View>
                   </View>
@@ -401,6 +429,34 @@ const styles = StyleSheet.create({
   gradientContainer: {
     flex: 1,
   },
+  sparkle1: {
+    position: 'absolute',
+    top: 90,
+    right: 28,
+    opacity: 0.85,
+    zIndex: 1,
+  },
+  sparkle2: {
+    position: 'absolute',
+    top: 175,
+    left: 24,
+    opacity: 0.75,
+    zIndex: 1,
+  },
+  sparkle3: {
+    position: 'absolute',
+    top: 395,
+    right: 18,
+    opacity: 0.85,
+    zIndex: 1,
+  },
+  sparkle4: {
+    position: 'absolute',
+    bottom: 110,
+    left: 32,
+    opacity: 0.65,
+    zIndex: 1,
+  },
   safeArea: {
     flex: 1,
   },
@@ -412,17 +468,17 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   closeButton: {
-    zIndex: 1,
+    zIndex: 2,
   },
   closeButtonBackground: {
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 14,
     width: 38,
     height: 38,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   headerTitle: {
     fontSize: 18,
@@ -435,49 +491,63 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 12,
   },
   shareCard: {
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    position: 'relative',
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    borderRadius: 20,
-    padding: 16,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+    borderRadius: 24,
+    padding: 18,
+    paddingTop: 22,
+    overflow: 'visible',
+  },
+  mascotImage: {
+    position: 'absolute',
+    top: -42,
+    right: -10,
+    width: 175,
+    height: 195,
+    resizeMode: 'contain',
+    zIndex: 10,
   },
   profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 14,
+    marginBottom: 16,
+    maxWidth: '62%',
   },
   profileText: {
     flex: 1,
   },
   brandText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
     color: '#fff',
     letterSpacing: 0.3,
   },
   handleText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: 'rgba(255,255,255,0.92)',
     marginTop: 2,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 12,
+    fontWeight: '600',
     color: 'rgba(255,255,255,0.72)',
-    marginTop: 6,
+    marginTop: 4,
   },
   qrContainer: {
     alignItems: 'center',
-    marginVertical: 12,
+    marginVertical: 10,
   },
   qrCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 22,
+    padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -514,27 +584,27 @@ const styles = StyleSheet.create({
   actionsGrid: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: "20%",
+    marginTop: 24,
   },
   actionTile: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.16)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    borderRadius: 16,
-    paddingVertical: 14,
+    borderColor: 'rgba(255,255,255,0.28)',
+    borderRadius: 20,
+    paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
   },
   actionTileDisabled: {
     opacity: 0.6,
   },
   actionIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(0,0,0,0.18)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
   },
