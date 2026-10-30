@@ -416,6 +416,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   placeFieldLabel: {
+    width: 114,
     fontSize: 13,
     fontWeight: '700',
     marginRight: 8,

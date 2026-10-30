@@ -1764,6 +1764,7 @@
       "referPointsInfoBody1": "Comparte tu enlace de referido con tus amigos.",
       "referPointsInfoBody2": "Si descargan la app y se registran usando tu código de referido, ganas {{points}} puntos.",
       "referPointsInfoCta": "Entendido",
+      "referPointsInfoInvite": "Invitar ahora",
       "usedPoints": "Puntos usados"
     },
     "activityOverview": {

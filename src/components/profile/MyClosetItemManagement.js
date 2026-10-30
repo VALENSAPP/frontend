@@ -968,9 +968,9 @@ const MyClosetItemEditorScreen = ({ navigation, route }) => {
               {/* Pickup City */}
               {hasPlacesApi ? (
                 <PlaceFieldRow
-                  icon="location-outline"
-                  label={t('myClosetAddItemShipping.pickupCity') || 'Pickup City'}
-                  placeholder={t('myClosetAddItemShipping.searchCity') || 'Search city...'}
+                  icon="business-outline"
+                  label={t('myClosetAddItemShipping.cityLabel') || 'City'}
+                  placeholder={t('myClosetAddItemShipping.cityPlaceholder') || 'Select your city'}
                   value={draft.pickUpCity}
                   filled={Boolean(draft.pickUpCity)}
                   expanded={expandedField === 'pickUpCity'}
@@ -990,8 +990,8 @@ const MyClosetItemEditorScreen = ({ navigation, route }) => {
                 />
               ) : (
                 <AdvancedDropdownRow
-                  label={t('myClosetAddItemShipping.pickupCity') || 'Pickup City'}
-                  placeholder={t('myClosetAddItemShipping.selectCity') || 'Select city'}
+                  label={t('myClosetAddItemShipping.cityLabel') || 'City'}
+                  placeholder={t('myClosetAddItemShipping.cityPlaceholder') || 'Select your city'}
                   value={draft.pickUpCity}
                   expanded={expandedField === 'pickUpCity'}
                   onToggle={() => setExpandedField(prev => (prev === 'pickUpCity' ? null : 'pickUpCity'))}
@@ -1005,8 +1005,8 @@ const MyClosetItemEditorScreen = ({ navigation, route }) => {
               {/* Pickup Location */}
               {hasPlacesApi ? (
                 <PlaceFieldRow
-                  icon="business-outline"
-                  label={t('myClosetAddItemShipping.pickupSpot') || 'Pickup Spot'}
+                  icon="location-outline"
+                  label={t('myClosetAddItemShipping.pickupLocationLabel') || 'Pickup location'}
                   placeholder={draft.pickUpCity ? (t('myClosetAddItemShipping.selectPickupSpot') || 'Search area or address...') : (t('myClosetAddItemShipping.selectCityFirst') || 'Select a city first')}
                   value={draft.pickupAddress || draft.pickupLocation}
                   filled={Boolean(draft.pickupAddress || draft.pickupLocation)}
@@ -1029,7 +1029,7 @@ const MyClosetItemEditorScreen = ({ navigation, route }) => {
                 />
               ) : (
                 <AdvancedDropdownRow
-                  label={t('myClosetAddItemShipping.pickupSpot') || 'Pickup Spot'}
+                  label={t('myClosetAddItemShipping.pickupLocationLabel') || 'Pickup location'}
                   placeholder={draft.pickUpCity ? (t('myClosetAddItemShipping.selectPickupSpot') || 'Select spot') : (t('myClosetAddItemShipping.selectCityFirst') || 'Select a city first')}
                   value={draft.pickupAddress || draft.pickupLocation}
                   expanded={expandedField === 'pickupLocation'}
