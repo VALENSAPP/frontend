@@ -916,7 +916,7 @@ const MyClosetDashboard = ({ navigation, userData, shopDraft }) => {
 
     navigation?.navigate?.('ProfileMain', {
       screen: 'MyClosetOrders',
-      params: { viewType: 'seller' },
+      params: { viewType: 'seller', profileType: userData?.profile },
     });
   };
 
@@ -1001,6 +1001,7 @@ const MyClosetDashboard = ({ navigation, userData, shopDraft }) => {
         viewType: 'seller',
         returnTo: 'MyClosetDashboard',
         isLocalPickup,
+        profileType: userData?.profile,
       },
     });
   };
@@ -1008,7 +1009,7 @@ const MyClosetDashboard = ({ navigation, userData, shopDraft }) => {
   const handleViewAllBuyerOrders = () => {
     navigation?.navigate?.('ProfileMain', {
       screen: 'MyClosetOrders',
-      params: { viewType: 'buyer' },
+      params: { viewType: 'buyer', profileType: userData?.profile },
     });
   };
 
@@ -1019,7 +1020,8 @@ const MyClosetDashboard = ({ navigation, userData, shopDraft }) => {
         orderId: order.raw?.id || order.raw?._id || order.id,
         orderPreview: order.raw,
         viewType: 'buyer',
-        returnTo: 'MyClosetDashboard'
+        returnTo: 'MyClosetDashboard',
+        profileType: userData?.profile,
       },
     });
   };

@@ -273,8 +273,16 @@ const Subscription = () => {
 
       // 4. Onboarding confirmed — proceed to checkout
       const response = await createCheckoutSession();
-      const checkoutUrl = response?.data?.url;
-      if (!checkoutUrl) throw new Error('Checkout URL not received');
+      const checkoutUrl = response?.data?.url || (typeof response?.url === 'string' ? response.url : null);
+      if (!checkoutUrl || response?.success === false) {
+        const apiErrorMessage =
+          response?.message ||
+          response?.data?.message ||
+          response?.error?.message ||
+          (typeof response?.error === 'string' ? response.error : null) ||
+          'Checkout URL not received';
+        throw new Error(apiErrorMessage);
+      }
 
       setShowActivationPopup(false);
       if (await InAppBrowser.isAvailable()) {
@@ -292,7 +300,30 @@ const Subscription = () => {
       }
     } catch (error) {
       console.error('Error activating subscription:', error);
-      Alert.alert(t('subscription.error'), error?.message || t('payment.paymentErrorMsg'));
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        t('payment.paymentErrorMsg');
+
+      const isKycError =
+        typeof errorMessage === 'string' &&
+        errorMessage.toLowerCase().includes('kyc');
+
+      if (isKycError) {
+        Alert.alert(
+          t('subscription.error', 'Error'),
+          errorMessage,
+          [
+            { text: t('settings.cancel', 'Cancel'), style: 'cancel' },
+            {
+              text: t('verification.kycTitle', 'Verify KYC'),
+              onPress: () => navigation.navigate('kycverify'),
+            },
+          ],
+        );
+      } else {
+        Alert.alert(t('subscription.error', 'Error'), errorMessage);
+      }
     } finally {
       setActivating(false);
       setShowActivationPopup(false);

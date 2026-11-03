@@ -16,6 +16,7 @@ const SubscriptionActivationPopup = ({
   visible,
   onClose,
   onConfirm,
+  onCancel,
   returnToSettingsSub,
   isBusinessProfile = false,
   amount = 9.9,
@@ -62,6 +63,18 @@ const SubscriptionActivationPopup = ({
     setTimeout(finish, 500);
   });
 
+  const handleCancel = () => {
+    onClose?.();
+    if (typeof onCancel === 'function') {
+      onCancel();
+    } else if (!returnToSettingsSub) {
+      navigation.navigate('MainApp', {
+        screen: 'HomeMain',
+        params: { screen: 'Home' },
+      });
+    }
+  };
+
   const handleAccept = async () => {
     setIsLoading(true);
     try {
@@ -94,7 +107,7 @@ const SubscriptionActivationPopup = ({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={handleCancel}
       onDismiss={handleDismissed}
     >
       <View style={styles.overlay} pointerEvents="auto">
@@ -141,15 +154,7 @@ const SubscriptionActivationPopup = ({
           <View style={styles.row}>
             <TouchableOpacity
               style={[styles.cancelBtn, { borderColor: border }, isLoading && styles.cancelBtnDisabled]}
-              onPress={() => {
-                onClose();
-                {!returnToSettingsSub &&
-                  navigation.navigate('MainApp', {
-                    screen: 'wallet',
-                    params: { screen: 'Dashboard' },
-                  });
-                }
-              }}
+              onPress={handleCancel}
               disabled={isLoading}
             >
               <Text style={[styles.cancelTxt, textStyle]}>

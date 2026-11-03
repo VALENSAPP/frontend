@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,7 @@ import { useAppTheme } from '../../../theme/useApptheme';
 import { useThemeContext } from '../../../theme/ThemeContext';
 import HexAvatar from './HexAvatar';
 import StoryComposer from './StoryComposer';
+import CustomGalleryPickerModal from '../../common/CustomGalleryPickerModal';
 import {
   modalStyles,
   likeStyles,
@@ -1688,6 +1689,7 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
   const [currentStoryIndex, setCurrentStoryIndex] = useState(0);
   const [viewerSession, setViewerSession] = useState(0);
   const [composerVisible, setComposerVisible] = useState(false);
+  const [galleryPickerVisible, setGalleryPickerVisible] = useState(false);
   const [composerMedia, setComposerMedia] = useState(null);
   const [composerList, setComposerList] = useState([]);
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -1934,21 +1936,28 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
   };
 
   const openGallery = () => {
-    launchImageLibrary({ mediaType: 'mixed', selectionLimit: 10, includeBase64: false, maxHeight: 2000, maxWidth: 2000 }, response => {
-      if (response?.didCancel || response?.errorCode) {
-        setComposerList([]); setComposerMedia(null); setComposerVisible(false); return;
-      }
-      const assets = response?.assets || [];
-      if (!assets.length) { setComposerList([]); setComposerMedia(null); return; }
-      const list = assets.map(a => ({
-        uri: a.uri,
-        type: a.type?.startsWith('video') ? 'video' : 'image',
-        duration: a.duration ? a.duration * 1000 : undefined,
-      }));
-      setComposerList(list);
-      setComposerVisible(true);
-      handleMediaSelected(response);
-    });
+    setGalleryPickerVisible(true);
+  };
+
+  const handleGallerySelect = (assets) => {
+    setGalleryPickerVisible(false);
+    if (!assets || !assets.length) {
+      setComposerList([]);
+      setComposerMedia(null);
+      return;
+    }
+    const list = assets.map(a => ({
+      uri: a.uri,
+      type: a.type?.startsWith('video') ? 'video' : 'image',
+      duration: a.duration ? a.duration * 1000 : undefined,
+    }));
+    setComposerList(list);
+    setComposerVisible(true);
+    if (list.length === 1) {
+      const type = list[0].type;
+      const duration = type === 'video' ? (list[0].duration || 15000) : 5000;
+      setComposerMedia({ type, uri: list[0].uri, duration });
+    }
   };
 
   const handleMediaSelected = response => {
@@ -2456,6 +2465,18 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
         mediaList={composerList}
         onCancel={() => { setComposerVisible(false); setComposerList([]); setComposerMedia(null); }}
         onDone={handleComposerDone}
+      />
+
+      <CustomGalleryPickerModal
+        visible={galleryPickerVisible}
+        onClose={() => setGalleryPickerVisible(false)}
+        onSelect={handleGallerySelect}
+        onOpenCamera={() => {
+          setGalleryPickerVisible(false);
+          openCamera();
+        }}
+        maxSelection={10}
+        mediaType="mixed"
       />
 
       {isUploadingStory && (

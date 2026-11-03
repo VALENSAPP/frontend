@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   SafeAreaView,
@@ -13,7 +13,8 @@ import {
 import FastImage from 'react-native-fast-image';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToast } from 'react-native-toast-notifications';
 import { hideLoader, showLoader } from '../../redux/actions/LoaderAction';
 import { showToastMessage } from '../displaytoastmessage';
@@ -33,7 +34,7 @@ import {
 import { useAppTheme } from '../../theme/useApptheme';
 import { useThemeContext } from '../../theme/ThemeContext';
 import { useLanguage } from '../../i18n';
-import { useTargetClosetScreen, navigateToTargetClosetScreen } from '../../utils/closetNavigation';
+import { useTargetClosetScreen, navigateToTargetClosetScreen, normalizeProfileType, getClosetRouteProfile } from '../../utils/closetNavigation';
 import { navigateToUserProfile } from '../../utils/navigateToUserProfile';
 import ShippingDetailsModal from '../modals/ShippingDetailsModal';
 import DeliverOtpModal from '../modals/DeliverOtpModal';
@@ -500,8 +501,7 @@ const findOrderByReferences = (orders, references) => {
   });
 };
 
-const Header = ({ onBack, title, onPrint, printLabel }) => {
-  const { accent, textStyle } = useAppTheme();
+const Header = ({ onBack, title, onPrint, printLabel, accent, textStyle }) => {
   const { isDarkMode } = useThemeContext();
   const chipSurface = isDarkMode ? 'rgba(255,255,255,0.08)' : '#ffffff';
 
@@ -531,9 +531,9 @@ const Header = ({ onBack, title, onPrint, printLabel }) => {
   );
 };
 
-const ImageBox = ({ uri, style, iconSize = 22, resizeMode = FastImage.resizeMode.cover }) => {
+const ImageBox = ({ uri, style, iconSize = 22, resizeMode = FastImage.resizeMode.cover, accent }) => {
   const [loading, setLoading] = useState(Boolean(uri));
-  const { accent, mutedText } = useAppTheme();
+  const { mutedText } = useAppTheme();
   const { isDarkMode } = useThemeContext();
   const imageSurface = isDarkMode ? 'rgba(255,255,255,0.06)' : '#f6f0ee';
   const loaderOverlay = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(251,248,255,0.35)';
@@ -564,8 +564,7 @@ const ImageBox = ({ uri, style, iconSize = 22, resizeMode = FastImage.resizeMode
   );
 };
 
-const SummaryRow = ({ label, value, bold }) => {
-  const { textStyle, mutedTextStyle, accent } = useAppTheme();
+const SummaryRow = ({ label, value, bold, textStyle, mutedTextStyle, accent }) => {
   return (
     <View style={styles.summaryRow}>
       <Text style={[styles.summaryLabel, mutedTextStyle, bold && styles.summaryStrong]}>{label}</Text>
@@ -576,8 +575,7 @@ const SummaryRow = ({ label, value, bold }) => {
   );
 };
 
-const BottomButton = ({ label, onPress, disabled }) => {
-  const { accent } = useAppTheme();
+const BottomButton = ({ label, onPress, disabled, accent }) => {
   return (
     <TouchableOpacity
       activeOpacity={0.9}
@@ -590,13 +588,12 @@ const BottomButton = ({ label, onPress, disabled }) => {
 };
 
 // Small horizontal progress tracker
-const StatusTimeline = ({ status, isLocalPickup, surface }) => {
+const StatusTimeline = ({ status, isLocalPickup, surface, accent, mutedTextStyle }) => {
   const { t } = useLanguage();
-  const { accent, mutedTextStyle } = useAppTheme();
   const { isDarkMode } = useThemeContext();
   const steps = isLocalPickup ? PICKUP_TIMELINE_STEPS : SHIP_TIMELINE_STEPS;
   const currentIndex = steps.indexOf(status === 'cancelled' ? 'pending' : status);
-  const connectorColor = withAlpha(accent, 0.25);
+  const connectorColor = withAlpha(accent, isDarkMode ? 0.35 : 0.25);
   const inactiveDot = isDarkMode ? 'rgba(255,255,255,0.12)' : surface;
 
   return (
@@ -631,7 +628,7 @@ const StatusTimeline = ({ status, isLocalPickup, surface }) => {
   );
 };
 
-const AddressDetailsCard = ({ address, title, accent, border, cardStyle, surface, textStyle, mutedTextStyle, t }) => {
+const AddressDetailsCard = ({ address, title, accent, border, cardStyle, surface, textStyle, mutedTextStyle, t, isDarkMode }) => {
   const addressLines = getAddressLines(address);
   const recipient = address?.fullName || address?.name || addressLines[0];
   const phone = address?.phoneNumber || address?.phone;
@@ -644,13 +641,15 @@ const AddressDetailsCard = ({ address, title, accent, border, cardStyle, surface
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`).catch(() => { });
   };
 
+  const iconBg = withAlpha(accent, isDarkMode ? 0.18 : 0.09);
+
   return (
     <View style={[styles.card, cardStyle, { borderColor: border, backgroundColor: surface }]}>
       <Text style={[styles.cardTitle, textStyle]}>{title}</Text>
       {recipient ? (
         <>
           <View style={styles.pickupDetailRow}>
-            <View style={[styles.pickupDetailIcon, { backgroundColor: withAlpha(accent, 0.09) }]}>
+            <View style={[styles.pickupDetailIcon, { backgroundColor: iconBg }]}>
               <Ionicons name="person-outline" size={20} color={accent} />
             </View>
             <View style={styles.pickupDetailCopy}>
@@ -664,7 +663,7 @@ const AddressDetailsCard = ({ address, title, accent, border, cardStyle, surface
       {location ? (
         <>
           <TouchableOpacity activeOpacity={0.7} onPress={openLocationInMaps} style={styles.pickupDetailRow}>
-            <View style={[styles.pickupDetailIcon, { backgroundColor: withAlpha(accent, 0.09) }]}>
+            <View style={[styles.pickupDetailIcon, { backgroundColor: iconBg }]}>
               <Ionicons name="location-outline" size={21} color={accent} />
             </View>
             <View style={styles.pickupDetailCopy}>
@@ -679,7 +678,7 @@ const AddressDetailsCard = ({ address, title, accent, border, cardStyle, surface
       ) : null}
       {phone ? (
         <View style={styles.pickupDetailRow}>
-          <View style={[styles.pickupDetailIcon, { backgroundColor: withAlpha(accent, 0.09) }]}>
+          <View style={[styles.pickupDetailIcon, { backgroundColor: iconBg }]}>
             <Ionicons name="call-outline" size={19} color={accent} />
           </View>
           <View style={styles.pickupDetailCopy}>
@@ -699,9 +698,30 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
   const toast = useToast();
   const receiptRef = useRef(null);
   const dispatch = useDispatch();
-  const { accent, bgStyle, cardStyle, textStyle, mutedTextStyle, border, card } = useAppTheme();
+  const reduxProfile = useSelector(state => state?.userProfile?.userProfile);
+  const [storedProfile, setStoredProfile] = useState('');
+
+  useEffect(() => {
+    AsyncStorage.getItem('profile').then(val => {
+      if (val) setStoredProfile(val);
+    }).catch(() => {});
+  }, []);
+
+  const routeProfile =
+    route?.params?.profileType ||
+    route?.params?.profile ||
+    getClosetRouteProfile(route);
+
+  const effectiveProfileType = useMemo(() => {
+    if (routeProfile) return normalizeProfileType(routeProfile);
+    const resolved = reduxProfile && reduxProfile !== 'normal' ? reduxProfile : storedProfile;
+    return normalizeProfileType(resolved) || 'user';
+  }, [routeProfile, reduxProfile, storedProfile]);
+
+  const { accent, bgStyle, cardStyle, textStyle, mutedTextStyle, border } = useAppTheme(effectiveProfileType);
   const { isDarkMode } = useThemeContext();
-  const surface = isDarkMode ? card : '#fbf8ff';
+  const isCompany = effectiveProfileType === 'company';
+  const accentColor = isDarkMode ? (isCompany ? accent : '#A78BFA') : accent;
   const { t } = useLanguage();
 
   const isLocalPickupRoute = Boolean(
@@ -1067,6 +1087,8 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
         title={t('myClosetOrderDetail.orderNumberTitle', { orderNumber: order.orderNumber })}
         onPrint={printReceipt}
         printLabel={t('myClosetOrderDetail.printReceipt')}
+        accent={accentColor}
+        textStyle={textStyle}
       />
       <View style={styles.receiptCapture} pointerEvents="none" collapsable={false}>
         <ViewShot
@@ -1116,8 +1138,12 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>
           <Text style={[styles.orderDate, mutedTextStyle]}>{order.createdAt}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: meta.bg }]}>
-            <Text style={[styles.statusText, { color: meta.color }]}>
+          <View style={[styles.statusBadge, {
+            backgroundColor: isDarkMode ? withAlpha(accentColor, 0.18) : meta.bg
+          }]}>
+            <Text style={[styles.statusText, {
+              color: isDarkMode ? (order.status === 'pending' || order.status === 'confirmed' ? accentColor : meta.color) : (isCompany && (order.status === 'pending' || order.status === 'confirmed') ? accentColor : meta.color)
+            }]}>
               {order.isLocalPickup && (order.status === 'pending' || order.status === 'confirmed')
                 ? t('myClosetOrderDetail.status.pickup')
                 : t(meta.labelKey)}
@@ -1126,25 +1152,31 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
         </View>
 
         <View style={styles.metaRow}>
-          <View style={[styles.metaPill, { backgroundColor: withAlpha(accent, 0.1) }]}>
+          <View style={[styles.metaPill, { backgroundColor: isDarkMode ? withAlpha(accentColor, 0.16) : withAlpha(accent, 0.1) }]}>
             <Text style={[styles.metaLabel, mutedTextStyle]}>{t('myClosetOrderDetail.orderNumberLabel')}</Text>
             <Text style={[styles.metaValue, textStyle]}>#{order.orderNumber}</Text>
           </View>
-          <View style={[styles.metaPill, { backgroundColor: withAlpha(accent, 0.1) }]}>
+          <View style={[styles.metaPill, { backgroundColor: isDarkMode ? withAlpha(accentColor, 0.16) : withAlpha(accent, 0.1) }]}>
             <Text style={[styles.metaLabel, mutedTextStyle]}>{t('myClosetOrderDetail.itemsLabel')}</Text>
             <Text style={[styles.metaValue, textStyle]}>{t('myClosetOrderDetail.itemsCount', { count: order.totalItemCount })}</Text>
           </View>
-          <View style={[styles.metaPill, { backgroundColor: withAlpha(accent, 0.1) }]}>
+          <View style={[styles.metaPill, { backgroundColor: isDarkMode ? withAlpha(accentColor, 0.16) : withAlpha(accent, 0.1) }]}>
             <Text style={[styles.metaLabel, mutedTextStyle]}>{t('myClosetOrderDetail.totalLabel')}</Text>
             <Text style={[styles.metaValue, textStyle]}>{order.totalAmount}</Text>
           </View>
         </View>
 
         {order.status !== 'cancelled' && (
-          <StatusTimeline status={order.status} isLocalPickup={order.isLocalPickup} surface={withAlpha(accent, 0.1)} />
+          <StatusTimeline
+            status={order.status}
+            isLocalPickup={order.isLocalPickup}
+            surface={withAlpha(accentColor, 0.1)}
+            accent={accentColor}
+            mutedTextStyle={mutedTextStyle}
+          />
         )}
 
-        <View style={[styles.card, cardStyle, { borderColor: border, backgroundColor: withAlpha(accent, 0.1) }]}>
+        <View style={[styles.card, cardStyle, { borderColor: border, backgroundColor: withAlpha(accentColor, 0.1) }]}>
           <Text style={[styles.cardTitle, textStyle]}>
             {canUpdateStatus ? t('myClosetOrderDetail.buyer') : t('myClosetOrderDetail.seller')}
           </Text>
@@ -1170,10 +1202,17 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
             activeOpacity={0.8}
             disabled={!order.buyerId}
             onPress={handleClosetChat}
-            style={[styles.chatButton, { borderColor: accent }, !order.buyerId && styles.disabledButton]}
+            style={[
+              styles.chatButton,
+              {
+                borderColor: withAlpha(accentColor, isDarkMode ? 0.6 : 1),
+                backgroundColor: isDarkMode ? (cardStyle.backgroundColor || '#1E1E1E') : '#ffffff',
+              },
+              !order.buyerId && styles.disabledButton,
+            ]}
           >
-            <Ionicons name="chatbubble-ellipses-outline" size={19} color={accent} />
-            <Text style={[styles.chatButtonText, { color: accent }]}>
+            <Ionicons name="chatbubble-ellipses-outline" size={19} color={accentColor} />
+            <Text style={[styles.chatButtonText, { color: accentColor }]}>
               {canUpdateStatus
                 ? t('myClosetOrderDetail.chatNowWithBuyer')
                 : t('myClosetOrderDetail.chatNowWithSeller')}
@@ -1183,14 +1222,14 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
 
         {order.isLocalPickup ? (
           order.pickupAddress || order.pickupLocationName ? (
-            <View style={[styles.card, cardStyle, { borderColor: border, backgroundColor: withAlpha(accent, 0.1) }]}>
+            <View style={[styles.card, cardStyle, { borderColor: border, backgroundColor: withAlpha(accentColor, 0.1) }]}>
               <Text style={[styles.cardTitle, textStyle]}>
                 {t('myClosetOrderDetail.pickupLocation')}
               </Text>
               {order.pickupLocationName &&
                 <View style={styles.pickupDetailRow}>
-                  <View style={[styles.pickupDetailIcon, { backgroundColor: withAlpha(accent, 0.09) }]}>
-                    <Ionicons name="storefront-outline" size={20} color={accent} />
+                  <View style={[styles.pickupDetailIcon, { backgroundColor: withAlpha(accentColor, isDarkMode ? 0.18 : 0.09) }]}>
+                    <Ionicons name="storefront-outline" size={20} color={accentColor} />
                   </View>
                   <View style={styles.pickupDetailCopy}>
                     <Text style={[styles.pickupDetailTitle, textStyle]}>
@@ -1200,13 +1239,12 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
                       {t('myClosetOrderDetail.pickupPoint')}
                     </Text>
                   </View>
-                  {/* <Ionicons name="chevron-forward" size={20} color={mutedTextStyle.color || '#777'} /> */}
                 </View>
               }
               <View style={[styles.pickupDivider, { backgroundColor: border }]} />
               <TouchableOpacity activeOpacity={0.7} onPress={openPickupLocationInMaps} style={styles.pickupDetailRow}>
-                <View style={[styles.pickupDetailIcon, { backgroundColor: withAlpha(accent, 0.09) }]}>
-                  <Ionicons name="location-outline" size={21} color={accent} />
+                <View style={[styles.pickupDetailIcon, { backgroundColor: withAlpha(accentColor, isDarkMode ? 0.18 : 0.09) }]}>
+                  <Ionicons name="location-outline" size={21} color={accentColor} />
                 </View>
                 <View style={styles.pickupDetailCopy}>
                   <Text style={[styles.pickupDetailTitle, textStyle]} numberOfLines={2}>{pickupAddressTitle}</Text>
@@ -1214,20 +1252,18 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
                     <Text style={[styles.pickupDetailSubtitle, mutedTextStyle]} numberOfLines={2}>{pickupAddressSubtitle}</Text>
                   ) : null}
                 </View>
-                {/* <Ionicons name="chevron-forward" size={20} color={mutedTextStyle.color || '#777'} /> */}
               </TouchableOpacity>
               {order.pickupAvailableHours ? (
                 <>
                   <View style={[styles.pickupDivider, { backgroundColor: border }]} />
                   <View style={styles.pickupDetailRow}>
-                    <View style={[styles.pickupDetailIcon, { backgroundColor: withAlpha(accent, 0.09) }]}>
-                      <Ionicons name="time-outline" size={21} color={accent} />
+                    <View style={[styles.pickupDetailIcon, { backgroundColor: withAlpha(accentColor, isDarkMode ? 0.18 : 0.09) }]}>
+                      <Ionicons name="time-outline" size={21} color={accentColor} />
                     </View>
                     <View style={styles.pickupDetailCopy}>
                       <Text style={[styles.pickupDetailTitle, textStyle]}>{t('myClosetOrderDetail.pickupHours')}</Text>
                       <Text style={[styles.pickupDetailSubtitle, mutedTextStyle]}>{order.pickupAvailableHours}</Text>
                     </View>
-                    {/* <Ionicons name="chevron-forward" size={20} color={mutedTextStyle.color || '#777'} /> */}
                   </View>
                 </>
               ) : null}
@@ -1236,36 +1272,38 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
             <AddressDetailsCard
               address={order.address}
               title={t('myClosetOrderDetail.pickupLocation')}
-              accent={accent}
+              accent={accentColor}
               border={border}
               cardStyle={cardStyle}
-              surface={withAlpha(accent, 0.1)}
+              surface={withAlpha(accentColor, 0.1)}
               textStyle={textStyle}
               mutedTextStyle={mutedTextStyle}
               t={t}
+              isDarkMode={isDarkMode}
             />
           ) : null
         ) : order.address ? (
           <AddressDetailsCard
             address={order.address}
             title={t('myClosetOrderDetail.shippingAddress')}
-            accent={accent}
+            accent={accentColor}
             border={border}
             cardStyle={cardStyle}
-            surface={withAlpha(accent, 0.1)}
+            surface={withAlpha(accentColor, 0.1)}
             textStyle={textStyle}
             mutedTextStyle={mutedTextStyle}
             t={t}
+            isDarkMode={isDarkMode}
           />
         ) : null}
 
-        <View style={[styles.card, cardStyle, { borderColor: border, backgroundColor: withAlpha(accent, 0.1) }]}>
+        <View style={[styles.card, cardStyle, { borderColor: border, backgroundColor: withAlpha(accentColor, 0.1) }]}>
           <Text style={[styles.cardTitle, textStyle]}>{t('myClosetOrderDetail.items', { count: order.totalItemCount })}</Text>
           {order.images?.length ? (
             <View style={styles.coverWrap}>
               <DetailImageCarousel
                 images={order.images}
-                accentColor={accent}
+                accentColor={accentColor}
                 imageWidth={Dimensions.get('window').width - 60}
                 imageHeight={220}
               />
@@ -1274,12 +1312,12 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
           {order.lines.length ? (
             order.lines.map(line => (
               <View key={line.id} style={styles.lineRow}>
-                <ImageBox uri={line.image} style={styles.lineThumb} />
+                <ImageBox uri={line.image} style={styles.lineThumb} accent={accentColor} />
                 <View style={styles.lineCopy}>
                   <Text style={[styles.lineName, textStyle]} numberOfLines={2}>
                     {line.name}
                   </Text>
-                  <Text style={[styles.linePrice, { color: accent }]}>{line.price}</Text>
+                  <Text style={[styles.linePrice, { color: accentColor }]}>{line.price}</Text>
                   <Text style={[styles.lineQty, mutedTextStyle]}>{t('myClosetOrderDetail.qty', { count: line.quantity })}</Text>
                 </View>
                 <Text style={[styles.lineTotal, textStyle]}>{line.lineTotal}</Text>
@@ -1290,8 +1328,15 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
           )}
         </View>
 
-        <View style={[styles.card, cardStyle, { borderColor: border, backgroundColor: withAlpha(accent, 0.1) }]}>
-          <SummaryRow label={t('myClosetOrderDetail.orderTotal')} value={order.totalAmount} bold />
+        <View style={[styles.card, cardStyle, { borderColor: border, backgroundColor: withAlpha(accentColor, 0.1) }]}>
+          <SummaryRow
+            label={t('myClosetOrderDetail.orderTotal')}
+            value={order.totalAmount}
+            bold
+            textStyle={textStyle}
+            mutedTextStyle={mutedTextStyle}
+            accent={accentColor}
+          />
         </View>
 
         {canUpdateStatus && flowStep ? (
@@ -1300,6 +1345,7 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
               label={advancing ? t('myClosetOrderDetail.updating') : (t(flowStep.labelKey) || flowStep.labelKey)}
               onPress={() => handleAdvance()}
               disabled={advancing}
+              accent={accent}
             />
           </View>
         ) : null}
@@ -1448,7 +1494,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#fff'
   },
   chatButtonText: { fontSize: 13, fontWeight: '900' },
   disabledButton: { opacity: 0.45 },

@@ -14,7 +14,7 @@ import {
   Dimensions,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { POST_SOUNDTRACKS } from '../../utils/postSoundtracks';
 import { searchYoutubeMusicTracks, getYoutubeSearchApiKey } from '../../services/youtubeMusic';
@@ -106,6 +106,10 @@ export default function PostMusicGalleryModal({
   isDark = false,
 }) {
   const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
+  const topPadding = Platform.OS === 'ios' ? Math.max(insets?.top || 0, 50) : 0;
+  const bottomPadding = Platform.OS === 'ios' ? Math.max(insets?.bottom || 0, 16) : 0;
+
   const profileTheme = useBusinessProfileTheme();
   const { isDarkMode } = useThemeContext();
   const dark = isDark ?? isDarkMode;
@@ -318,22 +322,33 @@ export default function PostMusicGalleryModal({
   if (!visible) return null;
 
   const content = (
-      <SafeAreaView style={[styles.root, { backgroundColor: resolvedBackground }]} edges={['top', 'left', 'right', 'bottom']}>
-        <View style={[styles.header, { borderBottomColor: borderColor }]}>
-          <TouchableOpacity
-            onPress={onClose}
-            style={styles.headerBtn}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            accessibilityRole="button"
-            accessibilityLabel={t('selectedPost.close')}
-          >
-            <Icon name="chevron-back" size={28} color={iconColor} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: resolvedText }]}>
-            {t('selectedPost.musicTitle')}
-          </Text>
-          <View style={styles.headerBtn} />
-        </View>
+    <SafeAreaView
+      style={[
+        styles.root,
+        {
+          backgroundColor: resolvedBackground,
+          ...(Platform.OS === 'ios'
+            ? { paddingTop: topPadding, paddingBottom: bottomPadding }
+            : {}),
+        },
+      ]}
+      edges={Platform.OS === 'ios' ? ['left', 'right'] : ['top', 'left', 'right', 'bottom']}
+    >
+      <View style={[styles.header, { borderBottomColor: borderColor }]}>
+        <TouchableOpacity
+          onPress={onClose}
+          style={styles.headerBtn}
+          hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('selectedPost.close')}
+        >
+          <Icon name="chevron-back" size={28} color={iconColor} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: resolvedText }]}>
+          {t('selectedPost.musicTitle')}
+        </Text>
+        <View style={styles.headerBtn} />
+      </View>
 
         <View style={[styles.searchBar, { backgroundColor: searchBg, borderWidth: dark ? StyleSheet.hairlineWidth : 0, borderColor }]}>
           <Icon name="search" size={20} color={mutedColor} style={styles.searchIcon} />

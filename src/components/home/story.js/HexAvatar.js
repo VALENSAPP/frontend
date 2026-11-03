@@ -46,22 +46,20 @@ const HexAvatar = ({
   borderWidth = 2,
   borderColor = '#000',
   preserveAspectRatio = 'xMidYMid slice',
+  pointyTop = false,
 }) => {
   const [imageError, setImageError] = useState(false);
   const w = size;
   const h = size;
 
-  const hexRadius = w / 2;
+  const hexRadius = (w - Math.max(borderWidth * 2, 2)) / 2;
   const centerX = w / 2;
   const centerY = h / 2;
-  const points = [
-    `${centerX + hexRadius * Math.cos(0)},${centerY + hexRadius * Math.sin(0)}`,
-    `${centerX + hexRadius * Math.cos(Math.PI / 3)},${centerY + hexRadius * Math.sin(Math.PI / 3)}`,
-    `${centerX + hexRadius * Math.cos(2 * Math.PI / 3)},${centerY + hexRadius * Math.sin(2 * Math.PI / 3)}`,
-    `${centerX + hexRadius * Math.cos(Math.PI)},${centerY + hexRadius * Math.sin(Math.PI)}`,
-    `${centerX + hexRadius * Math.cos(4 * Math.PI / 3)},${centerY + hexRadius * Math.sin(4 * Math.PI / 3)}`,
-    `${centerX + hexRadius * Math.cos(5 * Math.PI / 3)},${centerY + hexRadius * Math.sin(5 * Math.PI / 3)}`,
-  ].join(' ');
+  const angleOffset = pointyTop ? -Math.PI / 2 : 0;
+  const points = Array.from({ length: 6 }, (_, i) => {
+    const angle = angleOffset + (i * Math.PI) / 3;
+    return `${centerX + hexRadius * Math.cos(angle)},${centerY + hexRadius * Math.sin(angle)}`;
+  }).join(' ');
 
   const ids = useRef({
     clip: `hexClip-${size}-${Math.random().toString(36).slice(2)}`,

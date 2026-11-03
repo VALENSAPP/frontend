@@ -60,6 +60,11 @@ const KPI_GRID_GAP = 8;
 const AVATAR_PREVIEW_SIZE = Math.min(width * 0.9, 340);
 const FALLBACK_AVATAR =
   'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+const FOLLOWER_AVATARS = [
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+];
 const DEFAULT_REWARD_POINTS = {
   totalPlatformPoints: 0,
   totalBattlePoints: 0,
@@ -924,6 +929,12 @@ export const WalletDashboardScreen = ({ navigation }) => {
 
   useEffect(() => {
     let cancelled = false;
+    AsyncStorage.getItem('profile').then((stored) => {
+      if (!cancelled && stored) {
+        const normalized = String(stored).toLowerCase();
+        setIsBusinessProfile(normalized !== 'user' && normalized !== 'normal');
+      }
+    });
     hydratePaymentProvider().then((provider) => {
       if (!cancelled && provider) setPaymentProvider(provider);
     });
@@ -946,7 +957,11 @@ export const WalletDashboardScreen = ({ navigation }) => {
       const response = await getUserCredentials(id);
 
       console.log('API Response: data in thi apiaiaaiaiaai', response);
-      setIsBusinessProfile(response?.data?.profile !== 'user');
+      const storedProfile = await AsyncStorage.getItem('profile');
+      const accountType = String(
+        response?.data?.profile || storedProfile || 'user',
+      ).toLowerCase();
+      setIsBusinessProfile(accountType !== 'user' && accountType !== 'normal');
       setKyc(response?.data?.kyc || null);
       const profileProvider = readPaymentProvider(response?.data?.user || response?.data);
       if (profileProvider !== undefined) {
@@ -1019,6 +1034,64 @@ export const WalletDashboardScreen = ({ navigation }) => {
     () => getWalletScreenGradient(isBusinessProfile, isDarkMode, accent, card),
     [isBusinessProfile, isDarkMode, accent, card],
   );
+  const bannerGradient = useMemo(() => {
+    if (isDarkMode) {
+      return isBusinessProfile
+        ? ['#3D3428', '#251E14']
+        : ['#351468', '#4A1D85', '#5E249E'];
+    }
+    return isBusinessProfile
+      ? ['#8C6D37', '#A07D41', '#B8924F']
+      : ['#421A7E', '#5C249C', '#7832BD'];
+  }, [isBusinessProfile, isDarkMode]);
+  const themePalette = useMemo(() => {
+    if (isBusinessProfile) {
+      return {
+        accent: accent || (isDarkMode ? '#C9A15A' : '#8C6D37'),
+        cardBorder: isDarkMode ? 'rgba(255,255,255,0.08)' : '#F2E8D5',
+        cardShadow: '#8C6D37',
+        iconWrapBg: isDarkMode ? 'rgba(201, 161, 90, 0.22)' : '#FBF6EA',
+        textPrimary: isDarkMode ? '#FFFFFF' : '#3D2F14',
+        textValue: isDarkMode ? '#FFFFFF' : '#2A2011',
+        subText: isDarkMode ? '#DEC8A4' : '#5C4723',
+        infoIconColor: isDarkMode ? '#D4B87E' : '#9E8552',
+        waveOuter: isDarkMode ? 'rgba(184, 146, 79, 0.15)' : '#F7EED9',
+        waveInner: isDarkMode ? 'rgba(184, 146, 79, 0.25)' : '#EEDCB7',
+        chartBar: isDarkMode ? 'rgba(184, 146, 79, 0.35)' : '#DEC38B',
+        badgeBg: isDarkMode ? 'rgba(184, 146, 79, 0.25)' : '#F7EED9',
+        badgeText: isDarkMode ? '#EEDCB7' : '#8C6D37',
+        buttonBg: '#8C6D37',
+        pillBg: '#8C6D37',
+        coinDiscBg: '#C49B4B',
+        coinDiscBorder: '#E5CB95',
+        coinDiscFront: '#A07D41',
+        coinDiscFrontBorder: '#FBF6EA',
+        arrowIconColor: '#8C6D37',
+      };
+    }
+    return {
+      accent: accent || '#5B259F',
+      cardBorder: isDarkMode ? 'rgba(255,255,255,0.08)' : '#EDE4F8',
+      cardShadow: '#5B259F',
+      iconWrapBg: isDarkMode ? 'rgba(124, 58, 237, 0.25)' : '#F0E6FB',
+      textPrimary: isDarkMode ? '#FFFFFF' : '#1C0838',
+      textValue: isDarkMode ? '#FFFFFF' : '#280A54',
+      subText: isDarkMode ? '#C4B5FD' : '#2D1054',
+      infoIconColor: isDarkMode ? '#A78BFA' : '#7A6890',
+      waveOuter: isDarkMode ? 'rgba(124, 58, 237, 0.12)' : '#F2E8FD',
+      waveInner: isDarkMode ? 'rgba(124, 58, 237, 0.20)' : '#E8D5FB',
+      chartBar: isDarkMode ? 'rgba(167, 139, 250, 0.35)' : '#D0B4F8',
+      badgeBg: isDarkMode ? 'rgba(124, 58, 237, 0.25)' : '#EFE5FB',
+      badgeText: isDarkMode ? '#DDD6FE' : '#5B259F',
+      buttonBg: '#7832BD',
+      pillBg: '#5C249C',
+      coinDiscBg: '#8B4FD6',
+      coinDiscBorder: '#B78EF2',
+      coinDiscFront: '#7832BD',
+      coinDiscFrontBorder: '#EDE4F8',
+      arrowIconColor: '#5C249C',
+    };
+  }, [isBusinessProfile, isDarkMode, accent]);
   const gradientText = getWalletGradientText(isBusinessProfile, isDarkMode, text);
   const kpiIconWrapStyle = getWalletGradientIconWrapStyle(isBusinessProfile, isDarkMode, accent);
   const platformPointsHexBg = text;
@@ -1041,8 +1114,8 @@ export const WalletDashboardScreen = ({ navigation }) => {
   );
   const isMetaMaskConnected = isWalletConnected || !!connectedWallet;
   const DragonflyIcon = useMemo(
-    () => getDragonflyIcon(followersCount, false, isDarkMode),
-    [followersCount, isDarkMode],
+    () => getDragonflyIcon(followersCount, isBusinessProfile, isDarkMode),
+    [followersCount, isBusinessProfile, isDarkMode],
   );
   const headerNameLabel = useMemo(() => {
     const name = String(userProfile.name || t('walletDashboard.headerDefaultUser')).trim();
@@ -1551,80 +1624,54 @@ export const WalletDashboardScreen = ({ navigation }) => {
     const kpiValueText = resolveKpiValue(item);
 
     if (isMetaMaskCard) {
-      const normalizedWalletType = String(connectedWalletType || '').trim().toLowerCase();
-      const walletTypeForUi = isMetaMaskConnected
-        ? normalizedWalletType || 'walletconnect'
-        : 'wallet';
-
-      const walletTitle = isMetaMaskConnected
-        ? normalizedWalletType === 'metamask'
-          ? 'MetaMask'
-          : normalizedWalletType === 'coinbase'
-            ? 'Coinbase Wallet'
-            : 'WalletConnect'
-        : t('walletDashboard.kpi.wallet');
-
-      const walletIconSource =
-        WALLET_ICON_BY_TYPE[walletTypeForUi] || WALLET_ICON_BY_TYPE.wallet;
-
       return (
-        <View key={item.id} style={cellStyle}>
+        <View key={item.id} style={styles.walletBannerCell}>
           <TouchableOpacity
-            style={styles.kpiCardTouchable}
-            activeOpacity={0.86}
-            onPress={handleMetaMaskCardPress}
+            style={styles.walletBannerTouchable}
+            activeOpacity={0.88}
+            onPress={() => navigation.navigate('ValensWallet')}
           >
             <LinearGradient
-              colors={walletScreenGradient}
-              start={{ x: -5, y: -5 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.kpiCard, styles.kpiCardMetaMask, { shadowColor: text }]}
+              colors={bannerGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0.8 }}
+              style={styles.walletBannerCard}
             >
-              <View style={styles.kpiMetaMaskRow}>
-                <View style={styles.kpiMetaMaskLeft}>
-                  <View style={[styles.kpiMetaMaskIconWrap, { backgroundColor: '#D3D3D3' }]}>
-                    <Image source={walletIconSource} style={styles.kpiWalletIcon} resizeMode="contain" />
-                  </View>
-                  <View style={styles.kpiMetaMaskText}>
-                    <Text style={[styles.kpiTitle, styles.kpiIllustratedTitle, { color: gradientText }]} numberOfLines={1}>
-                      {isMetaMaskConnected ? item.title : t('walletDashboard.Wallet')}
-                    </Text>
-                    <Text style={[styles.kpiValue, styles.kpiValueMetaMask, { color: gradientText }]} numberOfLines={1}>
-                      {kpiValueText}
-                    </Text>
-                    <View style={styles.kpiMetaMaskStatusRow}>
-                      <View
-                        style={[
-                          styles.kpiStatusDot,
-                          { backgroundColor: isMetaMaskConnected ? '#16a34a' : '#b45309' },
-                        ]}
-                      />
-                      <Text
-                        style={[
-                          styles.kpiMetaMaskStatusText,
-                          { color: isMetaMaskConnected ? '#16a34a' : '#b45309' },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {metaStatusText}
-                      </Text>
-                      <Text style={[styles.kpiMetaMaskHint, { color: gradientText }]} numberOfLines={2}>
-                        {metaActionText}
-                      </Text>
-                    </View>
-                  </View>
+              <View style={styles.walletBannerLeft}>
+                <View style={styles.walletBannerIconWrap}>
+                  <Ionicons
+                    name="wallet"
+                    size={24}
+                    color="#FFFFFF"
+                  />
                 </View>
-                <Image
-                  source={butterflyWallet}
-                  style={[
-                    styles.kpiCardMascot,
-                    { width: Math.min(132, width * 0.28), height: Math.min(124, width * 0.28) },
-                  ]}
-                  resizeMode="contain"
-                  pointerEvents="none"
-                  accessible={false}
+
+                <View style={styles.walletBannerDivider} />
+
+                <View style={styles.walletBannerTextWrap}>
+                  <Text style={styles.walletBannerTitle}>
+                    {t('walletDashboard.Wallet', 'Wallet')}
+                  </Text>
+
+                  <Text
+                    style={styles.walletBannerSubtitle}
+                    numberOfLines={3}
+                    ellipsizeMode="tail"
+                  >
+                    {t(
+                      'walletDashboard.walletBannerDesc',
+                      'Manage your balance, withdrawals and transactions.'
+                    )}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.walletBannerArrowBtn}>
+                <Ionicons
+                  name="arrow-forward"
+                  size={18}
+                  color={themePalette.arrowIconColor}
                 />
-                <Ionicons name="chevron-forward" size={18} color={gradientText} style={styles.kpiIllustratedChevron} />
               </View>
             </LinearGradient>
           </TouchableOpacity>
@@ -1745,107 +1792,161 @@ export const WalletDashboardScreen = ({ navigation }) => {
     //   );
     // }
 
+    const isTotalEarning = item.id === 'Total Earning';
+    const isReferralPoints = item.id === 'referralPoints';
+    const isFollowers = item.id === 'followers';
+
     const cardContent = (
-      <LinearGradient
-        colors={walletScreenGradient}
-        start={{ x: -1, y: -1 }}
-        end={{ x: 1, y: 1 }}
+      <View
         style={[
           styles.kpiCard,
-          (isCreditsCard || isMissionPostCard || isSupportCard || item.id === 'referralPoints') && styles.kpiCardFillTouchable,
+          {
+            backgroundColor: isDarkMode ? (card || '#1F172B') : '#FFFFFF',
+            borderColor: themePalette.cardBorder,
+            shadowColor: themePalette.cardShadow,
+          },
         ]}
       >
-        <View style={[styles.kpiHeader, styles.kpiHeaderWithAction]}>
+        <View style={styles.kpiHeader}>
           <View style={styles.kpiHeaderLeft}>
-            <View style={[styles.kpiIconWrap, kpiIconWrapStyle]}>
-              <Ionicons name={item.icon} size={18} color={gradientText} />
+            <View style={[styles.kpiIconWrap, { backgroundColor: themePalette.iconWrapBg }]}>
+              <Ionicons
+                name={item.icon || 'wallet'}
+                size={17}
+                color={themePalette.accent}
+              />
             </View>
-            {isSupportCard ? (
-              <View style={styles.kpiSubscriptionTitleWrap}>
-                <Text
-                  style={[styles.kpiSubscriptionTitleLine, { color: gradientText }]}
-                  numberOfLines={2}
-                  maxFontSizeMultiplier={1}
-                  adjustsFontSizeToFit={false}
-                >
-                  {supportCardTitle}
-                </Text>
-              </View>
-            ) : (
-              <Text
-                style={[
-                  styles.kpiTitle,
-                  item.id === 'followers' && styles.kpiTitleInline,
-                  { color: gradientText },
-                ]}
-              >
-                {item.title}
-              </Text>
-            )}
-            {item.id === 'followers' && (
-              <TouchableOpacity
-                style={styles.dragonflyInfoButton}
-                onPress={openDragonflyModal}
-                activeOpacity={0.75}
-              >
-                <DragonflyIcon width={22} height={18} />
-              </TouchableOpacity>
-            )}
-          </View>
-          {item.id === 'referralPoints' && (
-            <TouchableOpacity
-              style={styles.kpiInfoButton}
-              onPress={openReferPointsInfo}
-              activeOpacity={0.75}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityRole="button"
-              accessibilityLabel={t('walletDashboard.battlePoints.referPointsInfoTitle')}
+
+            <Text
+              style={[
+                styles.kpiTitle,
+                { color: themePalette.textPrimary },
+              ]}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
             >
-              <Ionicons name="information-circle-outline" size={18} color={gradientText} />
+              {item.title}
+            </Text>
+
+          </View>
+          {isTotalEarning && (
+            <TouchableOpacity
+              onPress={handleOpenTotalEarnings}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="information-circle-outline" size={17} color={themePalette.infoIconColor} />
             </TouchableOpacity>
           )}
-          {(isCreditsCard || isMissionPostCard || item.id === 'referralPoints') ? (
-            <Ionicons name="chevron-forward" size={16} color={text} style={styles.kpiHeaderChevron} />
-          ) : null}
-        </View>
-        <View style={styles.kpiValueWrap}>
-          {String(kpiValueText ?? '').split('\n').map((line, index) => (
-            <Text
-              key={`${item.id}-value-${index}`}
-              style={[
-                index === 0 ? styles.kpiValue : styles.kpiValueSubline,
-                { color: gradientText },
-              ]}
+          {isFollowers && (
+            <TouchableOpacity
+              style={styles.dragonflyInfoButton}
+              onPress={openDragonflyModal}
+              activeOpacity={0.75}
             >
-              {line.trim().replace(/[\s\u00A0\u202F\u2007\u2009]+/g, '\u00A0')}
-            </Text>
-          ))}
+              <DragonflyIcon width={20} height={16} />
+            </TouchableOpacity>
+          )}
+          {isReferralPoints && (
+            <TouchableOpacity
+              onPress={openReferPointsInfo}
+              activeOpacity={0.75}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="information-circle-outline" size={17} color={themePalette.infoIconColor} />
+            </TouchableOpacity>
+          )}
         </View>
-        {isMetaMaskCard ? (
+
+        <View style={styles.kpiValueWrap}>
           <Text
             style={[
-              styles.kpiMetaSingleLine,
-              isMetaMaskConnected ? styles.kpiMetaConnected : styles.kpiMetaDisconnected,
+              styles.kpiValue,
+              { color: themePalette.textValue },
             ]}
-            numberOfLines={2}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
           >
-            {metaStatusText} · {metaActionText}
+            {isMissionPostCard
+              ? formatProviderMoney(missionDonationTotal)
+              : isReferralPoints
+                ? `${formatPointValue(rewardSummary.totalPlatformPoints || 0)} pts`
+                : (kpiValueText ?? '-').split('\n')[0].trim()}
           </Text>
-        ) : null}
-        {isCreditsCard ? (
-          <View style={styles.kpiHintWrap}>
-            <Text
-              style={[
-                styles.kpiMetaSingleLine,
-                styles.kpiMetaBuyCredits,
-                { color: gradientText },
-              ]}
-            >
-              {t('walletDashboard.kpi.tapToBuyCredits')}
+        </View>
+
+        {isTotalEarning && (
+          <View style={styles.cardWaveContainer} pointerEvents="none">
+            <View style={[styles.cardWaveShape, { backgroundColor: themePalette.waveOuter }]} />
+            <View style={[styles.cardWaveShapeInner, { backgroundColor: themePalette.waveInner }]} />
+          </View>
+        )}
+
+        {isSupportCard && (
+          <View style={styles.chartBarsWrap} pointerEvents="none">
+            {[7, 11, 15, 19, 25].map((h, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.chartBarItem,
+                  {
+                    height: h,
+                    backgroundColor: themePalette.chartBar,
+                  },
+                ]}
+              />
+            ))}
+          </View>
+        )}
+
+        {isFollowers && (
+          <View style={styles.followerAvatarsRow}>
+            {FOLLOWER_AVATARS.map((uri, idx) => (
+              <Image
+                key={idx}
+                source={{ uri }}
+                style={[styles.followerAvatarImg, idx > 0 && { marginLeft: -7 }]}
+              />
+            ))}
+            <View style={[styles.followerMoreBadge, { backgroundColor: themePalette.badgeBg }]}>
+              <Text style={[styles.followerMoreText, { color: themePalette.badgeText }]}>
+                {`+${followersCount > 3 ? followersCount - 3 : 8}`}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {isCreditsCard && (
+          <View style={styles.creditsActionRow}>
+            <Text style={[styles.creditsActionText, { color: themePalette.subText }]}>
+              {t('walletDashboard.kpi.tapToBuyCredits', 'Tap to buy credits')}
+            </Text>
+            <View style={[styles.creditsArrowBtn, { backgroundColor: themePalette.buttonBg }]}>
+              <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
+            </View>
+          </View>
+        )}
+
+        {isMissionPostCard && (
+          <View style={[styles.missionActivePill, { backgroundColor: themePalette.pillBg }]}>
+            <Text style={styles.missionActivePillText}>
+              {`Active: ${missionActiveCount || 0}`}
             </Text>
           </View>
-        ) : null}
-      </LinearGradient>
+        )}
+
+        {isReferralPoints && (
+          <View style={styles.coinStackWrap} pointerEvents="none">
+            <View style={[styles.coinDisc, styles.coinDisc3, { backgroundColor: themePalette.coinDiscBg, borderColor: themePalette.coinDiscBorder }]} />
+            <View style={[styles.coinDisc, styles.coinDisc2, { backgroundColor: themePalette.coinDiscBg, borderColor: themePalette.coinDiscBorder }]} />
+            <View style={[styles.coinDisc, styles.coinDisc1, { backgroundColor: themePalette.coinDiscFront, borderColor: themePalette.coinDiscFrontBorder }]}>
+              <Ionicons name="checkmark" size={11} color="#FFFFFF" />
+            </View>
+          </View>
+        )}
+      </View>
     );
 
     if (isCreditsCard) {
@@ -1965,12 +2066,12 @@ export const WalletDashboardScreen = ({ navigation }) => {
           />
         }
       >
-        {/* Header — same gradient as KPI + Battle Points */}
+        {/* Header — Profile Banner */}
         <View style={styles.header}>
           <LinearGradient
-            colors={walletScreenGradient}
-            start={{ x: -1, y: -1 }}
-            end={{ x: 1, y: 1 }}
+            colors={bannerGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0.8 }}
             style={styles.headerCard}
           >
             <View style={styles.headerGlow} />
@@ -1982,57 +2083,37 @@ export const WalletDashboardScreen = ({ navigation }) => {
                   activeOpacity={0.85}
                   onPress={openAvatarPreview}
                 >
+
                   <HexAvatar
                     uri={profileImage || userProfile.image || FALLBACK_AVATAR}
-                    size={72}
+                    size={Math.min(Math.max(width * 0.15, 62), 126)}
                     borderWidth={3}
-                    borderColor={accent}
+                    borderColor="#FFFFFF"
+                    pointyTop
                   />
+
                 </TouchableOpacity>
               </View>
 
               {/* User information */}
               <View style={styles.headerText}>
-                <View style={styles.headerNameBlock}>
-                  {headerNameLines.slice(0, -1).map((line, index) => (
-                    <Text
-                      key={`${line}-${index}`}
-                      style={[
-                        styles.headerName,
-                        { color: gradientText },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {line}
-                    </Text>
-                  ))}
-
+                <View style={styles.headerUsernameRow}>
                   <Text
-                    style={[
-                      styles.headerName,
-                      styles.headerNameLastLine,
-                      { color: gradientText },
-                    ]}
+                    style={styles.headerName}
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
-                    {headerNameLines[headerNameLines.length - 1]}
+                    {headerNameLabel}
                   </Text>
+                  <Ionicons name="checkmark-circle" size={16} color="#DDD6FE" style={styles.headerCheckmark} />
                 </View>
 
-                {kyc === true && (
-                  <Text
-                    style={[
-                      styles.headerStatusText,
-                      { color: gradientText },
-                    ]}
-                  >
-                    {t('walletDashboard.headerVerified')}
-                  </Text>
-                )}
+                <Text style={styles.headerStatusText}>
+                  {t('walletDashboard.headerVerified', 'Verified')}
+                </Text>
               </View>
 
-              {/* Only butterfly PNG */}
+              {/* Mascot */}
               <Image
                 source={butterflyIcon}
                 style={styles.headerButterfly}
@@ -2654,24 +2735,28 @@ export const WalletDashboardScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingBottom: 40,
-    // marginBottom: Platform.OS == "ios" ? 60 : 0
   },
   scrollContent: {
-    paddingBottom: 32,
+    paddingBottom: Platform.OS === 'ios' ? 150 : 110,
   },
+
   header: {
-    paddingHorizontal: 10,
-    paddingVertical: Platform.OS == "android" ? 0 : 14,
-    paddingTop: Platform.OS == "android" ? 16 : 0,
-    paddingBottom: Platform.OS == "android" ? 8 : 0,
-    marginBottom: Platform.OS == "android" ? 4 : -12,
+    paddingHorizontal: 8,
+    paddingTop: Platform.OS === 'android' ? 10 : 4,
+    paddingBottom: 4,
+    marginBottom: 2,
   },
+
   headerCard: {
     borderRadius: 20,
-    padding: Platform.OS == "android" ? 18 : 14,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minHeight: 120,
+    justifyContent: 'center',
     overflow: 'hidden',
+    position: 'relative',
   },
+
   headerGlow: {
     position: 'absolute',
     width: 180,
@@ -2681,52 +2766,61 @@ const styles = StyleSheet.create({
     right: -40,
     backgroundColor: 'rgba(255,255,255,0.14)',
   },
+
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Platform.OS == "android" ? 4 : 0,
-    paddingBottom: Platform.OS == "android" ? 0 : 40,
-    paddingTop: Platform.OS == "android" ? 0 : 10,
+    minHeight: 76,
+    position: 'relative',
   },
+
   headerAvatarWrap: {
-    width: 72,
-    height: 72,
+    width: 64,
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: 12,
   },
+
   headerText: {
     flex: 1,
     minWidth: 0,
+    paddingRight: 64,
+    justifyContent: 'center',
   },
-  headerNameBlock: {
-    width: '100%',
-  },
-  headerNameLastRow: {
+
+  headerUsernameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
   },
+
   headerName: {
-    color: '#fef3c7',
-    fontSize: 17,
+    color: '#FFFFFF',
+    fontSize: 16.5,
     fontWeight: '700',
     lineHeight: 22,
+    maxWidth: '85%',
   },
-  headerNameLastLine: {
-    flexShrink: 1,
-    minWidth: 0,
+
+  headerCheckmark: {
+    marginLeft: 4,
   },
-  headerNameDragonfly: {
-    marginLeft: 6,
-    flexShrink: 0,
-  },
+
   headerStatusText: {
-    color: '#f9fafb',
+    color: 'rgba(255, 255, 255, 0.75)',
     fontSize: 13,
-    fontWeight: '500',
-    marginTop: 6,
+    fontWeight: '400',
+    marginTop: 2,
   },
+
+  headerButterfly: {
+    position: 'absolute',
+    right: 4,
+    bottom: -2,
+    width: 86,
+    height: 86,
+  },
+
   headerBadge: {
     width: 36,
     height: 36,
@@ -2736,12 +2830,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   section: {
-    paddingHorizontal: 10,
-    marginBottom: 28,
+    paddingHorizontal: 16,
+    marginBottom: 8,
   },
   battlePointsSection: {
-    marginTop: Platform.OS == "android" ? 4 : -25,
-    marginBottom: 12,
+    marginTop: 14,
+    marginBottom: 20,
   },
   sectionTitle: {
     fontSize: 20,
@@ -3181,158 +3275,114 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   // KPI Cards
+
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginHorizontal: -(KPI_GRID_GAP / 2),
+    alignItems: 'stretch',
   },
+
   kpiCardCell: {
     width: '50%',
     paddingHorizontal: KPI_GRID_GAP / 2,
-    marginBottom: KPI_GRID_GAP,
+    marginBottom: 10,
+    minWidth: 0,
   },
+
   kpiCardCellFull: {
     width: '100%',
   },
+
   kpiCard: {
-    borderRadius: 20,
-    paddingHorizontal: 12,
+    borderRadius: 22,
+    borderWidth: 1,
+    paddingHorizontal: 14,
     paddingVertical: 14,
     width: '100%',
-    flexGrow: 1,
+    minHeight: 150,
     alignSelf: 'stretch',
-    minHeight: Platform.OS == "android" ? 160 : 186,
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
     overflow: 'hidden',
-  },
-  kpiCardMetaMask: {
     position: 'relative',
-    borderRadius: 20,
-    padding: 16,
-    minHeight: Math.max(164, Math.min(198, width * 0.42)),
-    width: '100%',
-    overflow: 'hidden',
+    shadowColor: '#5B259F',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  kpiCardFillTouchable: {
-    flexGrow: 1,
-  },
+
   kpiCardTouchable: {
     width: '100%',
     flexGrow: 1,
     alignItems: 'stretch',
     alignSelf: 'stretch',
     minWidth: 0,
-    minHeight: Platform.OS == "android" ? 160 : 186,
-    borderRadius: 20,
+    borderRadius: 22,
     overflow: 'hidden',
   },
+
   kpiHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    minHeight: 36,
-    marginBottom: 10,
-  },
-  kpiHeaderWithAction: {
+    alignItems: 'center',
     justifyContent: 'space-between',
+    minHeight: 38,
+    marginBottom: 8,
   },
+
   kpiHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     minWidth: 0,
+    marginRight: 6,
   },
+
   kpiIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-  },
-  dragonflyInfoButton: {
-    width: 28,
-    height: 24,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 6,
     flexShrink: 0,
   },
-  kpiInfoButton: {
-    padding: 4,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 4,
-    flexShrink: 0,
-  },
+
   kpiTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
-    marginLeft: 8,
+    marginLeft: 9,
     flex: 1,
     flexShrink: 1,
     textTransform: 'capitalize',
-    lineHeight: 16,
+    lineHeight: 18,
     includeFontPadding: false,
   },
-  kpiTitleInline: {
-    flex: 0,
-    flexGrow: 0,
-    flexShrink: 0,
-  },
-  kpiIllustratedTitle: {
-    marginLeft: 0,
-    flex: 0,
-  },
-  kpiTipText: {
-    paddingRight: 16,
-  },
-  kpiTipMascot: {
-    right: 0,
-    marginLeft: 4,
-  },
-  kpiSubscriptionTitleWrap: {
-    flex: 1,
-    marginLeft: 8,
-    justifyContent: 'center',
-  },
-  kpiSubscriptionTitleLine: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'capitalize',
-    lineHeight: 16,
-    includeFontPadding: false,
-    flexShrink: 1,
-  },
+
   kpiValueWrap: {
     width: '100%',
     minWidth: 0,
     alignSelf: 'stretch',
-    paddingLeft: 0,
-    paddingRight: 0,
+    marginVertical: 5,
   },
+
   kpiValue: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
-    marginBottom: 0,
-    paddingBottom: 0,
-    paddingLeft: 0,
-    paddingRight: 0,
-    paddingTop: 0,
-    lineHeight: 26,
+    lineHeight: 28,
     width: '100%',
     flexShrink: 1,
+    letterSpacing: -0.4,
+    includeFontPadding: false,
   },
+
   kpiValueSubline: {
     fontSize: 16,
     fontWeight: '800',
-    lineHeight: 20,
+    lineHeight: 21,
     marginTop: 2,
     width: '100%',
   },
+
   kpiHeaderChevron: {
     marginLeft: 4,
     opacity: 0.75,
@@ -3349,6 +3399,230 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
     marginBottom: 0,
   },
+  cardWaveContainer: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 80,
+    height: 36,
+    overflow: 'hidden',
+  },
+  cardWaveShape: {
+    position: 'absolute',
+    bottom: -16,
+    right: -8,
+    width: 88,
+    height: 44,
+    borderRadius: 26,
+    transform: [{ rotate: '-12deg' }],
+  },
+  cardWaveShapeInner: {
+    position: 'absolute',
+    bottom: -20,
+    right: -3,
+    width: 65,
+    height: 35,
+    borderRadius: 20,
+    transform: [{ rotate: '-8deg' }],
+  },
+  chartBarsWrap: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 2.5,
+  },
+  chartBarItem: {
+    width: 5,
+    borderRadius: 2.5,
+  },
+
+  followerAvatarsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+
+  followerAvatarImg: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+
+  followerMoreBadge: {
+    marginLeft: -5,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  creditsActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    minHeight: 28,
+  },
+
+  creditsActionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    flexShrink: 1,
+    marginRight: 6,
+  },
+
+  creditsArrowBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#7832BD',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+
+  missionActivePill: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#5C249C',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 5,
+  },
+
+  missionActivePillText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  coinStackWrap: {
+    position: 'absolute',
+    right: 8,
+    bottom: 6,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coinDisc: {
+    position: 'absolute',
+    width: 20,
+    height: 8,
+    borderRadius: 10,
+    backgroundColor: '#8B4FD6',
+    borderWidth: 1,
+    borderColor: '#B78EF2',
+  },
+  coinDisc3: {
+    bottom: 3,
+    right: 3,
+  },
+  coinDisc2: {
+    bottom: 7,
+    right: 3,
+  },
+  coinDisc1: {
+    bottom: 3,
+    left: 2,
+    width: 17,
+    height: 17,
+    borderRadius: 8.5,
+    backgroundColor: '#7832BD',
+    borderWidth: 1.2,
+    borderColor: '#EDE4F8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  walletBannerCell: {
+    width: '100%',
+    paddingHorizontal: KPI_GRID_GAP / 2,
+    marginTop: 4,
+    marginBottom: 14,
+  },
+
+  walletBannerTouchable: {
+    width: '100%',
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+
+  walletBannerCard: {
+    width: '100%',
+    minHeight: 100,
+    borderRadius: 22,
+    paddingHorizontal: 10,
+    // paddingVertical: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+  },
+
+  walletBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+    marginRight: 25,
+  },
+
+  walletBannerIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.20)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+
+  walletBannerDivider: {
+    width: 1.5,
+    height: 38,
+    backgroundColor: 'rgba(255,255,255,0.28)',
+    marginHorizontal: 10,
+    flexShrink: 0,
+  },
+
+  walletBannerTextWrap: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+  },
+
+  walletBannerTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 3,
+    lineHeight: 20,
+  },
+
+  walletBannerSubtitle: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 12,
+    fontWeight: '400',
+    lineHeight: 16,
+    flexShrink: 1,
+  },
+
+  walletBannerArrowBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginLeft: 10,
+    right: 20
+  },
+
   kpiHintWrap: {
     width: '100%',
     flexDirection: 'row',
@@ -4010,13 +4284,6 @@ const styles = StyleSheet.create({
     height: AVATAR_PREVIEW_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  headerButterfly: {
-    position: 'absolute',
-    right: 15,
-    bottom: 20,
-    width: 100,
-    height: 100,
   },
 });
 

@@ -16,8 +16,9 @@ import {
   Pressable,
   AppState,
   Switch,
+  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Video from 'react-native-video';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import LinearGradient from 'react-native-linear-gradient';
@@ -108,6 +109,9 @@ export default function PostStoryMusicTrimModal({
   registerCommitTrim,
 }) {
   const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
+  const topPadding = Platform.OS === 'ios' ? Math.max(insets?.top || 0, 50) : 10;
+  const bottomPadding = Platform.OS === 'ios' ? Math.max(insets?.bottom || 0, 16) : 0;
 
   const [audioTrimStartDraft, setAudioTrimStartDraft] = useState('0');
   const [audioTrimEndDraft, setAudioTrimEndDraft] = useState('');
@@ -186,7 +190,7 @@ export default function PostStoryMusicTrimModal({
     setMusicEditorPaused(false);
     setShowMusicTrimAdvanced(false);
     setSoundTrimClipSec(DEFAULT_STORY_CLIP_SEC);
-  }, [visible, musicPreviewKey, initialStart, initialEnd, ytFullDurForInit]);
+  }, [visible, musicPreviewKey, initialStart, initialEnd, ytFullDurForInit, audioSel]);
 
   useEffect(() => {
     if (!registerCommitTrim) return undefined;
@@ -401,8 +405,14 @@ export default function PostStoryMusicTrimModal({
   if (!visible || !useLibraryMusic || !hasLibraryMusicPlayback) return null;
 
   const content = (
-      <SafeAreaView style={styles.igMusicEditorRoot} edges={['top', 'bottom']}>
-        <View style={styles.igMusicHeader}>
+      <SafeAreaView
+        style={[
+          styles.igMusicEditorRoot,
+          Platform.OS === 'ios' ? { paddingBottom: bottomPadding } : null,
+        ]}
+        edges={Platform.OS === 'ios' ? ['left', 'right'] : ['top', 'bottom']}
+      >
+        <View style={[styles.igMusicHeader, { paddingTop: topPadding }]}>
           <Pressable onPress={handleCancel} hitSlop={12} style={styles.igHeaderSideBtn}>
             <Text style={styles.igHeaderBtn}>{t('postStoryMusicTrim.cancel')}</Text>
           </Pressable>
@@ -832,7 +842,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0a0d',
   },
   igMusicHeader: {
-    paddingTop:40,
+    paddingTop: 10,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,

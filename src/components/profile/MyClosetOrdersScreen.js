@@ -12,14 +12,15 @@ import {
 import FastImage from 'react-native-fast-image';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToast } from 'react-native-toast-notifications';
 import { hideLoader, showLoader } from '../../redux/actions/LoaderAction';
 import { showToastMessage } from '../displaytoastmessage';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useThemeContext } from '../../theme/ThemeContext';
 import { useLanguage } from '../../i18n';
-import { useTargetClosetScreen, navigateToTargetClosetScreen } from '../../utils/closetNavigation';
+import { useTargetClosetScreen, navigateToTargetClosetScreen, normalizeProfileType, getClosetRouteProfile } from '../../utils/closetNavigation';
 import {
   getSellerOrders,
   markOrderProcessing,
@@ -317,6 +318,7 @@ const OrderCard = ({
   onCancelRequested,
 }) => {
   const meta = STATUS_META[order.status] || STATUS_META.pending;
+  const { isDarkMode } = useThemeContext();
   const statusLabel = t(`myClosetOrders.status.${order.status}`);
   const flowStep = getFlowStep(order, mode, fulfillmentTab);
   const nextActionLabel = flowStep ? t(`myClosetOrders.action.${flowStep.actionKey}`) : null;
@@ -335,8 +337,12 @@ const OrderCard = ({
               </View>
             )}
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: meta.bg }]}>
-            <Text style={[styles.statusText, { color: meta.color }]}>{statusLabel}</Text>
+          <View style={[styles.statusBadge, {
+            backgroundColor: isDarkMode ? withAlpha(accent, 0.18) : meta.bg
+          }]}>
+            <Text style={[styles.statusText, {
+              color: isDarkMode && (order.status === 'pending' || order.status === 'confirmed') ? accent : meta.color
+            }]}>{statusLabel}</Text>
           </View>
         </View>
 
@@ -403,8 +409,30 @@ const OrderCard = ({
 };
 
 const MyClosetOrdersScreen = ({ navigation, route }) => {
-  const { accent, bgStyle, cardStyle, textStyle, mutedTextStyle, border } = useAppTheme();
+  const reduxProfile = useSelector(state => state?.userProfile?.userProfile);
+  const [storedProfile, setStoredProfile] = useState('');
+
+  useEffect(() => {
+    AsyncStorage.getItem('profile').then(val => {
+      if (val) setStoredProfile(val);
+    }).catch(() => {});
+  }, []);
+
+  const routeProfile =
+    route?.params?.profileType ||
+    route?.params?.profile ||
+    getClosetRouteProfile(route);
+
+  const effectiveProfileType = useMemo(() => {
+    if (routeProfile) return normalizeProfileType(routeProfile);
+    const resolved = reduxProfile && reduxProfile !== 'normal' ? reduxProfile : storedProfile;
+    return normalizeProfileType(resolved) || 'user';
+  }, [routeProfile, reduxProfile, storedProfile]);
+
+  const { accent, bgStyle, cardStyle, textStyle, mutedTextStyle, border } = useAppTheme(effectiveProfileType);
   const { isDarkMode } = useThemeContext();
+  const isCompany = effectiveProfileType === 'company';
+  const accentColor = isDarkMode ? (isCompany ? accent : '#A78BFA') : accent;
   const { t } = useLanguage();
   const toast = useToast();
   const dispatch = useDispatch();
@@ -599,9 +627,10 @@ const MyClosetOrdersScreen = ({ navigation, route }) => {
         viewType: mode,
         fulfillmentTab: fulfillmentTab,
         isLocalPickup: order.isLocalPickup || fulfillmentTab === 'local-pickup',
+        profileType: effectiveProfileType,
       });
     },
-    [navigation, mode, fulfillmentTab],
+    [navigation, mode, fulfillmentTab, effectiveProfileType],
   );
 
   const handleCancelRequested = useCallback(
@@ -756,7 +785,7 @@ const MyClosetOrdersScreen = ({ navigation, route }) => {
       <OrdersHeader
         onBack={handleBack}
         title={headerTitle}
-        accent={accent}
+        accent={accentColor}
         textStyle={textStyle}
       />
 
@@ -826,7 +855,7 @@ const MyClosetOrdersScreen = ({ navigation, route }) => {
         </View>
       )}
 
-      <View style={[styles.tabsRow, { borderBottomColor: withAlpha(accent, isDarkMode ? 0.2 : 0.08) }]}>
+      <View style={[styles.tabsRow, { borderBottomColor: withAlpha(accentColor, isDarkMode ? 0.2 : 0.08) }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {tabs.map(tab => {
             const isActive = activeTab === tab.key;
@@ -838,11 +867,11 @@ const MyClosetOrdersScreen = ({ navigation, route }) => {
                 onPress={() => setActiveTab(tab.key)}
                 style={styles.tabItem}
               >
-                <Text style={[styles.tabLabel, mutedTextStyle, isActive && { color: accent, fontWeight: '800' }]}>
+                <Text style={[styles.tabLabel, mutedTextStyle, isActive && { color: accentColor, fontWeight: '800' }]}>
                   {t(`myClosetOrders.tabs.${tab.key}`)}
                   {tab.key !== 'all' ? ` (${count})` : ''}
                 </Text>
-                {isActive && <View style={[styles.tabUnderline, { backgroundColor: accent }]} />}
+                {isActive && <View style={[styles.tabUnderline, { backgroundColor: accentColor }]} />}
               </TouchableOpacity>
             );
           })}
@@ -852,7 +881,7 @@ const MyClosetOrdersScreen = ({ navigation, route }) => {
       <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
         {loading ? (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator color={accent} />
+            <ActivityIndicator color={accentColor} />
           </View>
         ) : visibleOrders.length ? (
           visibleOrders.map(order => (
@@ -861,7 +890,7 @@ const MyClosetOrdersScreen = ({ navigation, route }) => {
               order={order}
               mode={mode}
               fulfillmentTab={fulfillmentTab}
-              accent={accent}
+              accent={accentColor}
               cardStyle={cardStyle}
               textStyle={textStyle}
               mutedTextStyle={mutedTextStyle}
@@ -876,8 +905,8 @@ const MyClosetOrdersScreen = ({ navigation, route }) => {
             />
           ))
         ) : (
-          <View style={[styles.emptyCard, cardStyle, { borderColor: withAlpha(accent, 0.2) }]}>
-            <Ionicons name="bag-outline" size={26} color={accent} />
+          <View style={[styles.emptyCard, cardStyle, { borderColor: withAlpha(accentColor, 0.2) }]}>
+            <Ionicons name="bag-outline" size={26} color={accentColor} />
             <Text style={[styles.emptyTitle, textStyle]}>{emptyTitle}</Text>
             <Text style={[styles.emptyText, mutedTextStyle]}>{emptyText}</Text>
           </View>
@@ -897,12 +926,12 @@ const MyClosetOrdersScreen = ({ navigation, route }) => {
                 activeOpacity={0.8}
                 disabled={loadingMore}
                 onPress={handleLoadMore}
-                style={[styles.loadMoreButton, { borderColor: accent, opacity: loadingMore ? 0.6 : 1 }]}
+                style={[styles.loadMoreButton, { borderColor: accentColor, opacity: loadingMore ? 0.6 : 1 }]}
               >
                 {loadingMore ? (
-                  <ActivityIndicator color={accent} size="small" />
+                  <ActivityIndicator color={accentColor} size="small" />
                 ) : (
-                  <Text style={[styles.loadMoreText, { color: accent }]}>{t('myClosetOrders.loadMore')}</Text>
+                  <Text style={[styles.loadMoreText, { color: accentColor }]}>{t('myClosetOrders.loadMore')}</Text>
                 )}
               </TouchableOpacity>
             ) : null}
@@ -911,14 +940,14 @@ const MyClosetOrdersScreen = ({ navigation, route }) => {
       </ScrollView>
       <ShippingDetailsModal
         visible={!!shippingModalOrder}
-        text={accent}
+        text={accentColor}
         onCancel={() => setShippingModalOrder(null)}
         onSubmit={(payload) => handleAdvance(shippingModalOrder, payload)}
       />
       <DeliverOtpModal
         visible={!!deliverOtpModalOrder}
         orderId={deliverOtpModalOrder?.raw?.id || deliverOtpModalOrder?.raw?._id || deliverOtpModalOrder?.id}
-        accent={accent}
+        accent={accentColor}
         toast={toast}
         onCancel={() => setDeliverOtpModalOrder(null)}
         onSubmit={(otp) => handleAdvance(deliverOtpModalOrder, otp)}

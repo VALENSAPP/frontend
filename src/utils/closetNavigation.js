@@ -4,8 +4,8 @@ import { useSelector } from 'react-redux';
 import { useAppTheme } from '../theme/useApptheme';
 
 export const normalizeProfileType = profile => {
-  const normalized = String(profile || '').toLowerCase();
-  if (normalized === 'company') return 'company';
+  const normalized = String(profile || '').trim().toLowerCase();
+  if (normalized === 'company' || normalized === 'business') return 'company';
   if (normalized === 'user' || normalized === 'normal') return 'user';
   return normalized || undefined;
 };
@@ -22,9 +22,9 @@ export const useResolvedCompanyProfile = () => {
 
   const resolvedProfile = String(
     reduxProfile && reduxProfile !== 'normal' ? reduxProfile : storedProfile || 'user',
-  ).toLowerCase();
+  ).trim().toLowerCase();
 
-  return resolvedProfile === 'company';
+  return resolvedProfile === 'company' || resolvedProfile === 'business';
 };
 
 export const useTargetClosetScreen = () => {
