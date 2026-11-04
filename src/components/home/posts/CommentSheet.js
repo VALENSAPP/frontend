@@ -17,6 +17,7 @@ import { formatDistanceToNow } from 'date-fns';
 import {
   getComments,
   postComment,
+  postDralensReply,
   deleteComment,
   editComment,
   postCommentReaction,
@@ -30,6 +31,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useAppTheme } from '../../../theme/useApptheme';
 import { useThemeContext } from '../../../theme/ThemeContext';
 import HexAvatar from '../story.js/HexAvatar';
+import { LavenderDragonfly } from '../../../assets/icons';
 import { useLanguage } from '../../../i18n';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -95,6 +97,73 @@ const buildCommentTree = comments => {
   return roots;
 };
 
+
+const DralensAiCommentView = memo(({
+  item,
+  labelColor,
+  mutedText,
+  accent,
+  isDarkMode,
+  toast,
+  isReply = false,
+}) => {
+  return (
+    <View style={styles.dralensCommentRow}>
+      <View
+        style={[
+          styles.dralensAvatarWrap,
+          {
+            backgroundColor: isDarkMode ? '#2D1B4E' : '#F3E8FF',
+            borderColor: isDarkMode ? 'rgba(168, 85, 247, 0.4)' : '#D8B4FE',
+          },
+        ]}>
+        <LavenderDragonfly width={22} height={22} />
+      </View>
+      <View style={styles.commentContent}>
+        <View style={styles.commentHeader}>
+          <View style={styles.dralensNameRow}>
+            <Text style={[styles.dralensUsername, { color: labelColor }]}>
+              {item.username || 'Dralens AI'}
+            </Text>
+            <View style={[styles.aiBadge, { backgroundColor: accent || '#8B5CF6' }]}>
+              <Text style={styles.aiBadgeText}>AI</Text>
+            </View>
+          </View>
+          <Text style={[styles.time, { color: mutedText }]}>{item.time}</Text>
+        </View>
+
+        <View
+          style={[
+            styles.dralensBubble,
+            {
+              backgroundColor: isDarkMode ? 'rgba(139, 92, 246, 0.12)' : '#FAF5FF',
+              borderColor: isDarkMode ? 'rgba(139, 92, 246, 0.3)' : '#E9D5FF',
+            },
+          ]}>
+          <Text style={[styles.dralensBubbleText, { color: labelColor }]}>
+            {item.text}
+          </Text>
+        </View>
+
+        <View style={styles.dralensActionsRow}>
+          <TouchableOpacity
+            style={styles.dralensCopyButton}
+            onPress={() => {
+              Clipboard.setString(item.text || '');
+              showToastMessage(toast, 'success', 'Copied to clipboard');
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Icon name="copy-outline" size={13} color={mutedText} />
+            <Text style={[styles.dralensCopyText, { color: mutedText }]}>Copy</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+});
+
+DralensAiCommentView.displayName = 'DralensAiCommentView';
+
 const CommentItem = memo(
   ({
     item,
@@ -118,6 +187,8 @@ const CommentItem = memo(
     onThumbsUpPress,
     onThumbsDownPress,
     commentVotes,
+    onAskDralens,
+    isAskingDralens,
   }) => {
     const { t } = useLanguage();
     const { cardStyle, border, mutedText, accent } = useAppTheme();
@@ -234,15 +305,25 @@ const CommentItem = memo(
           { borderColor: border },
           item.isOptimistic && styles.optimisticComment,
         ]}>
-        <View style={styles.commentRow}>
-          <TouchableOpacity
-            onPress={() => handleNavigateToProfile(item?.userId)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={styles.hexAvatarWrap}
-            accessibilityRole="button"
-          >
-            <HexAvatar uri={item.avatar} size={28} borderWidth={1} borderColor={accent} />
-          </TouchableOpacity>
+        {item.isDralensAi ? (
+          <DralensAiCommentView
+            item={item}
+            labelColor={labelColor}
+            mutedText={mutedText}
+            accent={accent}
+            isDarkMode={isDarkMode}
+            toast={toast}
+          />
+        ) : (
+          <View style={styles.commentRow}>
+            <TouchableOpacity
+              onPress={() => handleNavigateToProfile(item?.userId)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.hexAvatarWrap}
+              accessibilityRole="button"
+            >
+              <HexAvatar uri={item.avatar} size={28} borderWidth={1} borderColor={accent} />
+            </TouchableOpacity>
           <View style={styles.commentContent}>
             <View style={styles.commentHeader}>
               <Text style={[styles.username, { color: labelColor }]}>{item.username}</Text>
@@ -331,6 +412,7 @@ const CommentItem = memo(
             </TouchableOpacity>
           )}
         </View>
+        )}
 
         {replyingToThreadId === item.id && (
           <View style={[styles.replyComposer, { borderTopColor: border }]}>
@@ -360,6 +442,15 @@ const CommentItem = memo(
                 <Text style={[styles.replyCancelText, { color: mutedText }]}>
                   {t('commentSheet.cancel')}
                 </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.askDralensButton}
+                onPress={() => onAskDralens?.(item)}
+                disabled={isPosting || isAskingDralens}
+                accessibilityRole="button"
+                accessibilityLabel="Ask Dralens">
+                <Text style={styles.askDralensIcon}>✦</Text>
+                <Text style={styles.askDralensText}>Ask{`\n`}Dralens</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={onSubmitReply}
@@ -393,6 +484,27 @@ const CommentItem = memo(
                 reply.userId != null ? String(reply.userId).trim() : '';
               const isReplyAuthor = viewerId && replyUserId === viewerId;
               const canModerateReply = isReplyAuthor || isPostOwner;
+              if (reply.isDralensAi) {
+                return (
+                  <View
+                    key={reply.id}
+                    style={[
+                      styles.replyCard,
+                      styles.dralensReplyCard,
+                      { backgroundColor: isDarkMode ? 'rgba(124, 58, 237, 0.08)' : '#FAF5FF', borderColor: isDarkMode ? 'rgba(124, 58, 237, 0.25)' : '#E9D5FF' },
+                    ]}>
+                    <DralensAiCommentView
+                      item={reply}
+                      labelColor={labelColor}
+                      mutedText={mutedText}
+                      accent={accent}
+                      isDarkMode={isDarkMode}
+                      toast={toast}
+                      isReply
+                    />
+                  </View>
+                );
+              }
               return (
                 <View key={reply.id} style={[styles.replyCard, { backgroundColor: replySurface }]}>
                   <TouchableOpacity
@@ -492,6 +604,9 @@ const CommentItem = memo(
 
 export default function CommentSheet({
   postId,
+  postText = '',
+  postOwnerUsername = '',
+  postMedia = null,
   currentUser,
   onClose,
   postOwnerId,
@@ -518,6 +633,8 @@ export default function CommentSheet({
   const [inputSelection, setInputSelection] = useState({ start: 0, end: 0 });
   const [replySelection, setReplySelection] = useState({ start: 0, end: 0 });
   const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [isAskingDralens, setIsAskingDralens] = useState(false);
+  const [askDralensTarget, setAskDralensTarget] = useState(null);
 
   const isFetchingRef = useRef(false);
   const mentionSearchRef = useRef(null);
@@ -576,6 +693,51 @@ export default function CommentSheet({
       if (response.success) {
         const raw = response.data.comments;
         const tree = buildCommentTree(raw);
+
+        // Merge stored Dralens AI replies
+        try {
+          const storageKey = `@dralens_replies_${postId}`;
+          const existingRaw = await AsyncStorage.getItem(storageKey);
+          if (existingRaw) {
+            const storedDralens = JSON.parse(existingRaw);
+            if (Array.isArray(storedDralens) && storedDralens.length > 0) {
+              storedDralens.forEach(aiReply => {
+                let placed = false;
+                for (let root of tree) {
+                  if (root.id === aiReply.parentId || (root.text && root.text.toLowerCase().includes('@dralens'))) {
+                    if (!root.replies) root.replies = [];
+                    if (!root.replies.some(r => r.id === aiReply.id || r.text === aiReply.text)) {
+                      root.replies.push(aiReply);
+                    }
+                    placed = true;
+                    break;
+                  }
+                  if (root.replies) {
+                    for (let child of root.replies) {
+                      if (child.id === aiReply.parentId || (child.text && child.text.toLowerCase().includes('@dralens'))) {
+                        if (!child.replies) child.replies = [];
+                        if (!child.replies.some(r => r.id === aiReply.id || r.text === aiReply.text)) {
+                          child.replies.push(aiReply);
+                        }
+                        placed = true;
+                        break;
+                      }
+                    }
+                  }
+                  if (placed) break;
+                }
+                if (!placed) {
+                  if (!tree.some(c => c.id === aiReply.id || c.text === aiReply.text)) {
+                    tree.unshift(aiReply);
+                  }
+                }
+              });
+            }
+          }
+        } catch (storageErr) {
+          console.warn('Error merging stored Dralens replies:', storageErr);
+        }
+
         const votes = buildVotesMap(flattenRaw(raw));
 
         setComments(tree);
@@ -992,6 +1154,189 @@ export default function CommentSheet({
     }));
   }, [clearMentionState]);
 
+  const handleAskDralens = useCallback(comment => {
+    const target = comment || replyingToComment || {
+      id: postId,
+      username: postOwnerUsername,
+      text: postText,
+      parentId: null,
+    };
+    if (!target?.id) return;
+
+    setAskDralensTarget(target);
+    setReplyingToComment({
+      id: target.id,
+      username: target.username,
+      parentId: target.parentId,
+      threadId: target.parentId || target.id,
+    });
+    const mention = '@dralens ';
+    replyTextRef.current = mention;
+    setReplyText(mention);
+    clearMentionState();
+  }, [clearMentionState, postId, postText, postOwnerUsername, replyingToComment]);
+
+  const handleSubmitDralens = useCallback(async () => {
+    const target = askDralensTarget || replyingToComment;
+    const rawText = replyText.trim();
+    const userQuery = rawText.replace(/^@dralens\s*/i, '').trim();
+    if (!target?.id || !userQuery || isAskingDralens) return;
+
+    Keyboard.dismiss();
+    setIsAskingDralens(true);
+
+    const isTargetComment = target.id !== postId;
+    const threadId = isTargetComment ? (target.parentId || target.id) : null;
+    const tempUserCommentId = `temp-user-${Date.now()}`;
+    const tempAiReplyId = `dralens-${Date.now()}`;
+
+    // 1. Optimistically display user's question
+    const optimisticUserComment = {
+      id: tempUserCommentId,
+      userId: currentUser?.id,
+      username: currentUser?.displayName || t('commentSheet.you') || 'You',
+      avatar: currentUser?.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+      text: rawText,
+      time: t('commentSheet.justNow') || 'Just now',
+      parentId: threadId,
+      replies: [],
+      isOptimistic: true,
+    };
+
+    if (threadId) {
+      setComments(prev =>
+        prev.map(c => {
+          if (c.id === threadId) {
+            return {
+              ...c,
+              replies: [...(c.replies || []), optimisticUserComment],
+            };
+          }
+          return c;
+        })
+      );
+      setExpandedReplies(prev => ({ ...prev, [threadId]: true }));
+    } else {
+      setComments(prev => [optimisticUserComment, ...prev]);
+      onCommentCountUpdate?.(postId, comments.length + 1);
+    }
+
+    setReplyText('');
+    replyTextRef.current = '';
+    setReplyingToComment(null);
+    setAskDralensTarget(null);
+
+    try {
+      // 2. Post user question to Valens API
+      let realUserCommentId = tempUserCommentId;
+      try {
+        const postRes = await postComment(postId, rawText, threadId);
+        if (postRes?.success && postRes?.data?.id) {
+          realUserCommentId = String(postRes.data.id);
+        }
+      } catch (postErr) {
+        console.warn('postComment error for Dralens user question:', postErr);
+      }
+
+      // 3. Build image payload & call Dralens AI API
+      let imagePayload;
+      if (postMedia?.url) {
+        const mediaUri = String(postMedia.url);
+        imagePayload = {
+          uri: mediaUri,
+          name: mediaUri.split('/').pop() || 'image.jpg',
+          type: postMedia.type === 'video' ? 'video/mp4' : 'image/jpeg',
+        };
+      }
+
+      const response = await postDralensReply({
+        postId,
+        commentId: target.id,
+        userQuery,
+        postText,
+        authorUsername: target.username,
+        parentCommentContext: target.text,
+        image: imagePayload,
+      });
+
+      const isSuccess = response?.status === 'success' || response?.success === true || (response && !response?.error && !response?.message);
+      if (!isSuccess || !response?.reply_text) {
+        throw new Error(response?.message || 'Dralens request failed');
+      }
+
+      // 4. Construct Dralens AI reply object
+      const aiReply = {
+        id: tempAiReplyId,
+        isDralensAi: true,
+        userId: 'dralens-bot',
+        username: response.bot_name || 'Dralens AI',
+        avatar: 'dralens_ai',
+        text: response.reply_text,
+        time: t('commentSheet.justNow') || 'Just now',
+        parentId: threadId || realUserCommentId,
+        replies: [],
+        likeCount: 0,
+        dislikeCount: 0,
+      };
+
+      // 5. Save AI reply in AsyncStorage
+      try {
+        const storageKey = `@dralens_replies_${postId}`;
+        const existingRaw = await AsyncStorage.getItem(storageKey);
+        const existing = existingRaw ? JSON.parse(existingRaw) : [];
+        existing.push(aiReply);
+        await AsyncStorage.setItem(storageKey, JSON.stringify(existing));
+      } catch (storageErr) {
+        console.warn('Failed to save Dralens reply to storage:', storageErr);
+      }
+
+      // 6. Update comments state to attach Dralens AI reply under the question
+      setComments(prev => {
+        const parentKey = threadId || realUserCommentId;
+        return prev.map(c => {
+          if (c.id === parentKey || c.id === tempUserCommentId) {
+            return {
+              ...c,
+              id: realUserCommentId,
+              isOptimistic: false,
+              replies: [...(c.replies || []).filter(r => r.id !== tempAiReplyId), aiReply],
+            };
+          }
+          return c;
+        });
+      });
+
+      // Expand the thread so reply is visible immediately
+      const expandTarget = threadId || realUserCommentId || tempUserCommentId;
+      setExpandedReplies(prev => ({ ...prev, [expandTarget]: true }));
+
+      showToastMessage(toast, 'success', 'Dralens replied');
+    } catch (error) {
+      showToastMessage(toast, 'danger', error?.message || 'Unable to ask Dralens');
+    } finally {
+      setIsAskingDralens(false);
+    }
+  }, [
+    askDralensTarget,
+    replyingToComment,
+    replyText,
+    isAskingDralens,
+    postId,
+    postText,
+    postMedia,
+    currentUser,
+    comments.length,
+    onCommentCountUpdate,
+    toast,
+    t,
+  ]);
+
+
+  const handleSubmitReply = useCallback(() => {
+    if (askDralensTarget) return handleSubmitDralens();
+    return handleSendComment();
+  }, [askDralensTarget, handleSendComment, handleSubmitDralens]);
+
   const handleToggleReplies = useCallback(commentId => {
     setExpandedReplies(prev => ({ ...prev, [commentId]: !prev[commentId] }));
   }, []);
@@ -1181,9 +1526,12 @@ export default function CommentSheet({
           if (selection.start > replyTextRef.current.length) return;
           runMentionSearch(replyTextRef.current, selection.start, 'reply');
         }}
-        onSubmitReply={handleSendComment}
+        onSubmitReply={handleSubmitReply}
+        onAskDralens={handleAskDralens}
+        isAskingDralens={isAskingDralens}
         onCancelReply={() => {
           setReplyingToComment(null);
+          setAskDralensTarget(null);
           replyTextRef.current = '';
           setReplyText('');
           clearMentionState();
@@ -1209,7 +1557,7 @@ export default function CommentSheet({
       handleReplyTextChange,
       runMentionSearch,
       clearMentionState,
-      handleSendComment,
+        handleSubmitReply,
       isPosting,
       expandedReplies,
       handleToggleReplies,
@@ -1384,12 +1732,21 @@ export default function CommentSheet({
             editable={true}
           />
           <TouchableOpacity
-            onPress={handleSendComment}
+            style={styles.askDralensButton}
+            onPress={() => handleAskDralens(replyingToComment)}
+            disabled={isPosting || isAskingDralens}
+            accessibilityRole="button"
+            accessibilityLabel="Ask Dralens">
+            <Text style={styles.askDralensIcon}>✦</Text>
+            <Text style={styles.askDralensText}>Ask{`\n`}Dralens</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleSubmitReply}
             disabled={
               isPosting ||
               !(replyingToComment ? replyText.trim() : commentText.trim())
             }>
-            {isPosting ? (
+            {isPosting || isAskingDralens ? (
               <ActivityIndicator size="small" color={accent} />
             ) : (
               <Text
@@ -1417,6 +1774,7 @@ export default function CommentSheet({
                 commentTextRef.current = '';
                 setCommentText('');
                 setReplyingToComment(null);
+                setAskDralensTarget(null);
                 replyTextRef.current = '';
                 setReplyText('');
                 clearMentionState();
@@ -1487,6 +1845,79 @@ export default function CommentSheet({
 }
 
 const styles = StyleSheet.create({
+  dralensCommentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    width: '100%',
+  },
+  dralensAvatarWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    marginRight: 10,
+    marginTop: 2,
+  },
+  dralensNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dralensUsername: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  aiBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  aiBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9.5,
+    fontWeight: '800',
+    includeFontPadding: false,
+  },
+  dralensBubble: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  dralensBubbleText: {
+    fontSize: 13.5,
+    lineHeight: 19,
+  },
+  dralensActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 2,
+  },
+  dralensCopyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  dralensCopyText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  dralensReplyCard: {
+    borderLeftWidth: 2,
+    borderLeftColor: '#A855F7',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginTop: 6,
+  },
+
   container: {
     flex: 1,
     borderTopLeftRadius: 18,
@@ -1667,6 +2098,30 @@ const styles = StyleSheet.create({
   },
   sendTextDisabled: {
     opacity: 0.4,
+  },
+  askDralensButton: {
+    minWidth: 56,
+    minHeight: 38,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    marginHorizontal: 4,
+    borderRadius: 14,
+    backgroundColor: '#f1e7ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  askDralensIcon: {
+    color: '#7138b8',
+    fontSize: 17,
+    marginRight: 3,
+  },
+  askDralensText: {
+    color: '#7138b8',
+    fontSize: 10,
+    lineHeight: 10,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   emptyContainer: {
     flex: 1,

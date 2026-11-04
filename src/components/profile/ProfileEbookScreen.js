@@ -158,6 +158,7 @@ const ProfileEbookScreen = ({
   refreshKey,
   isActiveTab = false,
   onOpenEbook,
+  scrollEnabled = true,
 }) => {
   const [ebooks, setEbooks] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -306,6 +307,18 @@ const ProfileEbookScreen = ({
       </View>
       {data.length === 0 ? (
         renderEmpty()
+      ) : !scrollEnabled ? (
+        <View style={styles.listContent}>
+          {data.map((item) => (
+            <EbookCard
+              key={item.id?.toString() || item?.userId || Math.random().toString()}
+              item={item}
+              onPress={() => openEbook(item)}
+              profileThemeType={profileThemeType}
+              isCompanyProfile={isCompanyProfile}
+            />
+          ))}
+        </View>
       ) : (
         <FlatList
           data={data}

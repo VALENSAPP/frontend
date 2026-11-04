@@ -82,6 +82,9 @@ const Posts = forwardRef(function Posts(
   const [likingIds, setLikingIds] = useState(new Set());
   const [commentPostId, setCommentPostId] = useState(null);
   const [commentPostOwnerId, setCommentPostOwnerId] = useState(null);
+  const [commentPostText, setCommentPostText] = useState('');
+  const [commentPostOwnerUsername, setCommentPostOwnerUsername] = useState('');
+  const [commentPostMedia, setCommentPostMedia] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [followingByUserId, setFollowingByUserId] = useState({});
   const [followingBusy, setFollowingBusy] = useState(new Set());
@@ -507,15 +510,21 @@ const Posts = forwardRef(function Posts(
     }));
   }, []);
 
-  const handleComment = useCallback((postId, ownerId) => {
+  const handleComment = useCallback((postId, ownerId, postText = '', ownerUsername = '', postMedia = null) => {
     setCommentPostId(postId);
     setCommentPostOwnerId(ownerId);
+    setCommentPostText(postText);
+    setCommentPostOwnerUsername(ownerUsername);
+    setCommentPostMedia(postMedia);
     commentSheetRef.current?.open();
   }, []);
 
   const handleCommentClose = useCallback(() => {
     commentSheetRef.current?.close();
     setCommentPostId(null);
+    setCommentPostText('');
+    setCommentPostOwnerUsername('');
+    setCommentPostMedia(null);
   }, []);
 
   const openOptionsModal = useCallback(postId => {
@@ -1272,7 +1281,13 @@ const Posts = forwardRef(function Posts(
             closeOnPressMask={true}
             customModalProps={{ statusBarTranslucent: true }}
             customAvoidingViewProps={{ enabled: false }}
-            onClose={() => { Keyboard.dismiss(); setCommentPostId(null); }}
+            onClose={() => {
+              Keyboard.dismiss();
+              setCommentPostId(null);
+              setCommentPostText('');
+              setCommentPostOwnerUsername('');
+              setCommentPostMedia(null);
+            }}
             customStyles={{
               container: [{
                 borderTopLeftRadius: 18,
@@ -1286,6 +1301,9 @@ const Posts = forwardRef(function Posts(
           >
             <CommentSheet
               postId={commentPostId}
+              postText={commentPostText}
+              postOwnerUsername={commentPostOwnerUsername}
+              postMedia={commentPostMedia}
               onClose={handleCommentClose}
               onCommentCountUpdate={handleCommentCountUpdate}
               postOwnerId={commentPostOwnerId}

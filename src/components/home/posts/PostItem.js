@@ -2209,7 +2209,15 @@ function PostItem({
             </View>
 
             <TouchableOpacity
-              onPress={() => onComment?.(item.id, item.UserId)}
+              onPress={() =>
+                onComment?.(
+                  item.id,
+                  item.UserId,
+                  item.caption || item.text || item.description || '',
+                  item.username || '',
+                  item.media?.find(m => m.type !== 'video') || item.media?.[0] || null,
+                )
+              }
               style={styles.actionButton}>
               <Comments width={22} height={22} style={styles.actionSvgIcon} />
               <Text

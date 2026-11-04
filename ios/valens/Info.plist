@@ -88,7 +88,7 @@
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
-		<false/>
+		<true/>
 	</dict>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>This app requires access to your media library to support audio-related features.</string>

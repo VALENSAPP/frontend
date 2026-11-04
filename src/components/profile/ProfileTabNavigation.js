@@ -334,6 +334,7 @@ const ProfileTabs = memo(({
             isCompany={userData?.profile === 'company'}
             refreshKey={`${refreshKey ?? 0}-${privateKey}`}
             isActiveTab={activeTab === PRIVATE_CONTENT_TAB_INDEX}
+            scrollEnabled={false}
             onOpenEbook={(ebook) => {
               navigation.navigate('EbookDetail', {
                 ebook,

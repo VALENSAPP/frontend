@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import RNFS from 'react-native-fs';
 import axiosInstance from '..';
 import { appendStoryAudioFiles } from '../../utils/storyAudioUpload';
 
@@ -378,6 +379,103 @@ export async function postComment(postId, comment, parentCommentId = null) {
     payload.parentCommentId = parentCommentId;
   }
   return axiosInstance.post('/post/comment', payload);
+}
+
+export async function postDralensReply({
+  postId,
+  commentId,
+  userQuery,
+  postText = '',
+  authorUsername = '',
+  parentCommentContext = '',
+  image,
+}) {
+  let tempDownloadedFilePath = null;
+  const formData = new FormData();
+
+  formData.append('post_id', String(postId || ''));
+  formData.append('comment_id', String(commentId || ''));
+  formData.append('user_query', String(userQuery || ''));
+  formData.append('post_text', String(postText || ''));
+  formData.append('author_username', String(authorUsername || ''));
+  formData.append('parent_comment_context', String(parentCommentContext || ''));
+
+  if (image?.uri) {
+    let uri = String(image.uri);
+    const isRemoteUrl = uri.startsWith('http://') || uri.startsWith('https://');
+
+    if (isRemoteUrl) {
+      try {
+        const ext = (image.name || 'image.jpg').split('.').pop() || 'jpg';
+        const localPath = `${RNFS.CachesDirectoryPath}/dralens_${Date.now()}.${ext}`;
+        console.log('Downloading remote image for Dralens to local cache:', localPath);
+        const downloadRes = await RNFS.downloadFile({
+          fromUrl: uri,
+          toFile: localPath,
+        }).promise;
+        if (downloadRes.statusCode === 200) {
+          uri = Platform.OS === 'android' ? `file://${localPath}` : localPath;
+          tempDownloadedFilePath = localPath;
+          console.log('Downloaded image successfully, local uri:', uri);
+        } else {
+          console.warn('Image download returned status:', downloadRes.statusCode);
+        }
+      } catch (dlErr) {
+        console.warn('Failed to download remote image for Dralens:', dlErr);
+      }
+    } else {
+      uri = Platform.OS === 'android' ? uri : (uri.startsWith('file://') ? uri : `file://${uri}`);
+    }
+
+    formData.append('image', {
+      uri,
+      name: image.name || uri.split('/').pop() || 'image.jpg',
+      type: image.type || 'image/jpeg',
+    });
+  }
+
+  try {
+    console.log('========== DRALENS REPLY API REQUEST ==========');
+    console.log('Request Data:', {
+      postId,
+      commentId,
+      userQuery,
+      postText,
+      authorUsername,
+      parentCommentContext,
+      image: image?.uri ? {
+        uri: image.uri,
+        name: image.name,
+        type: image.type,
+      } : null,
+    });
+
+    const response = await axiosInstance.post(
+      'http://192.168.1.14:8081/api/v1/ai-comment-reply',
+      formData,
+      {
+        timeout: 60000,
+      }
+    );
+
+    console.log('========== DRALENS REPLY API RESPONSE ==========');
+    console.log('Response:', JSON.stringify(response, null, 2));
+
+    return response;
+
+  } catch (error) {
+    console.log('========== DRALENS REPLY API ERROR ==========');
+    console.log('Error Message:', error.message);
+    console.log('Error Response:', error.response?.data);
+    console.log('Error Status:', error.response?.status);
+    console.log('Error Headers:', error.response?.headers);
+
+    throw error;
+  } finally {
+    if (tempDownloadedFilePath) {
+      RNFS.unlink(tempDownloadedFilePath).catch(() => {});
+    }
+  }
 }
 
 export async function deleteComment(commentId, postId) {

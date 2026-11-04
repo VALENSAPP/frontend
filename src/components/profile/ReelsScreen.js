@@ -103,7 +103,7 @@ const PostImage = memo(({ item, themeTextStyle }) => {
 
 PostImage.displayName = 'PostImage';
 
-const ReelsScreen = memo(({ postCheck, userData, isOwnProfile = false, onPostPinChanged }) => {
+const ReelsScreen = memo(({ postCheck, userData, isOwnProfile = false, onPostPinChanged, scrollEnabled = true }) => {
   const [posts, setPosts] = useState([]);
   const pinningPostIdRef = useRef('');
   const navigation = useNavigation();
@@ -234,6 +234,20 @@ const ReelsScreen = memo(({ postCheck, userData, isOwnProfile = false, onPostPin
     );
   }
 
+  if (!scrollEnabled) {
+    return (
+      <View style={[styles.screen, bgStyle]}>
+        <View style={[styles.listContent, styles.gridContainer]}>
+          {posts.map((item, index) => (
+            <View key={keyExtractor(item, index)}>
+              {renderItem({ item, index })}
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.screen, bgStyle]}>
       <FlatList
@@ -270,6 +284,10 @@ const styles = StyleSheet.create({
   listContent: {
     padding: SPACING,
     paddingBottom: 100,
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   emptyListContent: {
     flexGrow: 1,

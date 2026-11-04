@@ -240,6 +240,7 @@ const PrivateContentScreen = ({
   refreshKey,
   isActiveTab = false,
   activeMediaFilter = 'photo',
+  scrollEnabled = true,
 }) => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -754,6 +755,27 @@ const PrivateContentScreen = ({
       {/* {!canViewPrivateContent ? (
         <LockedCard />
       ) : ( */}
+      {!scrollEnabled ? (
+        posts.length === 0 ? (
+          renderEmptyComponent()
+        ) : activeMediaFilter === 'video' ? (
+          <View style={styles.listContent}>
+            {posts.map((item, index) => (
+              <View key={keyExtractor(item, index)}>
+                {renderPrivateVideoItem({ item, index })}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={[styles.listContent, styles.gridContainer]}>
+            {posts.map((item, index) => (
+              <View key={keyExtractor(item, index)}>
+                {renderItem({ item, index })}
+              </View>
+            ))}
+          </View>
+        )
+      ) : (
         <FlatList
           // FlatList cannot change column count after mounting; remount when switching layouts.
           key={`private-content-${activeMediaFilter === 'video' ? 'video-list' : 'media-grid'}`}
@@ -773,6 +795,7 @@ const PrivateContentScreen = ({
           updateCellsBatchingPeriod={50}
           disableVirtualization={false}
         />
+      )}
     </View>
   );
 };
@@ -785,7 +808,10 @@ const styles = StyleSheet.create({
   listContent: {
     padding: SPACING,
     paddingBottom: 100,
-
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   emptyListContent: {
     flexGrow: 1,
