@@ -70,6 +70,7 @@ import { setProfileImg } from '../../redux/actions/ProfileImgAction';
 import { showToastMessage } from '../displaytoastmessage';
 import { useToast } from 'react-native-toast-notifications';
 import StoryComposer from '../home/story.js/StoryComposer';
+import CustomGalleryPickerModal from '../common/CustomGalleryPickerModal';
 import { getUserCredentials } from '../../services/post';
 import { tipRecived } from '../../services/wallet';
 import { battleByUserId, battlePoint } from '../../services/battle';
@@ -219,6 +220,7 @@ const ProfilePersonData = ({
   ).trim();
   const [tradeModalVisible, setTradeModalVisible] = useState(false);
   const [composerVisible, setComposerVisible] = useState(false);
+  const [storyGalleryVisible, setStoryGalleryVisible] = useState(false);
   const [composerList, setComposerList] = useState([]);
   const [data, setData] = useState(null);
   const [userId, setUserId] = useState(null);
@@ -447,19 +449,22 @@ const ProfilePersonData = ({
   };
 
   const openStoryGallery = () => {
-    const options = {
-      mediaType: 'mixed',
-      selectionLimit: 10,
-      includeBase64: false,
-      maxHeight: 2000,
-      maxWidth: 2000,
-    };
-    InteractionManager.runAfterInteractions(() => {
-      launchImageLibrary(options, response => {
-        if (response?.didCancel || response?.errorCode) return;
-        handleStoryMediaSelected(response);
-      });
+    setStoryGalleryVisible(true);
+  };
+
+  const handleStoryGallerySelect = assets => {
+    setStoryGalleryVisible(false);
+    if (!assets || !assets.length) return;
+    const list = assets.map(a => {
+      const type = a.type?.startsWith('video') ? 'video' : 'image';
+      return {
+        uri: a.uri,
+        type,
+        duration: type === 'video' ? (a.duration ? a.duration * 1000 : 15000) : 5000,
+      };
     });
+    setComposerList(list);
+    setComposerVisible(true);
   };
 
   const handleStoryMediaSelected = response => {
@@ -1832,6 +1837,17 @@ const ProfilePersonData = ({
         mediaList={composerList}
         onCancel={() => setComposerVisible(false)}
         onDone={handleComposerDone}
+      />
+      <CustomGalleryPickerModal
+        visible={storyGalleryVisible}
+        onClose={() => setStoryGalleryVisible(false)}
+        onSelect={handleStoryGallerySelect}
+        onOpenCamera={() => {
+          setStoryGalleryVisible(false);
+          openStoryCamera();
+        }}
+        maxSelection={10}
+        mediaType="mixed"
       />
       <SupportCreatorModal
         visible={supportModalVisible}

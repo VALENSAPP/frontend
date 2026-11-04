@@ -9,13 +9,13 @@ import {
 
 const resolveTheme = (profileType, isDarkMode) => {
   const normalized =
-    typeof profileType === 'string' ? profileType.toLowerCase() : '';
+    typeof profileType === 'string' ? profileType.toLowerCase().trim() : '';
 
-  if (normalized === 'company') {
+  if (normalized === 'company' || normalized === 'business') {
     return isDarkMode ? businessDarkTheme : businessTheme;
   }
 
-  if (normalized === 'user') {
+  if (normalized === 'user' || normalized === 'normal') {
     return isDarkMode ? normalDarkTheme : normalTheme;
   }
 
@@ -27,11 +27,15 @@ export const useAppTheme = profileTypeOverride => {
 
   const normalizedProfileType =
     typeof profileTypeOverride === 'string'
-      ? profileTypeOverride.toLowerCase()
+      ? profileTypeOverride.toLowerCase().trim()
       : undefined;
-  // Map legacy 'normal' → 'user' (dev) while keeping dark-mode resolveTheme (HEAD)
+  // Map legacy 'normal' → 'user', 'business' → 'company'
   const resolvedProfileType =
-    normalizedProfileType === 'normal' ? 'user' : normalizedProfileType;
+    normalizedProfileType === 'normal'
+      ? 'user'
+      : normalizedProfileType === 'business'
+        ? 'company'
+        : normalizedProfileType;
 
   const resolvedTheme =
     resolveTheme(resolvedProfileType, isDarkMode) ?? contextTheme;

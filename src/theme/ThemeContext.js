@@ -23,7 +23,8 @@ const ThemeContext = createContext();
 const getSystemIsDark = () => Appearance.getColorScheme() === 'dark';
 
 const resolveProfileTheme = (profileType, isDarkMode) => {
-  const isCompany = String(profileType || '').toLowerCase() === 'company';
+  const normalized = String(profileType || '').trim().toLowerCase();
+  const isCompany = normalized === 'company' || normalized === 'business';
 
   if (isCompany) {
     return isDarkMode ? businessDarkTheme : businessTheme;
@@ -42,13 +43,21 @@ const persistDarkMode = async value => {
 
 export const ThemeProvider = ({ children }) => {
   const reduxProfile = useSelector(state => state.userProfile.userProfile);
+  const [storedProfile, setStoredProfile] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(getSystemIsDark);
   const [isThemeLoaded, setIsThemeLoaded] = useState(false);
 
+  useEffect(() => {
+    AsyncStorage.getItem('profile').then(type => {
+      if (type) setStoredProfile(type);
+    }).catch(() => {});
+  }, []);
+
   const activeProfile = useMemo(() => {
-    const normalized = String(reduxProfile || '').toLowerCase();
-    return normalized === 'company' ? 'company' : 'user';
-  }, [reduxProfile]);
+    const raw = (reduxProfile && reduxProfile !== 'normal') ? reduxProfile : storedProfile;
+    const normalized = String(raw || '').trim().toLowerCase();
+    return (normalized === 'company' || normalized === 'business') ? 'company' : 'user';
+  }, [reduxProfile, storedProfile]);
 
   useEffect(() => {
     const loadTheme = async () => {

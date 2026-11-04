@@ -28,8 +28,8 @@ const TermCondition = ({ showModal, setShowModal, onAccept }) => {
                             onPress={() => {
                                 setShowModal(false);
                                 navigation.navigate('MainApp', {
-                                    screen: 'wallet',
-                                    params: { screen: 'Dashboard' },
+                                    screen: 'HomeMain',
+                                    params: { screen: 'Home' },
                                 });
                             }}
                             style={styles.closeButton}

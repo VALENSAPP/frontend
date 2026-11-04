@@ -181,11 +181,17 @@ export const LanguageProvider = ({ children }) => {
 
     if (optionsOrDefault && typeof optionsOrDefault === 'object' && !Array.isArray(optionsOrDefault)) {
       options = optionsOrDefault;
-      resolvedDefaultValue = typeof defaultValue === 'string' ? defaultValue : '';
+      resolvedDefaultValue =
+        typeof defaultValue === 'string' && defaultValue
+          ? defaultValue
+          : (typeof options.defaultValue === 'string' ? options.defaultValue : '');
     } else {
       resolvedDefaultValue = typeof optionsOrDefault === 'string' ? optionsOrDefault : '';
       if (defaultValue && typeof defaultValue === 'object' && !Array.isArray(defaultValue)) {
         options = defaultValue;
+        if (!resolvedDefaultValue && typeof options.defaultValue === 'string') {
+          resolvedDefaultValue = options.defaultValue;
+        }
       }
     }
 

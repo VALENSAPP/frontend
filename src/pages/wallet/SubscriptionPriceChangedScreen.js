@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Platform,
   Linking,
   DeviceEventEmitter,
 } from 'react-native';
@@ -59,53 +58,110 @@ const creatorIdsOn = node => [
   node?.creator?.userId,
 ].filter(id => id != null && id !== '');
 
-const readPaymentDecision = node => {
+const readPaymentDecision = (node, { newPrice, oldPrice } = {}) => {
   const priceStatus = String(
-    node?.priceUpdateStatus ?? node?.price_update_status ?? node?.priceUpdate?.status ?? '',
-  ).trim().toUpperCase();
+    node?.priceUpdateStatus ??
+      node?.price_update_status ??
+      node?.priceUpdate?.status ??
+      node?.priceUpdate?.priceUpdateStatus ??
+      '',
+  )
+    .trim()
+    .toUpperCase();
   if (priceStatus === 'ACCEPTED') return 'paid';
   if (priceStatus === 'PENDING' || priceStatus === 'DECLINED') return 'unpaid';
 
+  const nodeAmount = node?.amount ?? node?.price ?? node?.priceAtSubscription;
+  const numNodeAmount = Number(nodeAmount);
+  const numNewPrice = Number(newPrice);
+  const numOldPrice = Number(oldPrice);
+
   const paymentStatus = String(
     node?.paymentStatus ?? node?.checkoutStatus ?? node?.sessionStatus ?? '',
-  ).trim().toUpperCase();
-  if (PAID_PAYMENT_STATUSES.has(paymentStatus)) return 'paid';
+  )
+    .trim()
+    .toUpperCase();
+
+  // If node price matches newPrice and paymentStatus is PAID or status is ACTIVE
+  if (
+    Number.isFinite(numNewPrice) &&
+    numNewPrice > 0 &&
+    numNodeAmount === numNewPrice &&
+    (PAID_PAYMENT_STATUSES.has(paymentStatus) || node?.status === 'ACTIVE' || node?.isActive === true)
+  ) {
+    return 'paid';
+  }
+
+  // If autoRenew is active and not cancelled
+  const isAutoRenewActive =
+    (node?.autoRenew === true || node?.isAutoRenew === true || node?.autoPay === true) &&
+    node?.isCancelled !== true &&
+    node?.cancelAtPeriodEnd !== true;
+  if (isAutoRenewActive && (node?.status === 'ACTIVE' || node?.isActive === true)) {
+    return 'paid';
+  }
+
+  // If node price matches oldPrice and priceStatus is not set, this is historical data
+  if (Number.isFinite(numOldPrice) && numOldPrice > 0 && numNodeAmount === numOldPrice) {
+    return 'unknown';
+  }
+
   if (UNPAID_PAYMENT_STATUSES.has(paymentStatus)) return 'unpaid';
   return 'unknown';
 };
 
 const combinePaymentDecision = (current, next) => {
   if (current === 'paid' || next === 'paid') return 'paid';
-  if (next === 'unpaid') return 'unpaid';
+  if (current === 'unpaid' || next === 'unpaid') return 'unpaid';
   return current;
 };
 
-const decisionFromPayload = (payload, creatorId, { requireCreatorMatch }) => {
+const decisionFromPayload = (payload, creatorId, { requireCreatorMatch, newPrice, oldPrice } = {}) => {
   let decision = 'unknown';
   walkObjects(payload, node => {
     const ids = creatorIdsOn(node);
     if (requireCreatorMatch && creatorId) {
       if (!ids.some(id => String(id) === String(creatorId))) return;
     }
-    decision = combinePaymentDecision(decision, readPaymentDecision(node));
+    decision = combinePaymentDecision(
+      decision,
+      readPaymentDecision(node, { newPrice, oldPrice }),
+    );
   });
   return decision;
 };
 
-const waitForPriceUpdatePayment = async ({ creatorId }) => {
+const queryPriceUpdateDecision = async ({ creatorId, newPrice, oldPrice }) => {
+  const [statusResult, listResult] = await Promise.allSettled([
+    creatorId ? getFansubscriptionStatus(creatorId) : Promise.resolve(null),
+    getMySubscriptionsList(),
+  ]);
+  const fanSubscriptionStatus = statusResult.status === 'fulfilled' ? statusResult.value : null;
+  const mySubscriptions = listResult.status === 'fulfilled' ? listResult.value : null;
+  const decision = combinePaymentDecision(
+    decisionFromPayload(fanSubscriptionStatus, creatorId, {
+      requireCreatorMatch: false,
+      newPrice,
+      oldPrice,
+    }),
+    decisionFromPayload(mySubscriptions, creatorId, {
+      requireCreatorMatch: true,
+      newPrice,
+      oldPrice,
+    }),
+  );
+  return { decision, fanSubscriptionStatus, mySubscriptions };
+};
+
+const waitForPriceUpdatePayment = async ({ creatorId, newPrice, oldPrice }) => {
   let sawUnpaid = false;
   for (let attempt = 0; attempt < 4; attempt += 1) {
     if (attempt > 0) await delay(1500);
-    const [statusResult, listResult] = await Promise.allSettled([
-      creatorId ? getFansubscriptionStatus(creatorId) : Promise.resolve(null),
-      getMySubscriptionsList(),
-    ]);
-    const fanSubscriptionStatus = statusResult.status === 'fulfilled' ? statusResult.value : null;
-    const mySubscriptions = listResult.status === 'fulfilled' ? listResult.value : null;
-    const decision = combinePaymentDecision(
-      decisionFromPayload(fanSubscriptionStatus, creatorId, { requireCreatorMatch: false }),
-      decisionFromPayload(mySubscriptions, creatorId, { requireCreatorMatch: true }),
-    );
+    const { decision, fanSubscriptionStatus } = await queryPriceUpdateDecision({
+      creatorId,
+      newPrice,
+      oldPrice,
+    });
     console.log('[SubscriptionPriceChanged] payment status API', {
       attempt: attempt + 1,
       decision,
@@ -149,7 +205,7 @@ const SubscriptionPriceChangedScreen = () => {
     route?.params?.notification?.raw?.data?.isCancelled ??
     route?.params?.notification?.data?.isCancelled;
 
-  const resolveStatusState = () => {
+  const resolveStatusState = useCallback(() => {
     if (rawPriceUpdateStatus != null) {
       const normalized = String(rawPriceUpdateStatus).trim().toUpperCase();
       if (normalized === 'ACCEPTED') return 'accepted';
@@ -166,7 +222,7 @@ const SubscriptionPriceChangedScreen = () => {
     if (rawIsCancelled === true || rawIsCancelled === 'true' || rawIsCancelled === 1 || rawIsCancelled === '1') return 'declined';
 
     return 'pending';
-  };
+  }, [rawPriceUpdateStatus, rawIsCancelled, route?.params]);
 
   const [statusState, setStatusState] = useState(resolveStatusState);
 
@@ -174,12 +230,26 @@ const SubscriptionPriceChangedScreen = () => {
 
   useEffect(() => {
     setStatusState(resolveStatusState());
-  }, [rawPriceUpdateStatus, rawIsCancelled]);
+  }, [resolveStatusState]);
 
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [creatorProfile, setCreatorProfile] = useState(null);
   const [submittingAccept, setSubmittingAccept] = useState(false);
   const [submittingDecline, setSubmittingDecline] = useState(false);
+  const paymentCompletedRef = useRef(false);
+
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('PAYMENT_COMPLETED', (data) => {
+      console.log('✅ [SubscriptionPriceChanged] PAYMENT_COMPLETED event received:', data);
+      const paymentStatus = String(data?.status || 'success').toLowerCase();
+      const isSuccess = !['failed', 'cancelled', 'canceled'].includes(paymentStatus);
+      if (isSuccess) {
+        paymentCompletedRef.current = true;
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   const softBorder = border || `${text}18`;
   const muted = mutedText || `${text}99`;
@@ -227,6 +297,7 @@ const SubscriptionPriceChangedScreen = () => {
   const handleAccept = useCallback(async () => {
     if (!creatorId || submittingAccept || submittingDecline) return;
     setSubmittingAccept(true);
+    paymentCompletedRef.current = false;
     try {
       const payload = {
         amount: Number(newPrice) || 0,
@@ -249,11 +320,34 @@ const SubscriptionPriceChangedScreen = () => {
         }
       }
 
-      const paymentDecision = await waitForPriceUpdatePayment({ creatorId });
-      const checkoutResponseDecision = decisionFromPayload(response, creatorId, { requireCreatorMatch: false });
-      const paymentResult = checkoutResponseDecision === 'paid' ? 'paid' : paymentDecision;
+      // Allow a brief moment for any pending deep link or PAYMENT_COMPLETED event to settle
+      await delay(600);
 
-      if (sessionUrl && paymentResult === 'unpaid') {
+      let isPaid = paymentCompletedRef.current;
+
+      // If PAYMENT_COMPLETED hasn't fired yet (e.g. user closed browser on success page or external linking),
+      // verify with backend status
+      if (!isPaid && sessionUrl) {
+        const backendResult = await waitForPriceUpdatePayment({
+          creatorId,
+          newPrice,
+          oldPrice,
+        });
+        if (backendResult === 'paid' || paymentCompletedRef.current) {
+          isPaid = true;
+        }
+      } else if (!sessionUrl) {
+        const directDecision = decisionFromPayload(response, creatorId, {
+          requireCreatorMatch: false,
+          newPrice,
+          oldPrice,
+        });
+        if (directDecision === 'paid' || response?.statusCode === 200 || response?.status === 'SUCCESS') {
+          isPaid = true;
+        }
+      }
+
+      if (sessionUrl && !isPaid && !paymentCompletedRef.current) {
         setStatusState('pending');
         Alert.alert(
           t('subscriptionPriceChangedScreen.paymentNotCompleted', 'Payment not completed'),
@@ -282,7 +376,14 @@ const SubscriptionPriceChangedScreen = () => {
     } finally {
       setSubmittingAccept(false);
     }
-  }, [creatorId, newPrice, submittingAccept, submittingDecline, t]);
+  }, [
+    creatorId,
+    newPrice,
+    oldPrice,
+    submittingAccept,
+    submittingDecline,
+    t,
+  ]);
 
   const confirmDecline = useCallback(async () => {
     if (submittingAccept || submittingDecline) return;

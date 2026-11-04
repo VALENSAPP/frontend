@@ -174,21 +174,11 @@ const CommentItem = memo(
     returnTo,
     returnParams,
     onReplyPress,
-    replyingToThreadId,
-    replyingToUsername,
-    replyText,
-    onChangeReplyText,
-    onReplySelectionChange,
-    onSubmitReply,
-    onCancelReply,
-    isPosting,
     expandedReplies,
     onToggleReplies,
     onThumbsUpPress,
     onThumbsDownPress,
     commentVotes,
-    onAskDralens,
-    isAskingDralens,
   }) => {
     const { t } = useLanguage();
     const { cardStyle, border, mutedText, accent } = useAppTheme();
@@ -414,64 +404,6 @@ const CommentItem = memo(
         </View>
         )}
 
-        {replyingToThreadId === item.id && (
-          <View style={[styles.replyComposer, { borderTopColor: border }]}>
-            <Text style={[styles.replyingLabel, { color: mutedText }]}>
-              {t('commentSheet.replyingTo')} {replyingToUsername || item.username}
-            </Text>
-            <View style={styles.inlineReplyRow}>
-              <TextInput
-                placeholder={t('commentSheet.writeReplyPlaceholder')}
-                placeholderTextColor={mutedText}
-                style={[
-                  styles.replyInput,
-                  {
-                    color: labelColor,
-                    backgroundColor: inputSurface,
-                    borderColor: border,
-                  },
-                ]}
-                value={replyText}
-                onChangeText={text => onChangeReplyText?.(text)}
-                onSelectionChange={event =>
-                  onReplySelectionChange?.(event?.nativeEvent?.selection)
-                }
-                editable={true}
-              />
-              <TouchableOpacity onPress={onCancelReply}>
-                <Text style={[styles.replyCancelText, { color: mutedText }]}>
-                  {t('commentSheet.cancel')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.askDralensButton}
-                onPress={() => onAskDralens?.(item)}
-                disabled={isPosting || isAskingDralens}
-                accessibilityRole="button"
-                accessibilityLabel="Ask Dralens">
-                <Text style={styles.askDralensIcon}>✦</Text>
-                <Text style={styles.askDralensText}>Ask{`\n`}Dralens</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={onSubmitReply}
-                disabled={isPosting || !replyText.trim()}>
-                {isPosting ? (
-                  <ActivityIndicator size="small" color={accent} />
-                ) : (
-                  <Text
-                    style={[
-                      styles.sendText,
-                      { color: accent },
-                      !replyText.trim() && styles.sendTextDisabled,
-                    ]}>
-                    {t('commentSheet.post')}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
         {hasReplies && isExpanded ? (
           <View style={styles.repliesSection}>
             {item.replies.map(reply => {
@@ -644,6 +576,7 @@ export default function CommentSheet({
   const inputSelectionRef = useRef({ start: 0, end: 0 });
   const replySelectionRef = useRef({ start: 0, end: 0 });
   const activeMentionRef = useRef(null);
+  const inputRef = useRef(null);
 
   const toast = useToast();
   const { t, currentLanguage } = useLanguage();
@@ -793,12 +726,12 @@ export default function CommentSheet({
   const runMentionSearch = useCallback(
     (text, cursor, field) => {
       const mention = getActiveMention(text, cursor);
-      const query = String(mention?.query || '').trim();
-      if (!mention || query.length < 1) {
+      if (!mention) {
         clearMentionState();
         return;
       }
 
+      const query = String(mention?.query || '').trim();
       const nextActive = { ...mention, field };
       activeMentionRef.current = nextActive;
       setActiveMention(nextActive);
@@ -812,18 +745,27 @@ export default function CommentSheet({
       mentionSearchRef.current = setTimeout(async () => {
         try {
           let users = [];
-          try {
-            const response = await searchUsers(searchQuery);
-            users = normalizeSearchUsers(response);
-          } catch (_searchError) {
-            users = [];
-          }
-
-          // Fallback to the same endpoint used by tag/search screens when
-          // /user/search returns nothing or fails for partial queries.
-          if (!users.length) {
+          if (searchQuery.length > 0) {
             try {
-              const fallback = await getAllUser({ userName: searchQuery });
+              const response = await searchUsers(searchQuery);
+              users = normalizeSearchUsers(response);
+            } catch (_searchError) {
+              users = [];
+            }
+
+            // Fallback to the same endpoint used by tag/search screens when
+            // /user/search returns nothing or fails for partial queries.
+            if (!users.length) {
+              try {
+                const fallback = await getAllUser({ userName: searchQuery });
+                users = normalizeSearchUsers(fallback);
+              } catch (_fallbackError) {
+                users = [];
+              }
+            }
+          } else {
+            try {
+              const fallback = await getAllUser();
               users = normalizeSearchUsers(fallback);
             } catch (_fallbackError) {
               users = [];
@@ -831,7 +773,9 @@ export default function CommentSheet({
           }
 
           if (requestId !== mentionRequestIdRef.current) return;
-          const ranked = rankMentionUsers(users, searchQuery, 8);
+          const ranked = searchQuery.length
+            ? rankMentionUsers(users, searchQuery, 8)
+            : users.slice(0, 8);
           // Keep API order only when nothing matched our local ranking filters.
           setMentionUsers(ranked.length ? ranked : users.slice(0, 8));
         } catch (_error) {
@@ -842,7 +786,7 @@ export default function CommentSheet({
             setMentionLoading(false);
           }
         }
-      }, 220);
+      }, 180);
     },
     [clearMentionState],
   );
@@ -1139,6 +1083,7 @@ export default function CommentSheet({
   }, []);
 
   const handleReplyPress = useCallback(comment => {
+    setEditingComment(null);
     setReplyingToComment({
       id: comment.id,
       username: comment.username,
@@ -1152,6 +1097,9 @@ export default function CommentSheet({
       ...prev,
       [comment.parentId || comment.id]: true,
     }));
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 80);
   }, [clearMentionState]);
 
   const handleAskDralens = useCallback(comment => {
@@ -1412,12 +1360,19 @@ export default function CommentSheet({
 
   const handleEditComment = useCallback(() => {
     if (!selectedComment) return;
+    setReplyingToComment(null);
+    replyTextRef.current = '';
+    setReplyText('');
+    clearMentionState();
     commentTextRef.current = selectedComment.text;
     setCommentText(selectedComment.text);
     setEditingComment(selectedComment);
     setIsModalVisible(false);
     setSelectedComment(null);
-  }, [selectedComment]);
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 80);
+  }, [selectedComment, clearMentionState]);
 
   const handleCopyComment = useCallback(() => {
     const textToCopy = selectedComment?.text?.trim();
@@ -1514,29 +1469,6 @@ export default function CommentSheet({
         returnTo={returnTo}
         returnParams={returnParams}
         onReplyPress={handleReplyPress}
-        replyingToThreadId={replyingToComment?.threadId}
-        replyingToUsername={replyingToComment?.username}
-        replyText={replyText}
-        onChangeReplyText={handleReplyTextChange}
-        onReplySelectionChange={selection => {
-          if (!selection) return;
-          replySelectionRef.current = selection;
-          setReplySelection(selection);
-          // Skip if text update hasn't landed yet (common Android race).
-          if (selection.start > replyTextRef.current.length) return;
-          runMentionSearch(replyTextRef.current, selection.start, 'reply');
-        }}
-        onSubmitReply={handleSubmitReply}
-        onAskDralens={handleAskDralens}
-        isAskingDralens={isAskingDralens}
-        onCancelReply={() => {
-          setReplyingToComment(null);
-          setAskDralensTarget(null);
-          replyTextRef.current = '';
-          setReplyText('');
-          clearMentionState();
-        }}
-        isPosting={isPosting}
         expandedReplies={expandedReplies}
         onToggleReplies={handleToggleReplies}
         onThumbsUpPress={handleThumbsUpPress}
@@ -1550,15 +1482,9 @@ export default function CommentSheet({
       currentUser?.id,
       userId,
       postOwnerId,
+      returnTo,
+      returnParams,
       handleReplyPress,
-      replyingToComment?.threadId,
-      replyingToComment?.username,
-      replyText,
-      handleReplyTextChange,
-      runMentionSearch,
-      clearMentionState,
-        handleSubmitReply,
-      isPosting,
       expandedReplies,
       handleToggleReplies,
       handleThumbsUpPress,
@@ -1576,7 +1502,6 @@ export default function CommentSheet({
     keyboardOffset > 0 ? keyboardOffset : Math.max(insets.bottom, 16);
   // Keep mention panel compact when the keyboard is open (~2–3 rows).
   const mentionMaxHeight = keyboardOffset > 0 ? 120 : 220;
-  const collapseBodyForMention = Boolean(activeMention && keyboardOffset > 0);
 
   return (
     <View style={[styles.container, bgStyle]}>
@@ -1584,7 +1509,7 @@ export default function CommentSheet({
         {t('commentSheet.title', { count: comments.length })}
       </Text>
 
-      <View style={[styles.body, collapseBodyForMention && styles.bodyCollapsed]}>
+      <View style={styles.body}>
         {initialLoading ? (
           <View style={styles.emptyContainer}>
             <ActivityIndicator size="small" color={accent} />
@@ -1680,6 +1605,66 @@ export default function CommentSheet({
 
       {/* Composer pinned above keyboard spacer */}
       <View style={[styles.composerWrap, bgStyle]}>
+        {replyingToComment && (
+          <View
+            style={[
+              styles.replyingBar,
+              {
+                borderTopColor: border,
+                backgroundColor: isDarkMode
+                  ? 'rgba(255,255,255,0.06)'
+                  : 'rgba(0,0,0,0.03)',
+              },
+            ]}>
+            <Text
+              style={[styles.replyingBarText, { color: mutedText }]}
+              numberOfLines={1}>
+              {t('commentSheet.replyingTo')}{' '}
+              <Text style={[styles.replyingBarUsername, { color: accent }]}>
+                @{replyingToComment.username}
+              </Text>
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                setReplyingToComment(null);
+                setAskDralensTarget(null);
+                replyTextRef.current = '';
+                setReplyText('');
+                clearMentionState();
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Icon name="close" size={16} color={mutedText} />
+            </TouchableOpacity>
+          </View>
+        )}
+        {editingComment && (
+          <View
+            style={[
+              styles.replyingBar,
+              {
+                borderTopColor: border,
+                backgroundColor: isDarkMode
+                  ? 'rgba(255,255,255,0.06)'
+                  : 'rgba(0,0,0,0.03)',
+              },
+            ]}>
+            <Text
+              style={[styles.replyingBarText, { color: mutedText }]}
+              numberOfLines={1}>
+              {t('commentSheet.editCommentTitle') || 'Editing comment'}
+            </Text>
+            <TouchableOpacity
+              onPress={() => {
+                setEditingComment(null);
+                commentTextRef.current = '';
+                setCommentText('');
+                clearMentionState();
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Icon name="close" size={16} color={mutedText} />
+            </TouchableOpacity>
+          </View>
+        )}
         <View style={[styles.inputRow, { borderTopColor: border }]}>
           <View style={styles.inputAvatar}>
             <HexAvatar
@@ -1690,6 +1675,7 @@ export default function CommentSheet({
             />
           </View>
           <TextInput
+            ref={inputRef}
             placeholder={
               editingComment
                 ? t('commentSheet.editPlaceholder')
@@ -1765,23 +1751,6 @@ export default function CommentSheet({
               </Text>
             )}
           </TouchableOpacity>
-
-          {(editingComment || replyingToComment) && (
-            <TouchableOpacity
-              style={{ marginLeft: 8 }}
-              onPress={() => {
-                setEditingComment(null);
-                commentTextRef.current = '';
-                setCommentText('');
-                setReplyingToComment(null);
-                setAskDralensTarget(null);
-                replyTextRef.current = '';
-                setReplyText('');
-                clearMentionState();
-              }}>
-              <Icon name="close-circle" size={20} color={mutedText} />
-            </TouchableOpacity>
-          )}
         </View>
         <View style={{ height: bottomPad }} />
       </View>
@@ -1935,12 +1904,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
   },
-  bodyCollapsed: {
-    flex: 0,
-    height: 0,
-    overflow: 'hidden',
-    opacity: 0,
-  },
   commentsList: {
     flex: 1,
   },
@@ -2032,31 +1995,24 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     alignSelf: 'center',
   },
-  replyComposer: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-  },
-  replyingLabel: {
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  inlineReplyRow: {
+  replyingBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  replyInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 16,
+    justifyContent: 'space-between',
+    paddingVertical: 6,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
+    borderTopWidth: 1,
+    borderRadius: 8,
+    marginBottom: 4,
   },
-  replyCancelText: {
-    fontSize: 13,
+  replyingBarText: {
+    fontSize: 12,
     fontWeight: '500',
+    flex: 1,
+    marginRight: 8,
+  },
+  replyingBarUsername: {
+    fontWeight: '700',
   },
   repliesSection: {
     marginTop: 10,

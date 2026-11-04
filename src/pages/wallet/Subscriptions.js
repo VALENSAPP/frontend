@@ -22,6 +22,7 @@ import {
 } from '../../utils/storyAudioUpload';
 import { useToast } from 'react-native-toast-notifications';
 import StoryComposer from '../../components/home/story.js/StoryComposer';
+import CustomGalleryPickerModal from '../../components/common/CustomGalleryPickerModal';
 import { showToastMessage } from '../../components/displaytoastmessage';
 import { useDispatch } from 'react-redux';
 import { hideLoader, showLoader } from '../../redux/actions/LoaderAction';
@@ -99,6 +100,7 @@ const SubventionSetupScreen = () => {
     const stripeErrorMessages = getStripeErrorMessages(t);
 
     const [composerVisible, setComposerVisible] = useState(false);
+    const [galleryPickerVisible, setGalleryPickerVisible] = useState(false);
     const [composerList, setComposerList] = useState([]);
     const [subscriptionAmount, setSubscriptionAmount] = useState(9);
     const [showModal, setShowModal] = useState(false);
@@ -567,8 +569,16 @@ const SubventionSetupScreen = () => {
         let response;
         try {
             response = await createCheckoutSession();
-            const checkoutUrl = response?.data?.url;
-            if (!checkoutUrl) throw new Error('Checkout URL not received');
+            const checkoutUrl = response?.data?.url || (typeof response?.url === 'string' ? response.url : null);
+            if (!checkoutUrl || response?.success === false) {
+                const apiErrorMessage =
+                    response?.message ||
+                    response?.data?.message ||
+                    response?.error?.message ||
+                    (typeof response?.error === 'string' ? response.error : null) ||
+                    'Checkout URL not received';
+                throw new Error(apiErrorMessage);
+            }
             setShowActivationPopup(false);
             setShowBusinessReminderPopup(false);
             await delay(450);
@@ -646,19 +656,19 @@ const SubventionSetupScreen = () => {
     };
 
     const openGallery = () => {
-        const options = { mediaType: 'mixed', selectionLimit: 10, includeBase64: false, maxHeight: 2000, maxWidth: 2000 };
-        launchImageLibrary(options, response => {
-            if (response?.didCancel || response?.errorCode) return;
-            const assets = response?.assets || [];
-            if (!assets.length) return;
-            const list = assets.map(a => ({
-                uri: a.uri,
-                type: a.type?.startsWith('video') ? 'video' : 'image',
-                duration: a.duration ? a.duration * 1000 : undefined,
-            }));
-            setComposerList(list);
-            setComposerVisible(true);
-        });
+        setGalleryPickerVisible(true);
+    };
+
+    const handleGallerySelect = assets => {
+        setGalleryPickerVisible(false);
+        if (!assets || !assets.length) return;
+        const list = assets.map(a => ({
+            uri: a.uri,
+            type: a.type?.startsWith('video') ? 'video' : 'image',
+            duration: a.duration ? a.duration * 1000 : undefined,
+        }));
+        setComposerList(list);
+        setComposerVisible(true);
     };
 
     const handleMediaSelected = response => {
@@ -1120,6 +1130,18 @@ const SubventionSetupScreen = () => {
                     mediaList={composerList}
                     onCancel={() => setComposerVisible(false)}
                     onDone={handleComposerDone}
+                />
+
+                <CustomGalleryPickerModal
+                    visible={galleryPickerVisible}
+                    onClose={() => setGalleryPickerVisible(false)}
+                    onSelect={handleGallerySelect}
+                    onOpenCamera={() => {
+                        setGalleryPickerVisible(false);
+                        openCamera();
+                    }}
+                    maxSelection={10}
+                    mediaType="mixed"
                 />
 
                 {isBusinessProfile ? (

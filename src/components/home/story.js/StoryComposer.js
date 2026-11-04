@@ -37,6 +37,8 @@ import {
   VALENS_STICKERS,
 } from '../../../constants/valensStickers';
 import ImagePicker from 'react-native-image-crop-picker';
+import { launchCamera } from 'react-native-image-picker';
+import CustomGalleryPickerModal from '../../common/CustomGalleryPickerModal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   searchYoutubeMusicTracks,
@@ -315,6 +317,7 @@ export default function StoryComposer({
   const [showVolumeModal, setShowVolumeModal] = useState(false);
   const [showAudioTrimModal, setShowAudioTrimModal] = useState(false);
   const [showStickerModal, setShowStickerModal] = useState(false);
+  const [showGalleryPicker, setShowGalleryPicker] = useState(false);
   const [trimStartDraft, setTrimStartDraft] = useState('0');
   const [trimEndDraft, setTrimEndDraft] = useState('');
   const [audioTrimStartDraft, setAudioTrimStartDraft] = useState('0');
@@ -1014,70 +1017,89 @@ export default function StoryComposer({
 
   // ─── Add clips ─────────────────────────────────────────────────────────────
 
-  const handleAddClips = async () => {
-    try {
-      const picked = await ImagePicker.openPicker({ multiple: true, mediaType: 'any', maxFiles: 10 });
-      const picks  = Array.isArray(picked) ? picked : [picked];
-      if (!picks.length) return;
-      const normalizedPicks = picks.map(normalizeStoryMediaItem);
-      setMediaItems(prev => {
-        const next = [...prev, ...normalizedPicks];
-        const base = prev.length;
-        setFilterPerIndex(f => {
-          const u = { ...f };
-          normalizedPicks.forEach((_, j) => { u[base + j] = 'none'; });
-          return u;
-        });
-        setStickersPerIndex(s => {
-          const u = { ...s };
-          normalizedPicks.forEach((_, j) => { u[base + j] = []; });
-          return u;
-        });
-        setTextsPerIndex(tx => {
-          const u = { ...tx };
-          normalizedPicks.forEach((_, j) => { u[base + j] = []; });
-          return u;
-        });
-        setAudioPerIndex(a => {
-          const u = { ...a };
-          normalizedPicks.forEach((_, j) => { u[base + j] = 'original'; });
-          return u;
-        });
-        setTrimPerIndex(tr => {
-          const u = { ...tr };
-          normalizedPicks.forEach((_, j) => { u[base + j] = { start: 0, end: null }; });
-          return u;
-        });
-        setVolumePerIndex(v => {
-          const u = { ...v };
-          normalizedPicks.forEach((_, j) => { u[base + j] = 1; });
-          return u;
-        });
-        setAudioTrimPerIndex(at => {
-          const u = { ...at };
-          normalizedPicks.forEach((_, j) => { u[base + j] = { start: 0, end: null }; });
-          return u;
-        });
-        setAudioTrimConfirmedPerIndex(at => {
-          const u = { ...at };
-          normalizedPicks.forEach((_, j) => { u[base + j] = false; });
-          return u;
-        });
-        setShowMusicCardPerIndex(smc => {
-          const u = { ...smc };
-          normalizedPicks.forEach((_, j) => { u[base + j] = true; });
-          return u;
-        });
-        return next;
+  const appendClips = (picks) => {
+    const list = Array.isArray(picks) ? picks : [picks];
+    if (!list.length) return;
+    const normalizedPicks = list.map(normalizeStoryMediaItem);
+    setMediaItems(prev => {
+      const next = [...prev, ...normalizedPicks];
+      const base = prev.length;
+      setFilterPerIndex(f => {
+        const u = { ...f };
+        normalizedPicks.forEach((_, j) => { u[base + j] = 'none'; });
+        return u;
       });
-    } catch (e) {
-      if (e?.code !== 'E_PICKER_CANCELLED') {
-        Alert.alert(
-          t('storyComposer.addClipsErrorTitle'),
-          e?.message || String(e) || t('storyComposer.addClipsErrorFallback'),
-        );
-      }
-    }
+      setStickersPerIndex(s => {
+        const u = { ...s };
+        normalizedPicks.forEach((_, j) => { u[base + j] = []; });
+        return u;
+      });
+      setTextsPerIndex(tx => {
+        const u = { ...tx };
+        normalizedPicks.forEach((_, j) => { u[base + j] = []; });
+        return u;
+      });
+      setAudioPerIndex(a => {
+        const u = { ...a };
+        normalizedPicks.forEach((_, j) => { u[base + j] = 'original'; });
+        return u;
+      });
+      setTrimPerIndex(tr => {
+        const u = { ...tr };
+        normalizedPicks.forEach((_, j) => { u[base + j] = { start: 0, end: null }; });
+        return u;
+      });
+      setVolumePerIndex(v => {
+        const u = { ...v };
+        normalizedPicks.forEach((_, j) => { u[base + j] = 1; });
+        return u;
+      });
+      setAudioTrimPerIndex(at => {
+        const u = { ...at };
+        normalizedPicks.forEach((_, j) => { u[base + j] = { start: 0, end: null }; });
+        return u;
+      });
+      setAudioTrimConfirmedPerIndex(at => {
+        const u = { ...at };
+        normalizedPicks.forEach((_, j) => { u[base + j] = false; });
+        return u;
+      });
+      setShowMusicCardPerIndex(smc => {
+        const u = { ...smc };
+        normalizedPicks.forEach((_, j) => { u[base + j] = true; });
+        return u;
+      });
+      return next;
+    });
+  };
+
+  const handleAddClips = () => {
+    setShowGalleryPicker(true);
+  };
+
+  const handleCameraAddClip = () => {
+    setShowGalleryPicker(false);
+    launchCamera(
+      {
+        mediaType: 'mixed',
+        includeBase64: false,
+        maxHeight: 2000,
+        maxWidth: 2000,
+        includeExtra: true,
+        presentationStyle: 'fullScreen',
+      },
+      response => {
+        if (response?.didCancel || response?.errorCode) return;
+        const asset = response?.assets?.[0];
+        if (!asset?.uri) return;
+        const mediaItem = {
+          uri: asset.uri,
+          type: asset.type?.startsWith('video') ? 'video' : 'image',
+          duration: asset.duration ? asset.duration * 1000 : undefined,
+        };
+        appendClips([mediaItem]);
+      },
+    );
   };
 
   // ─── Trim / crop ───────────────────────────────────────────────────────────
@@ -1997,6 +2019,15 @@ export default function StoryComposer({
             setShowMusicCardPerIndex(prev => ({ ...prev, [index]: true }));
             setShowAudioTrimModal(false);
           }}
+        />
+
+        <CustomGalleryPickerModal
+          visible={showGalleryPicker}
+          onClose={() => setShowGalleryPicker(false)}
+          onSelect={appendClips}
+          onOpenCamera={handleCameraAddClip}
+          maxSelection={10}
+          mediaType="mixed"
         />
       </GestureHandlerRootView>
     </Modal>
