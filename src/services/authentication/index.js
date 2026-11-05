@@ -6,7 +6,7 @@ import { PermissionsAndroid, Platform } from 'react-native';
 import { saveOrUpdateAccount } from '../../utils/accountSession';
 import { setUserProfile } from '../../redux/actions/UserProfileAction';
 import { fetchAndApplyUserLanguage } from '../../i18n';
-import { persistPaymentProvider, readPaymentProvider } from '../../utils/paymentCurrency';
+import { persistPaymentProvider, persistUserCountry, readPaymentProvider, readUserCountry } from '../../utils/paymentCurrency';
 
 let appPermissionsReady = false;
 
@@ -400,6 +400,10 @@ export const persistSwitchedUser = async (res, user, dispatch, id) => {
     const switchedProvider = readPaymentProvider(user) ?? readPaymentProvider(res);
     if (switchedProvider !== undefined) {
         await persistPaymentProvider(switchedProvider);
+    }
+    const switchedCountry = readUserCountry(user) ?? readUserCountry(res);
+    if (switchedCountry !== undefined) {
+        await persistUserCountry(switchedCountry);
     }
     dispatch(setUserProfile(user.profile || (await AsyncStorage.getItem('profile'))));
     // Try to also save to account session, but don't fail if it errors

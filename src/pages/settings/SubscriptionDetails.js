@@ -20,6 +20,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { cancelSubscription, checkSubscription, createCheckoutSession } from '../../services/stirpe';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
 import { createOnboardingLink, getOnboardingStatus } from '../../services/profile';
 import { getOnboardingUrl } from '../../utils/stripeOnboarding';
 import { useAppTheme } from '../../theme/useApptheme';
@@ -321,6 +322,16 @@ const SubscriptionDetails = ({ route }) => {
   const handleActivationConfirm = async () => {
     try {
       setActivating(true);
+      const isKycApproved = await ensureKycApprovedForPayment({
+        navigation,
+        t,
+      });
+      if (!isKycApproved) {
+        setActivating(false);
+        setShowActivationPopup(false);
+        return;
+      }
+
       const onboardingStatus = await getOnboardingStatus();
       const isReady = onboardingStatus?.data?.canReceivePayments === true
         && Boolean(onboardingStatus?.data?.accountId);

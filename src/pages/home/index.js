@@ -33,7 +33,7 @@ import { setProfileImg } from '../../redux/actions/ProfileImgAction';
 import { setUserProfile } from '../../redux/actions/UserProfileAction';
 import { setRegularSubscriptionPrompt } from '../../redux/actions/LoginAction';
 import { useAppTheme } from '../../theme/useApptheme';
-import { unReadNotification, updateFcmToken } from '../../services/notifications';
+import { unReadNotification, updateFcmToken, getAllNotifactions } from '../../services/notifications';
 import { getSocket, initializeSocket } from '../../services/socket';
 import { setCachedMessagesUnread } from '../../services/chatMessage';
 import useSocket from '../../hooks/useSocket';
@@ -214,9 +214,47 @@ export default function HomeScreen({ route }) {
   const extractNotificationUnreadCount = useCallback((response) => {
     if (response == null) return null;
     const data = response.data;
-    if (typeof data?.unreadCount === 'number') return data.unreadCount;
-    if (typeof response?.unreadCount === 'number') return response.unreadCount;
-    if (typeof data === 'number') return data;
+
+    // Check possible numeric/string count fields across common response shapes
+    const candidates = [
+      data?.unreadCount,
+      data?.unread_count,
+      data?.count,
+      data?.unread,
+      data?.unreadNotificationCount,
+      data?.unreadNotificationsCount,
+      response?.unreadCount,
+      response?.unread_count,
+      response?.count,
+      response?.unread,
+      response?.unreadNotificationCount,
+      response?.unreadNotificationsCount,
+      typeof data === 'number' || (typeof data === 'string' && /^\d+$/.test(data.trim())) ? data : null,
+      typeof response === 'number' || (typeof response === 'string' && /^\d+$/.test(response.trim())) ? response : null,
+    ];
+
+    for (const cand of candidates) {
+      if (cand != null && cand !== '') {
+        const num = Number(cand);
+        if (Number.isFinite(num) && num >= 0) {
+          return num;
+        }
+      }
+    }
+
+    const arrayCandidates = [
+      Array.isArray(data) ? data : null,
+      Array.isArray(response?.notifications) ? response.notifications : null,
+      Array.isArray(data?.notifications) ? data.notifications : null,
+      Array.isArray(response) ? response : null,
+    ];
+
+    for (const arr of arrayCandidates) {
+      if (Array.isArray(arr)) {
+        return arr.filter(n => !n?.isRead).length;
+      }
+    }
+
     return null;
   }, []);
 
@@ -230,14 +268,28 @@ export default function HomeScreen({ route }) {
 
       const count = extractNotificationUnreadCount(response);
 
-      if (ok && typeof count === 'number') {
+      if (typeof count === 'number') {
         setNotificationUnreadCount(count);
         return;
       }
 
-      if (typeof count === 'number') {
-        setNotificationUnreadCount(count);
-        return;
+      // Fallback: fetch from getAllNotifactions() directly if unread-count response didn't supply a count
+      try {
+        const allRes = await getAllNotifactions();
+        const list =
+          (Array.isArray(allRes?.notifications) ? allRes.notifications : null) ??
+          (Array.isArray(allRes?.data?.notifications) ? allRes.data.notifications : null) ??
+          (Array.isArray(allRes?.data?.data) ? allRes.data.data : null) ??
+          (Array.isArray(allRes?.data) ? allRes.data : null) ??
+          (Array.isArray(allRes) ? allRes : null);
+
+        if (Array.isArray(list)) {
+          const fallbackCount = list.filter(n => !n?.isRead).length;
+          setNotificationUnreadCount(fallbackCount);
+          return;
+        }
+      } catch (fallbackErr) {
+        console.log('Error in fallback getAllNotifactions for unread count:', fallbackErr);
       }
 
       if (ok) {
@@ -247,6 +299,21 @@ export default function HomeScreen({ route }) {
 
       console.warn('Unexpected unread-count response:', response);
     } catch (err) {
+      console.log('Error in unreadNotification:', err);
+      try {
+        const allRes = await getAllNotifactions();
+        const list =
+          (Array.isArray(allRes?.notifications) ? allRes.notifications : null) ??
+          (Array.isArray(allRes?.data?.notifications) ? allRes.data.notifications : null) ??
+          (Array.isArray(allRes?.data?.data) ? allRes.data.data : null) ??
+          (Array.isArray(allRes?.data) ? allRes.data : null) ??
+          (Array.isArray(allRes) ? allRes : null);
+
+        if (Array.isArray(list)) {
+          const fallbackCount = list.filter(n => !n?.isRead).length;
+          setNotificationUnreadCount(fallbackCount);
+        }
+      } catch {}
     }
   }, [extractNotificationUnreadCount]);
 
@@ -266,12 +333,15 @@ export default function HomeScreen({ route }) {
         const userId = await AsyncStorage.getItem('userId');
         if (userId) {
           setCurrentUserId(userId);
+          console.log('📱 HomeScreen: Current user ID set:', userId);
 
           const socket = getSocket();
           if (!socket || !socket.connected) {
+            console.log('🔌 HomeScreen: Initializing socket...');
             await initializeSocket(userId);
             setSocketReady(true);
           } else {
+            console.log('🔌 HomeScreen: Socket already connected');
             setSocketReady(true);
           }
         }
@@ -288,21 +358,26 @@ export default function HomeScreen({ route }) {
     if (!socket) return;
 
     const handleConnect = () => {
+      console.log('🔌 HomeScreen: Socket connected');
       setSocketReady(true);
 
       if (currentUserId) {
+        console.log('📡 HomeScreen: Requesting chat box on connect');
         socket.emit('getUserChatBox', { userId: currentUserId });
       }
     };
 
     const handleDisconnect = () => {
+      console.log('🔌 HomeScreen: Socket disconnected');
       setSocketReady(false);
     };
 
     const handleReconnect = () => {
+      console.log('🔌 HomeScreen: Socket reconnected');
       setSocketReady(true);
 
       if (currentUserId) {
+        console.log('📡 HomeScreen: Requesting chat box on reconnect');
         socket.emit('getUserChatBox', { userId: currentUserId });
       }
     };
@@ -326,6 +401,7 @@ export default function HomeScreen({ route }) {
     if (currentUserId && socketReady && isFocused) {
       const socket = getSocket();
       if (socket?.connected) {
+        console.log('👁️ HomeScreen: Screen focused, requesting chat box');
         socket.emit('getUserChatBox', { userId: currentUserId });
       }
     }
@@ -342,6 +418,7 @@ export default function HomeScreen({ route }) {
       if (currentUserId && socketReady) {
         const socket = getSocket();
         if (socket?.connected) {
+          console.log('👁️ HomeScreen: Screen focused, requesting unread chat count');
           socket.emit('getUserChatBox', { userId: currentUserId });
         }
       }
@@ -349,8 +426,10 @@ export default function HomeScreen({ route }) {
   );
 
   useSocket('userChatBox', (data) => {
+    console.log('📨 HomeScreen: Received userChatBox data');
 
     if (!data) {
+      console.log('⚠️ HomeScreen: No data received');
       return;
     }
 
@@ -362,6 +441,7 @@ export default function HomeScreen({ route }) {
       conversations = data;
     }
 
+    console.log(`📊 HomeScreen: Processing ${conversations.length} conversations`);
 
     conversationsRef.current = conversations;
 
@@ -373,13 +453,16 @@ export default function HomeScreen({ route }) {
       return acc + unread;
     }, 0);
 
+    console.log('📊 HomeScreen: Total unread messages:', totalUnread);
     setUnreadCount(totalUnread);
     setCachedMessagesUnread(totalUnread);
   }, [currentUserId]);
 
   useSocket('newMessage', (message) => {
+    console.log('🔔 HomeScreen: New message received');
 
     if (!message || !currentUserId) {
+      console.log('⚠️ HomeScreen: Missing message or currentUserId');
       return;
     }
 
@@ -388,22 +471,27 @@ export default function HomeScreen({ route }) {
     const me = String(currentUserId);
 
     if (receiverId === me && senderId !== me) {
+      console.log('✅ HomeScreen: Message is for me, incrementing unread count');
 
       setUnreadCount(prev => {
         const newCount = prev + 1;
+        console.log(`📈 HomeScreen: Unread count updated: ${prev} → ${newCount}`);
         setCachedMessagesUnread(newCount);
         return newCount;
       });
 
       const socket = getSocket();
       if (socket?.connected) {
+        console.log('📡 HomeScreen: Requesting fresh chat box data');
         socket.emit('getUserChatBox', { userId: currentUserId });
       }
     } else {
+      console.log('ℹ️ HomeScreen: Message not for me or from me, ignoring');
     }
   }, [currentUserId]);
 
   useSocket('messageSent', (message) => {
+    console.log('📤 HomeScreen: Message sent event received');
 
     if (!message || !currentUserId) return;
 
@@ -411,6 +499,7 @@ export default function HomeScreen({ route }) {
     const me = String(currentUserId);
 
     if (senderId === me) {
+      console.log('📤 HomeScreen: Current user sent message, refreshing chat box');
       const socket = getSocket();
       if (socket?.connected) {
         socket.emit('getUserChatBox', { userId: currentUserId });
@@ -418,21 +507,40 @@ export default function HomeScreen({ route }) {
     }
   }, [currentUserId]);
 
+  useSocket('notification', () => {
+    console.log('🔔 HomeScreen: notification socket event received');
+    unreadNotification();
+  }, [unreadNotification]);
+
+  useSocket('newNotification', () => {
+    console.log('🔔 HomeScreen: newNotification socket event received');
+    unreadNotification();
+  }, [unreadNotification]);
+
+  useSocket('unreadNotification', () => {
+    console.log('🔔 HomeScreen: unreadNotification socket event received');
+    unreadNotification();
+  }, [unreadNotification]);
+
   useEffect(() => {
-    if (!currentUserId || !socketReady) {
-      return;
-    }
     const interval = setInterval(() => {
-      const socket = getSocket();
-      if (socket?.connected && isFocused) {
-        socket.emit('getUserChatBox', { userId: currentUserId });
+      if (isFocused) {
+        unreadNotification();
+        if (currentUserId && socketReady) {
+          const socket = getSocket();
+          if (socket?.connected) {
+            console.log('🔄 HomeScreen: Periodic refresh - requesting chat box');
+            socket.emit('getUserChatBox', { userId: currentUserId });
+          }
+        }
       }
     }, 30000);
 
     return () => {
+      console.log('⏰ HomeScreen: Clearing periodic refresh');
       clearInterval(interval);
     };
-  }, [currentUserId, socketReady, isFocused]);
+  }, [currentUserId, socketReady, isFocused, unreadNotification]);
 
   const fetchData = useCallback(async ({ page = 1, append = false } = {}) => {
     if (postsLoadingRef.current) return;
@@ -488,9 +596,11 @@ export default function HomeScreen({ route }) {
     try {
       await Promise.all([
         fetchData(),
+        unreadNotification(),
         currentUserId && socketReady ? (() => {
           const socket = getSocket();
           if (socket?.connected) {
+            console.log('🔄 HomeScreen: Manual refresh - requesting chat box');
             socket.emit('getUserChatBox', { userId: currentUserId });
           }
         })() : Promise.resolve(),
@@ -499,7 +609,7 @@ export default function HomeScreen({ route }) {
     } finally {
       setRefreshing(false);
     }
-  }, [currentUserId, socketReady, fetchData]);
+  }, [currentUserId, socketReady, fetchData, unreadNotification]);
 
   const fetchProfileData = useCallback(async () => {
     try {
@@ -532,6 +642,7 @@ export default function HomeScreen({ route }) {
       try {
         const response = await updateFcmToken({ fcmToken: fcmToken });
         if (response?.statusCode === 200) {
+          console.log('✅ FCM token updated successfully');
         } else {
           showToastMessage(toast, 'danger', response.data.message);
         }
@@ -575,6 +686,7 @@ export default function HomeScreen({ route }) {
 
   useEffect(() => {
     if (isInitialMountRef.current) {
+      console.log('👁️ HomeScreen initial mount - fetching data');
       isInitialMountRef.current = false;
       setStoryRefreshTick(t => t + 1);
 
@@ -586,6 +698,7 @@ export default function HomeScreen({ route }) {
       if (currentUserId && socketReady) {
         const socket = getSocket();
         if (socket?.connected) {
+          console.log('👁️ HomeScreen: Screen focused, requesting unread count');
           socket.emit('getUserChatBox', { userId: currentUserId });
         }
       }
@@ -594,12 +707,16 @@ export default function HomeScreen({ route }) {
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
+      console.log('📱 AppState changed:', appState.current, '→', nextAppState);
 
       if (
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active' &&
         isFocused
       ) {
+        console.log('🔄 App resumed while HomeScreen focused - refreshing');
+
+        unreadNotification();
 
         Promise.all([
           fetchData(),
@@ -611,6 +728,7 @@ export default function HomeScreen({ route }) {
         if (currentUserId && socketReady) {
           const socket = getSocket();
           if (socket?.connected) {
+            console.log('🔄 HomeScreen: App resumed, requesting unread count');
             socket.emit('getUserChatBox', { userId: currentUserId });
           }
         }
@@ -620,7 +738,7 @@ export default function HomeScreen({ route }) {
     });
 
     return () => subscription.remove();
-  }, [fetchData, fetchProfileData, isFocused, currentUserId, socketReady]);
+  }, [fetchData, fetchProfileData, isFocused, currentUserId, socketReady, unreadNotification]);
 
   useEffect(() => {
     addFcmToken();
@@ -700,10 +818,13 @@ const openLinkedStory = useCallback(async (sharedStoryId) => {
   useEffect(() => {
     if (!isFocused) return;
 
+    console.log('🎧 HomeScreen: Setting up PAYMENT_COMPLETED listener');
 
     const subscription = DeviceEventEmitter.addListener('PAYMENT_COMPLETED', (data) => {
+      console.log('🔔 HomeScreen: PAYMENT_COMPLETED event received!', data);
 
       if (global.isDonationInProgress) {
+        console.log('Home: Donation in progress, skipping full feed reload.');
         return;
       }
 
@@ -716,6 +837,7 @@ const openLinkedStory = useCallback(async (sharedStoryId) => {
     });
 
     return () => {
+      console.log('🔇 HomeScreen: Removing PAYMENT_COMPLETED listener');
       subscription.remove();
     };
   }, [isFocused]);
@@ -796,6 +918,7 @@ const openLinkedStory = useCallback(async (sharedStoryId) => {
     const subscription = DeviceEventEmitter.addListener(
       'HOME_TAB_PRESS',
       () => {
+        console.log('🏠 Home tab pressed again');
         postsRef.current?.scrollToTop?.();
         onRefresh();
       }

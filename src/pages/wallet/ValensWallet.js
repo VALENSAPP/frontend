@@ -40,7 +40,7 @@ import { useLanguage } from '../../i18n';
 import { resolveTransactionAmount } from '../../utils/transactionAmount';
 import { formatLocalizedActivityDate } from '../../utils/dateTimeFormatter';
 import { formatDisplayCurrency } from '../../utils/displayLocale';
-import { persistPaymentProvider, readPaymentProvider } from '../../utils/paymentCurrency';
+import { persistPaymentProvider, persistUserCountry, readPaymentProvider, readUserCountry } from '../../utils/paymentCurrency';
 
 
 const WALLET_ICON_BY_TYPE = {
@@ -110,11 +110,14 @@ const ValensWallet = ({ navigation }) => {
             ]);
 
             if (userRes.status === 'fulfilled' && userRes.value) {
-                const profileProvider = readPaymentProvider(
-                    userRes.value?.data?.user || userRes.value?.data || userRes.value,
-                );
+                const userData = userRes.value?.data?.user || userRes.value?.data || userRes.value;
+                const profileProvider = readPaymentProvider(userData);
                 if (profileProvider !== undefined) {
                     await persistPaymentProvider(profileProvider);
+                }
+                const profileCountry = readUserCountry(userData);
+                if (profileCountry !== undefined) {
+                    await persistUserCountry(profileCountry);
                 }
             }
 

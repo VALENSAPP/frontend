@@ -5,6 +5,8 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 import { hideLoader, showLoader } from '../../redux/actions/LoaderAction';
 import { useDispatch } from 'react-redux';
 import { getTokenPrice, getUserTokenInfoByBlockChain, purchaseTokenWithUSD } from '../../services/tokens';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
+import { navigate as rootNavigate } from '../../navigations/RootNavigation';
 import { showToastMessage } from '../displaytoastmessage';
 import { useToast } from 'react-native-toast-notifications';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
@@ -162,6 +164,18 @@ const TokenPurchaseModal = ({ onClose, onPurchase, hasFollowing = false, autoFoc
     }
 
     const canProceed = await requireStripeCustomerForPayment();
+    const isKycApproved = await ensureKycApprovedForPayment({
+      toast,
+      t,
+      onNavigateKyc: () => {
+        onClose();
+        rootNavigate('kycverify');
+      },
+    });
+    if (!isKycApproved) {
+      return;
+    }
+
     if (!canProceed) {
       setShowPaymentMethodModal(true);
       return;

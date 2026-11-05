@@ -18,6 +18,7 @@ import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { useDispatch } from 'react-redux';
 import { hideLoader, showLoader } from '../../redux/actions/LoaderAction';
 import { sendTip } from '../../services/stirpe';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
 import { showToastMessage } from '../displaytoastmessage';
 import { useToast } from 'react-native-toast-notifications';
 import {
@@ -134,6 +135,19 @@ export default function TipSupportModal({
 
     if (!isAmountValid) {
       showToastMessage(toast, 'danger', t('tipSupportScreen.minAmountError'));
+      return;
+    }
+
+    const isKycApproved = await ensureKycApprovedForPayment({
+      toast,
+      t,
+      onNavigateKyc: () => {
+        onClose();
+        navigation.navigate('kycverify');
+      },
+      navigation,
+    });
+    if (!isKycApproved) {
       return;
     }
 

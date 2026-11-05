@@ -45,7 +45,9 @@ import {
     getActivePaymentProvider,
     hydratePaymentProvider,
     persistPaymentProvider,
+    persistUserCountry,
     readPaymentProvider,
+    readUserCountry,
 } from "../../utils/paymentCurrency";
 import { formatProviderAmount } from "../../utils/paymentCurrency";
 
@@ -171,6 +173,10 @@ export default function WalletComponent() {
                 if (profileProvider !== undefined) {
                     const savedProvider = await persistPaymentProvider(profileProvider);
                     setPaymentProvider(savedProvider);
+                }
+                const profileCountry = readUserCountry(userDataToSet);
+                if (profileCountry !== undefined) {
+                    await persistUserCountry(profileCountry);
                 }
             } else {
                 showToastMessage(toast, 'danger', response.data.message);

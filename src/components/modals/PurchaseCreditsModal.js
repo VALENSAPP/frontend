@@ -4,6 +4,8 @@ import RBSheet from 'react-native-raw-bottom-sheet';
 import { useDispatch } from 'react-redux';
 import { hideLoader, showLoader } from '../../redux/actions/LoaderAction';
 import { buyCreditHits } from '../../services/stirpe';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
+import { navigate as rootNavigate } from '../../navigations/RootNavigation';
 import { showToastMessage } from '../displaytoastmessage';
 import { useToast } from 'react-native-toast-notifications';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
@@ -112,6 +114,19 @@ const CreditPurchaseModal = ({ visible, onClose, onPurchaseComplete, currentCred
       : t('creditPurchaseModal.maxPurchasableError_other', { count: maxPurchasable });
 
   const runPaymentSession = async (dataToSend) => {
+    const isKycApproved = await ensureKycApprovedForPayment({
+      toast,
+      t,
+      onNavigateKyc: () => {
+        sheetRef.current?.close();
+        if (onClose) onClose();
+        rootNavigate('kycverify');
+      },
+    });
+    if (!isKycApproved) {
+      return false;
+    }
+
     const response = await buyCreditHits(dataToSend);
     const url = getPaymentSessionUrl(response);
     if (!url) {

@@ -18,6 +18,8 @@ import { getDragonflyIcon } from '../profile/ProfilePersonalData';
 import { getSubscriptionByUserID, getUserSubscription } from '../../services/wallet';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FanPageSubscription } from '../../services/stirpe';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
+import { navigate as rootNavigate } from '../../navigations/RootNavigation';
 import { getFansubscriptionStatus } from '../../services/stirpe';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { useAppTheme } from '../../theme/useApptheme';
@@ -202,6 +204,7 @@ const SubscribeFlowModal = ({
             const verifyFanSubscriptionActive = async () => {
                 try {
                     const statusResponse = await getFansubscriptionStatus(targetUserId);
+                    console.log(statusResponse,"statusResponse..")
                     const data = statusResponse?.data;
                     if (
                         isActiveStatus(statusResponse?.status) ||
@@ -235,6 +238,20 @@ const SubscribeFlowModal = ({
             };
 
             const openPayment = async () => {
+                const isKycApproved = await ensureKycApprovedForPayment({
+                    toast,
+                    t,
+                    onNavigateKyc: async () => {
+                        await dismissSheets();
+                        closeAllModals();
+                        rootNavigate('kycverify');
+                    },
+                });
+                if (!isKycApproved) {
+                    dispatch(hideLoader());
+                    return { kind: 'kyc_blocked' };
+                }
+
                 const response = await FanPageSubscription(payload);
                 if (isNetworkFailureResponse(response)) return { kind: 'network' };
                 const url = getPaymentSessionUrl(response);

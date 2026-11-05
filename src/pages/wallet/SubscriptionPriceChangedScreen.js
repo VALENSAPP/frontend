@@ -20,6 +20,7 @@ import { useAppTheme } from '../../theme/useApptheme';
 import { useLanguage } from '../../i18n';
 import { getUserCredentials } from '../../services/post';
 import { FanPageSubscription, getFansubscriptionStatus } from '../../services/stirpe';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
 import { cancelFanSubscription, getMySubscriptionsList } from '../../services/wallet';
 import { getPaymentSessionUrl, STRIPE_BROWSER_OPTIONS } from '../../utils/stripeOnboarding';
 import { primaryCtaColors } from '../../utils/ctaContrast';
@@ -288,6 +289,15 @@ const SubscriptionPriceChangedScreen = () => {
 
   const handleAccept = useCallback(async () => {
     if (!creatorId || submittingAccept || submittingDecline) return;
+
+    const isKycApproved = await ensureKycApprovedForPayment({
+      navigation,
+      t,
+    });
+    if (!isKycApproved) {
+      return;
+    }
+
     setSubmittingAccept(true);
     paymentCompletedRef.current = false;
     try {
