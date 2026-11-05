@@ -21,10 +21,11 @@ import { useLanguage } from './i18n';
 import { useNotificationToast } from './utils/useNotificationToast';
 import { initializeSocket } from './services/socket';
 import { getUserCredentials } from './services/post';
-import { hydratePaymentProvider, persistPaymentProvider, readPaymentProvider } from './utils/paymentCurrency';
+import { hydratePaymentProvider, persistPaymentProvider, persistUserCountry, readPaymentProvider, readUserCountry } from './utils/paymentCurrency';
 import { getAllUser } from './services/users';
 import useNotificationSetup from './utils/useNotificationSetup';
 import { requestUserPermission } from './services/NotificationService';
+import { navigationRef } from './navigations/RootNavigation';
 import ProfileVerificationReminderModal from './components/modals/ProfileVerificationReminderModal';
 import { BASE_URL } from './config/urls';
 
@@ -124,7 +125,6 @@ export default function Main({ onSplashFinish }) {
   const dispatch = useDispatch();
   const { t } = useLanguage();
 
-  const navigationRef = useRef(null);
   const pendingNotificationNav = useRef(false);
   const pendingBattleRoute = useRef(null);
   const isNavigationReadyRef = useRef(false);
@@ -262,6 +262,10 @@ export default function Main({ onSplashFinish }) {
       const paymentProvider = readPaymentProvider(userData);
       if (paymentProvider !== undefined) {
         await persistPaymentProvider(paymentProvider);
+      }
+      const userCountry = readUserCountry(userData);
+      if (userCountry !== undefined) {
+        await persistUserCountry(userCountry);
       }
       const kycStatus = userData?.kycStatus !== 'APPROVED';
       const profile = userData?.profile;

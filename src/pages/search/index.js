@@ -828,6 +828,9 @@ const SearchScreen = () => {
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('SEARCH_TAB_PRESS', () => {
       setShowBattleExplore(false);
+      setShowSearchHistory(false);
+      setSearchText('');
+      Keyboard.dismiss();
     });
 
     return () => {
@@ -1856,7 +1859,12 @@ const SearchScreen = () => {
 
           <View style={[styles.container, bgStyle]}>
             <Pressable
-              onPress={Keyboard.dismiss}
+              onPress={() => {
+                Keyboard.dismiss();
+                if (showSearchHistory) {
+                  setShowSearchHistory(false);
+                }
+              }}
               style={{
                 position: 'absolute',
                 top: 0,
@@ -1879,11 +1887,21 @@ const SearchScreen = () => {
                   returnKeyType="search"
                   onSubmitEditing={handleSearchSubmit}
                 />
-                {searchText.length > 0 && (
+                {searchText.length > 0 ? (
                   <TouchableOpacity onPress={() => handleSearch('')}>
                     <Icon name="close-circle" size={20} color={mutedText} style={{ marginLeft: 8 }} />
                   </TouchableOpacity>
-                )}
+                ) : showSearchHistory ? (
+                  <TouchableOpacity
+                    onPress={() => {
+                      setShowSearchHistory(false);
+                      Keyboard.dismiss();
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Icon name="close-circle" size={20} color={mutedText} style={{ marginLeft: 8 }} />
+                  </TouchableOpacity>
+                ) : null}
               </View>
 
               {showSearchHistory && searchText.trim().length === 0 ? (
@@ -1911,58 +1929,70 @@ const SearchScreen = () => {
                       <ActivityIndicator size="small" color={accent} />
                     </View>
                   ) : searchHistory.length > 0 ? (
-                    searchHistory.map(item => {
-                      const searchedUser = item.raw?.searchedUser;
-                      
-                      return (
-                      <View key={item.id || item.name} style={styles.searchHistoryRow}>
-                        <TouchableOpacity
-                          style={styles.searchHistoryNameWrap}
-                          onPress={() => {
-                            if (searchedUser) {
-                              handleUserProfile(searchedUser);
-                            } else {
-                              runHistorySearch(item.name);
-                            }
-                          }}
-                          activeOpacity={0.8}
-                        >
-                          {searchedUser ? (
-                            <>
-                              <HexAvatar
-                                uri={normalizeImageUrl(searchedUser.image) || require('../../assets/icons/pngicons/user.png')}
-                                size={24}
-                                borderWidth={1}
-                                borderColor={border}
-                              />
-                              <Text style={[styles.searchHistoryName, textStyle, { marginLeft: 8 }]} numberOfLines={1}>
-                                {searchedUser.displayName || searchedUser.userName}
-                              </Text>
-                            </>
-                          ) : (
-                            <>
-                              <Icon name="time-outline" size={16} color={mutedText} style={{ marginRight: 8 }} />
-                              <Text style={[styles.searchHistoryName, textStyle]} numberOfLines={1}>
-                                {item.name}
-                              </Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleDeleteSearchHistoryItem(item)}
-                          disabled={historyDeletingId === item.id}
-                          style={styles.searchHistoryDeleteBtn}
-                          activeOpacity={0.7}
-                        >
-                          {historyDeletingId === item.id ? (
-                            <ActivityIndicator size="small" color={mutedText} />
-                          ) : (
-                            <Icon name="close" size={18} color={mutedText} />
-                          )}
-                        </TouchableOpacity>
-                      </View>
-                      );
-                    })
+                    <ScrollView
+                      style={styles.searchHistoryList}
+                      contentContainerStyle={[
+                        styles.searchHistoryListContent,
+                        { paddingBottom: Math.max(tabBarHeight, 60) + 20 },
+                      ]}
+                      showsVerticalScrollIndicator={false}
+                      keyboardShouldPersistTaps="handled"
+                      keyboardDismissMode="on-drag"
+                      nestedScrollEnabled
+                    >
+                      {searchHistory.map(item => {
+                        const searchedUser = item.raw?.searchedUser;
+                        
+                        return (
+                        <View key={item.id || item.name} style={styles.searchHistoryRow}>
+                          <TouchableOpacity
+                            style={styles.searchHistoryNameWrap}
+                            onPress={() => {
+                              if (searchedUser) {
+                                handleUserProfile(searchedUser);
+                              } else {
+                                runHistorySearch(item.name);
+                              }
+                            }}
+                            activeOpacity={0.8}
+                          >
+                            {searchedUser ? (
+                              <>
+                                <HexAvatar
+                                  uri={normalizeImageUrl(searchedUser.image) || require('../../assets/icons/pngicons/user.png')}
+                                  size={24}
+                                  borderWidth={1}
+                                  borderColor={border}
+                                />
+                                <Text style={[styles.searchHistoryName, textStyle, { marginLeft: 8 }]} numberOfLines={1}>
+                                  {searchedUser.displayName || searchedUser.userName}
+                                </Text>
+                              </>
+                            ) : (
+                              <>
+                                <Icon name="time-outline" size={16} color={mutedText} style={{ marginRight: 8 }} />
+                                <Text style={[styles.searchHistoryName, textStyle]} numberOfLines={1}>
+                                  {item.name}
+                                </Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleDeleteSearchHistoryItem(item)}
+                            disabled={historyDeletingId === item.id}
+                            style={styles.searchHistoryDeleteBtn}
+                            activeOpacity={0.7}
+                          >
+                            {historyDeletingId === item.id ? (
+                              <ActivityIndicator size="small" color={mutedText} />
+                            ) : (
+                              <Icon name="close" size={18} color={mutedText} />
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                        );
+                      })}
+                    </ScrollView>
                   ) : (
                     <View style={styles.searchHistoryEmptyState}>
                       <Text style={[styles.emptySubtitle, mutedTextStyle]}>No recent searches yet.</Text>
@@ -1972,7 +2002,7 @@ const SearchScreen = () => {
               ) : null}
 
               {/* Battle Explore bar + collapse control */}
-              {!isSearchActive && (
+              {!isSearchActive && !showSearchHistory && (
                 <View style={styles.battleExploreSection}>
                   <View style={styles.battleExploreHeaderRow}>
                     <TouchableOpacity
@@ -2171,7 +2201,7 @@ const SearchScreen = () => {
               ) : null}
 
               {/* Masonry grid */}
-              {searchText.trim().length === 0 ? (
+              {!showSearchHistory && searchText.trim().length === 0 ? (
                 posts.length > 0 ? (
                   <View style={styles.masonryWrapper}>
                     <FlatList

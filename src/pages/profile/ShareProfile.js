@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   StatusBar,
   ScrollView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CameraRoll } from '@react-native-camera-roll/camera-roll';
 import RNFS from 'react-native-fs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -41,6 +42,14 @@ const ShareProfile = ({ navigation }) => {
   const viewShotRef = useRef(null);
   const ownProfileImage = useSelector(state => state.profileImage?.profileImg);
   const currentUser = useSelector(state => state.user?.profile || state.auth?.user);
+  const reduxProfile = useSelector(state => state.userProfile?.userProfile);
+  const [asyncProfile, setAsyncProfile] = useState(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem('profile').then(stored => {
+      if (stored) setAsyncProfile(stored);
+    });
+  }, []);
 
   const profile = useMemo(() => {
     if (userData?.user && typeof userData.user === 'object') {
@@ -58,18 +67,55 @@ const ShareProfile = ({ navigation }) => {
   const qrAvatarSize = 56;
   const qrAvatarPos = (qrSize / 2) - (qrAvatarSize / 2);
 
+  const resolvedUserId = useMemo(() => (
+    String(
+      profile?.id ||
+      profile?.userId ||
+      profile?._id ||
+      userData?.id ||
+      userData?.userId ||
+      userData?._id ||
+      targetUserId ||
+      '',
+    ).trim()
+  ), [profile, targetUserId, userData]);
+
+  const currentUserId = useMemo(() => (
+    String(
+      currentUser?.id ||
+      currentUser?.userId ||
+      currentUser?._id ||
+      '',
+    ).trim()
+  ), [currentUser]);
+
+  const isOwnProfile = fromUsersProfile === true
+    ? false
+    : fromUsersProfile === false
+      ? true
+      : Boolean(resolvedUserId && currentUserId && resolvedUserId === currentUserId);
+
   const resolvedProfileType = useMemo(() => normalizeProfileType(
     profile?.profile ??
     profile?.accountType ??
     userData?.profile ??
-    routeParams?.profile
-  ), [profile?.accountType, profile?.profile, routeParams?.profile, userData?.profile]);
+    userData?.accountType ??
+    routeParams?.profile ??
+    routeParams?.profileType ??
+    (isOwnProfile ? (reduxProfile || asyncProfile || currentUser?.profile || currentUser?.accountType) : null)
+  ), [asyncProfile, currentUser?.accountType, currentUser?.profile, isOwnProfile, profile?.accountType, profile?.profile, reduxProfile, routeParams?.profile, routeParams?.profileType, userData?.accountType, userData?.profile]);
+
+  const isBusinessProfile = resolvedProfileType === 'company';
 
   const { text } = useAppTheme(resolvedProfileType);
   const profileActionGradient =
-    resolvedProfileType === 'company'
-      ? ['#C9A15a', '#e0e0c7']
+    isBusinessProfile
+      ? ['#8A6520', '#B8923E', '#C9A15A', '#E8D49E']
       : ['#50288a', '#7b2bb2', '#9f32bf', '#d942b0'];
+
+  const butterflySource = isBusinessProfile
+    ? require('../../assets/icons/pngicons/buttflypieceG.png')
+    : require('../../assets/icons/pngicons/butterflypiece.png');
 
   const requestPermission = async () => {
     if (Platform.OS === 'android') {
@@ -134,6 +180,7 @@ const ShareProfile = ({ navigation }) => {
       showToastMessage(toast, 'success', t('shareProfile.qrSavedToGallery'));
 
     } catch (error) {
+      console.log('FINAL ERROR:', error);
       Alert.alert(t('shareProfile.errorTitle'), error?.message || t('shareProfile.captureFailed'));
     }
   };
@@ -159,34 +206,6 @@ const ShareProfile = ({ navigation }) => {
       '',
     ).trim()
   ), [profile, username]);
-
-  const resolvedUserId = useMemo(() => (
-    String(
-      profile?.id ||
-      profile?.userId ||
-      profile?._id ||
-      userData?.id ||
-      userData?.userId ||
-      userData?._id ||
-      targetUserId ||
-      '',
-    ).trim()
-  ), [profile, targetUserId, userData]);
-
-  const currentUserId = useMemo(() => (
-    String(
-      currentUser?.id ||
-      currentUser?.userId ||
-      currentUser?._id ||
-      '',
-    ).trim()
-  ), [currentUser]);
-
-  const isOwnProfile = fromUsersProfile === true
-    ? false
-    : fromUsersProfile === false
-      ? true
-      : Boolean(resolvedUserId && currentUserId && resolvedUserId === currentUserId);
 
   const resolvedAvatarUri = useMemo(() => (
     profile?.image ||
@@ -254,9 +273,12 @@ const ShareProfile = ({ navigation }) => {
 
       if (result.action === Share.sharedAction) {
         if (result.activityType) {
+          console.log('Shared with activity type:', result.activityType);
         } else {
+          console.log('Shared successfully');
         }
       } else if (result.action === Share.dismissedAction) {
+        console.log('Share dismissed');
       }
     } catch (error) {
       Alert.alert(
@@ -301,16 +323,32 @@ const ShareProfile = ({ navigation }) => {
     >
       {/* Background Decorative Sparkles */}
       <View style={styles.sparkle1} pointerEvents="none">
-        <MaterialCommunityIcons name="star-four-points" size={24} color="#FFFFFF" />
+        <MaterialCommunityIcons
+          name="star-four-points"
+          size={24}
+          color={isBusinessProfile ? '#FFF6E0' : '#FFFFFF'}
+        />
       </View>
       <View style={styles.sparkle2} pointerEvents="none">
-        <MaterialCommunityIcons name="star-four-points" size={18} color="#FFFFFF" />
+        <MaterialCommunityIcons
+          name="star-four-points"
+          size={18}
+          color={isBusinessProfile ? '#FFE8A8' : '#FFFFFF'}
+        />
       </View>
       <View style={styles.sparkle3} pointerEvents="none">
-        <MaterialCommunityIcons name="star-four-points" size={22} color="#FFFFFF" />
+        <MaterialCommunityIcons
+          name="star-four-points"
+          size={22}
+          color={isBusinessProfile ? '#FFF6E0' : '#FFFFFF'}
+        />
       </View>
       <View style={styles.sparkle4} pointerEvents="none">
-        <MaterialCommunityIcons name="star-four-points" size={14} color="#FFFFFF" />
+        <MaterialCommunityIcons
+          name="star-four-points"
+          size={14}
+          color={isBusinessProfile ? '#FFE8A8' : '#FFFFFF'}
+        />
       </View>
 
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -340,11 +378,12 @@ const ShareProfile = ({ navigation }) => {
         >
           <View style={styles.shareCard}>
             {/* Mascot on top-right */}
-            {/* <Image
-              source={require('../../assets/icons/pngicons/shareMascot.png')}
+            <Image
+              source={butterflySource}
               style={styles.mascotImage}
-              pointerEvents="none"
-            /> */}
+              // pointerEvents="none"
+              // resizeMode="contain"
+            />
 
             <View style={styles.profileRow}>
               <HexAvatar
@@ -354,7 +393,9 @@ const ShareProfile = ({ navigation }) => {
                 borderColor="rgba(255,255,255,0.4)"
               />
               <View style={styles.profileText}>
-                <Text style={styles.brandText}>{t('shareProfile.brandName')}</Text>
+                <Text style={styles.brandText} numberOfLines={1}>
+                  {profile?.displayName || profile?.name || t('shareProfile.brandName')}
+                </Text>
                 <Text style={styles.handleText} numberOfLines={1}>
                   @{resolvedUsername || 'valens'}
                 </Text>
@@ -386,7 +427,7 @@ const ShareProfile = ({ navigation }) => {
                         uri={resolvedAvatarUri}
                         size={qrAvatarSize}
                         borderWidth={2.5}
-                        borderColor={text || '#50288a'}
+                        borderColor={isBusinessProfile ? '#C9A15A' : (text || '#50288a')}
                       />
                     </View>
                   </View>
@@ -501,10 +542,10 @@ const styles = StyleSheet.create({
   },
   mascotImage: {
     position: 'absolute',
-    top: -42,
-    right: -10,
-    width: 175,
-    height: 195,
+    top: -25,
+    right: -6,
+    width: 135,
+    height: 135,
     resizeMode: 'contain',
     zIndex: 10,
   },
@@ -513,7 +554,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginBottom: 16,
-    maxWidth: '62%',
+    maxWidth: '64%',
   },
   profileText: {
     flex: 1,

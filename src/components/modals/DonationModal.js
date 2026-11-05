@@ -19,6 +19,8 @@ import { useThemeContext } from '../../theme/ThemeContext';
 import { useDispatch } from 'react-redux';
 import { hideLoader, showLoader } from '../../redux/actions/LoaderAction';
 import { addMissionDonation, purchaseTokenWithUSD } from '../../services/tokens';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
+import { navigate as rootNavigate } from '../../navigations/RootNavigation';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { showToastMessage } from '../displaytoastmessage';
 import { useToast } from 'react-native-toast-notifications';
@@ -144,6 +146,20 @@ export default function MissionSupportScreen({ visible, onClose, item, onDonatio
     }, [visible]);
 
     const runPaymentFlow = async (createPaymentSession) => {
+        const isKycApproved = await ensureKycApprovedForPayment({
+            toast,
+            t,
+            onNavigateKyc: () => {
+                onClose();
+                rootNavigate('kycverify');
+            },
+        });
+        if (!isKycApproved) {
+            setIsButtonLoading(false);
+            dispatch(hideLoader());
+            return;
+        }
+
         global.isDonationInProgress = true;
         const onboardingStatus = await GetInbordingstatus();
 

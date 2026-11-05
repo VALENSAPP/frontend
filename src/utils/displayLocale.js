@@ -1,5 +1,5 @@
 import { getActiveLanguage } from '../i18n';
-import { currencyForPaymentProvider, getActivePaymentProvider } from './paymentCurrency';
+import { currencyForPaymentProvider, getActivePaymentProvider, getActiveUserCountry } from './paymentCurrency';
 
 const LOCALE_FORMAT = {
   en: { locale: 'en-US', hour12: true },
@@ -39,11 +39,12 @@ const normalizeCurrencySign = (formatted, currency) => {
   return formatted;
 };
 
-export const formatDisplayCurrency = (value, language, paymentProvider) => {
+export const formatDisplayCurrency = (value, language, paymentProvider, country) => {
   const amount = Number(value) || 0;
   const { locale } = formatConfig(language);
   const provider = paymentProvider === undefined ? getActivePaymentProvider() : paymentProvider;
-  const currency = currencyForPaymentProvider(provider);
+  const userCountry = country === undefined ? getActiveUserCountry() : country;
+  const currency = currencyForPaymentProvider(provider, userCountry);
   return normalizeCurrencySign(formatAmountForCurrency(amount, locale, currency), currency);
 };
 

@@ -25,7 +25,7 @@ import OTPTextInput from 'react-native-otp-textinput';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getProfile } from '../../../services/createProfile';
 import { persistStripeCustomerId } from '../../../hooks/useStripeCustomer';
-import { persistPaymentProvider } from '../../../utils/paymentCurrency';
+import { persistPaymentProvider, persistUserCountry } from '../../../utils/paymentCurrency';
 import { useAppTheme } from '../../../theme/useApptheme';
 import { useThemeContext } from '../../../theme/ThemeContext';
 import { loggedIn } from '../../../redux/actions/LoginAction';
@@ -122,6 +122,7 @@ export default function OTPScreen() {
     if (!response) return false;
 
     const subData = response?.data?.subscription || response?.subscription || response?.data || response;
+    console.log('📢 Subscription data:', subData);
     const isCanceled = Boolean(
       response?.data?.isCancel === 'No' ||
       response?.data?.isCancel === true ||
@@ -214,6 +215,9 @@ export default function OTPScreen() {
         if (response?.data?.user && Object.prototype.hasOwnProperty.call(response.data.user, 'paymentProvider')) {
           await persistPaymentProvider(response.data.user.paymentProvider);
         }
+        if (response?.data?.user?.country) {
+          await persistUserCountry(response.data.user.country);
+        }
         await persistStripeCustomerId(response?.data?.user?.stripeCustomerId ?? null, dispatch);
         if (
           response.data.user.walletAddress &&
@@ -238,11 +242,13 @@ export default function OTPScreen() {
         if (profileType !== 'company') {
           try {
             const subResponse = await checkSubscription();
+            console.log('📢 checkSubscription response on signup complete:', subResponse);
             const hasActiveSubscription = hasValidSubscriptionAccess(subResponse);
             if (!hasActiveSubscription) {
               showRegularSubscriptionPrompt = true;
             }
           } catch (subErr) {
+            console.log('❌ Error in checkSubscription on signup complete:', subErr);
             showRegularSubscriptionPrompt = true;
           }
         }

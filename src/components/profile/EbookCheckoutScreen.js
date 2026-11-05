@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { InAppBrowser } from 'react-native-inappbrowser-reborn';
 import { getPaymentSessionUrl, STRIPE_BROWSER_OPTIONS } from '../../utils/stripeOnboarding';
 import { payMarketplaceEbook } from '../../services/stirpe';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
 import { getMarketplaceEbookById, getMarketplaceEbooksByClosetId, getPurchasedEbooks } from '../../services/post';
 import { formSurfaces, selectedSurface, themedCard } from '../../utils/closetTheme';
 import { useLanguage } from '../../i18n';
@@ -157,6 +158,14 @@ const EbookCheckoutScreen = () => {
   const total = price;
 
   const handlePay = async () => {
+    const isKycApproved = await ensureKycApprovedForPayment({
+      navigation,
+      t,
+    });
+    if (!isKycApproved) {
+      return;
+    }
+
     setPaying(true);
     try {
       const payload = {

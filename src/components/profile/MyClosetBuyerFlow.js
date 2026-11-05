@@ -49,6 +49,7 @@ import {
   getBuyerOrderDetail,
 } from '../../services/myCloset';
 import { getClosetChatThreadsApi } from '../../services/chatMessage';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useThemeContext } from '../../theme/ThemeContext';
 import { useLanguage } from '../../i18n';
@@ -4335,6 +4336,14 @@ const MyClosetBuyerReviewScreen = ({ navigation, route }) => {
     // addressId is required only when this order actually needs shipping
     if (requiresShipping && !addressId) {
       Alert.alert(t('myClosetBuyer.selectAddressTitle'), t('myClosetBuyer.selectAddressMessage'));
+      return;
+    }
+
+    const isKycApproved = await ensureKycApprovedForPayment({
+      navigation,
+      t,
+    });
+    if (!isKycApproved) {
       return;
     }
 
