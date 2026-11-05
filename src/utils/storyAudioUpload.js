@@ -253,6 +253,5 @@ export async function appendStoryAudioFiles(formData, processedArray = []) {
     }
   }
   if (appendedFields.length > 0) {
-    console.log('[Story upload] multipart audio parts attached:', appendedFields);
   }
 }

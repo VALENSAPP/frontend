@@ -3210,9 +3210,7 @@ const deliverySummaryLines = useMemo(() => {
 
     dispatch(showLoader());
     try {
-      console.log('[MyCloset] Creating item with draft:', draft);
       const response = await createMyClosetItem(draft);
-      console.log('[MyCloset] Create item API response:', response);
       const statusCode = response?.statusCode;
 
       if (statusCode === 200 || statusCode === 201) {
@@ -3405,7 +3403,6 @@ const MyClosetAddItemPublishedScreen = ({ navigation, route }) => {
           setPublishedShopName(fetchedShopName);
         }
       } catch (error) {
-        console.log('loadShopName error', error);
       }
     };
 
@@ -3428,7 +3425,6 @@ const MyClosetAddItemPublishedScreen = ({ navigation, route }) => {
       }) || link;
       await Share.share({ message });
     } catch (error) {
-      console.log('Share error', error);
     }
   };
 

@@ -16,7 +16,6 @@ export default function CallbackScreen({ route }) {
       try {
         // Extract params from URL if needed
         const params = route?.params;
-        console.log('Callback params:', params);
 
         // Do any necessary processing here (token exchange, etc.)
         // Make sure to check isMounted before state updates
@@ -34,7 +33,6 @@ export default function CallbackScreen({ route }) {
               try {
                 navigation.replace('Login');
               } catch (e) {
-                console.log('CallbackScreen navigation fallback failed:', e);
               }
             }
           }
@@ -51,7 +49,6 @@ export default function CallbackScreen({ route }) {
               try {
                 navigation.replace('Login');
               } catch (e) {
-                console.log('CallbackScreen navigation error fallback failed:', e);
               }
             }
           }

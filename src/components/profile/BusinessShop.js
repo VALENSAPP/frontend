@@ -167,7 +167,6 @@ const BusinessShopScreen = ({
   dashboard,
   closetNavContext,
 }) => {
-  console.log(userData, '---------------------userData-------------------------')
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
@@ -300,7 +299,6 @@ const BusinessShopScreen = ({
           return data.some((sub) => isActiveStatus(sub?.status));
         }
       } catch (error) {
-        console.log('Private subscription status error:', error);
       }
       return false;
     },
@@ -355,7 +353,6 @@ const BusinessShopScreen = ({
 
       setPosts(mediaFilteredData);
     } catch (error) {
-      console.log(error);
       setPosts([]);
     } finally {
       setLoading(false);
@@ -383,7 +380,6 @@ const BusinessShopScreen = ({
     setStatusLoading(true);
     try {
       const active = await getSubscriptionStatus(userData.id);
-      console.log(active, 'data in this')
       setResolvedIsSubscribed(active);
       if (active) await fetchPosts(userData.id);
       else setPosts([]);

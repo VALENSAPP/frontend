@@ -45,7 +45,6 @@ const ReviewChangesScreen = () => {
             };
 
             const response = await setPrivateSubscription(payload);
-            console.log(response, 'update response e eheterheerer');
             if (response?.statusCode === 200 || response?.status === 200) {
                 setShowSuccessModal(true);
             } else {

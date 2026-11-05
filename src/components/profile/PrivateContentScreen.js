@@ -368,7 +368,6 @@ const PrivateContentScreen = ({
           return data.some((sub) => isActiveStatus(sub?.status));
         }
       } catch (error) {
-        console.log('Private subscription status error:', error);
       }
       return false;
     },
@@ -397,7 +396,6 @@ const PrivateContentScreen = ({
           : Array.isArray(payload?.data)
             ? payload.data
             : [];
-      console.log('[PrivateContent] private-content API response:', response);
       const filteredData = formattedData.filter(
         (post) => !post?.visibleTo || post.visibleTo === ''
       );
@@ -423,12 +421,10 @@ const PrivateContentScreen = ({
       });
 
       if (activeMediaFilter === 'video') {
-        console.log('[PrivateContent] mapped private videos:', mediaFilteredData);
       }
 
       setPosts(applyClientPostOverlayCacheToList(mediaFilteredData));
     } catch (error) {
-      console.log(error);
       setPosts([]);
     } finally {
       setLoading(false);
@@ -456,7 +452,6 @@ const PrivateContentScreen = ({
     setStatusLoading(true);
     try {
       const active = await getSubscriptionStatus(userData.id);
-      console.log(active, 'data in this')
       setResolvedIsSubscribed(active);
       if (active) await fetchPosts(userData.id);
       else setPosts([]);
@@ -749,7 +744,6 @@ const PrivateContentScreen = ({
         userId={userData?.id}
         profileType={profileThemeType}
         onSave={(text) => {
-          console.log('Saved private content message:', text);
         }}
       />
       {/* {!canViewPrivateContent ? (

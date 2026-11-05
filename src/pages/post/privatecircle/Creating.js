@@ -134,7 +134,6 @@ export default function PrivateCircleCreating() {
 
           if (selectedIds.length > 0) {
             const membersRes = await addPrivateCircleMembers(selectedIds);
-            console.log(membersRes, "add members response=>>>>>>>>>>>>>>");
             if (!isPrivateCircleApiSuccess(membersRes)) {
               throw new Error(
                 membersRes?.message ||

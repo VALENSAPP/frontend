@@ -80,7 +80,6 @@ const ReferralPointsScreen = () => {
   const loadPoints = useCallback(async () => {
     try {
       const response = await totalPoints();
-      console.log(response,'dta in rposne of poinstststs')
       const statusCode =
         response?.statusCode ?? response?.data?.statusCode ?? response?.status;
       const ok =
@@ -92,7 +91,6 @@ const ReferralPointsScreen = () => {
       }
       setPoints(parseTotalPlatformPointsPayload(response));
     } catch (error) {
-      console.log('ReferralPointsScreen loadPoints error:', error);
     }
   }, []);
 

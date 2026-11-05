@@ -303,7 +303,6 @@ const PrivateCircle = memo(({ isOwnProfile = false, onStartPress, route, userDat
 
       setPosts(applyClientPostOverlayCacheToList(filteredData));
     } catch (error) {
-      console.log('PrivateCircle fetchPosts error:', error);
       setPosts([]);
     }
   }, []);
@@ -311,14 +310,12 @@ const PrivateCircle = memo(({ isOwnProfile = false, onStartPress, route, userDat
   const fetchRecentActivities = useCallback(async () => {
     try {
       const response = await recentActivity();
-      console.log(response, '  PrivateCircle recentActivity API response:');
       if (!isPrivateCircleApiSuccess(response)) {
         setRecentActivities([]);
         return;
       }
       setRecentActivities(parseRecentActivities(response, t));
     } catch (error) {
-      console.log('PrivateCircle recentActivity error:', error);
       setRecentActivities([]);
     }
   }, [t]);
@@ -326,7 +323,6 @@ const PrivateCircle = memo(({ isOwnProfile = false, onStartPress, route, userDat
   const fetchPrivateCircleDashboard = useCallback(async () => {
     try {
       const response = await getPrivateCircleDashboard();
-      console.log(response, '  PrivateCircle dashboard API response:');
       if (!isPrivateCircleApiSuccess(response)) {
         setDashboardMembers([]);
         setDashboardMemberCount(0);
@@ -351,7 +347,6 @@ const PrivateCircle = memo(({ isOwnProfile = false, onStartPress, route, userDat
       setHasPrivateCircle(true);
       return true;
     } catch (error) {
-      console.log('PrivateCircle dashboard error:', error);
       setDashboardMembers([]);
       setDashboardMemberCount(0);
       setDashboardPostCount(0);
@@ -385,7 +380,6 @@ const PrivateCircle = memo(({ isOwnProfile = false, onStartPress, route, userDat
 
       // Guest profile → call privateSetup to get the owner's members list
       const response = await getPvtCircleMembers(userData?.id);
-      console.log('PrivateCircle membership API response:', response);
       if (!isPrivateCircleApiSuccess(response)) {
         // API failed or not set up → not a member
         setIsMember(false);
@@ -425,7 +419,6 @@ const PrivateCircle = memo(({ isOwnProfile = false, onStartPress, route, userDat
         ? members.some((m) => String(m?.id) === String(loggedInUserId || ''))
         : false;
 
-      console.log('PrivateCircle member check:', { found, loggedInUserId, members });
 
       setIsMember(found);
 
@@ -435,7 +428,6 @@ const PrivateCircle = memo(({ isOwnProfile = false, onStartPress, route, userDat
         setPosts([]);
       }
     } catch (error) {
-      console.log('PrivateCircle membership check error:', error);
       setIsMember(false);
       setHasPrivateCircle(false);
       setPosts([]);
@@ -490,7 +482,6 @@ const PrivateCircle = memo(({ isOwnProfile = false, onStartPress, route, userDat
       if (!isPrivateCircleApiSuccess(response)) return;
       await fetchPrivateCircleDashboard();
     } catch (error) {
-      console.log('PrivateCircle remove member error:', error);
     } finally {
       setRemovingMemberIds((prev) => prev.filter((id) => id !== normalized));
     }

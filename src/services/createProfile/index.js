@@ -1,32 +1,33 @@
 import axiosinstance from '../../services';
 import { fetchAndApplyUserLanguage } from '../../i18n';
-
-// export const getProfile = async (data) => {
-//     return axiosinstance.get('user/profile', data);
-// }
+import { dedupeRequest, invalidateApiCache } from '../../utils/apiDeduplicator';
 
 export const getProfile = async (userId) => {
   if (!userId || typeof userId !== 'string' || userId.trim() === '') {
     throw new Error('getProfile: you must pass a valid userId');
   }
-  try {
-    fetchAndApplyUserLanguage().catch((e) => {
-      console.log('fetchAndApplyUserLanguage in getProfile error:', e?.message || e);
-    });
-
-    return await axiosinstance.get('user/profile', {
-      params: { userId }
-    });
-
-  } catch (error) {
-    throw new Error(
-      error?.response?.data?.message /*|| 'Failed to fetch user profile'*/
-    );
-  }
+  return dedupeRequest(
+    `user/profile:${userId.trim()}`,
+    async () => {
+      try {
+        fetchAndApplyUserLanguage().catch(() => {});
+        return await axiosinstance.get('user/profile', {
+          params: { userId: userId.trim() }
+        });
+      } catch (error) {
+        throw new Error(
+          error?.response?.data?.message || 'Failed to fetch user profile'
+        );
+      }
+    },
+    { ttlMs: 4000 }
+  );
 };
 
 export const EditProfile = async (data) => { 
-    return axiosinstance.patch('user/editProfile', data); 
+    const res = await axiosinstance.patch('user/editProfile', data);
+    invalidateApiCache(/^user\/profile:/);
+    return res;
 }
 
 export const checkDisplayName = async (data) => {
@@ -42,4 +43,4 @@ export const checkUsername = async (data) => {
           ...data,
         };
     return axiosinstance.post('user/check-username', payload);
-};
+};

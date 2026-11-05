@@ -793,7 +793,6 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
         setLoading(true);
         resolvedOrderId = await resolveOrderIdFromPaymentId(paymentId, viewType);
       } catch (err) {
-        console.log('Error resolving paymentId in MyClosetOrderDetailScreen:', err);
       }
     }
 
@@ -822,7 +821,6 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
         const list = Array.isArray(data) ? data : Array.isArray(data?.orders) ? data.orders : [];
         return findOrderByReferences(list, lookupRefs) || null;
       } catch (err) {
-        console.log('Order list lookup failed:', err?.message || err);
         return null;
       }
     };
@@ -838,7 +836,6 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
           rawPayload = detailPayload;
         }
       } catch (err) {
-        console.log(`Order detail endpoint for ${viewType} failed:`, err?.message || err);
       }
     }
 
@@ -851,7 +848,6 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
           rawPayload = pData;
         }
       } catch (err) {
-        console.log('Payment detail endpoint failed:', err?.message || err);
       }
     }
 
@@ -889,13 +885,10 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
       setError(null);
 
       if (viewType !== 'buyer' && resolvedOrderId) {
-        console.log(`API CALL: markOrderAsViewed started for orderId: ${resolvedOrderId}`);
         markOrderAsViewed(resolvedOrderId)
           .then(res => {
-            console.log(`API CALL: markOrderAsViewed success response for ${resolvedOrderId}:`, res?.data ?? res);
           })
           .catch(err => {
-            console.log(`API CALL: markOrderAsViewed error for ${resolvedOrderId}:`, err?.response?.data ?? err?.message ?? err);
           });
       }
     } else {
@@ -1079,7 +1072,6 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`).catch(() => { });
   };
 
-  console.log("order----------------------------", order)
   return (
     <SafeAreaView style={[styles.safeArea, bgStyle]}>
       <Header

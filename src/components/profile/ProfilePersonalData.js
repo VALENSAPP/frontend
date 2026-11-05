@@ -717,7 +717,6 @@ const ProfilePersonData = ({
       const queryId = viewedBattleUserId || targetUserId || userData?.id || userData?._id || userData?.userId || userId;
       const params = queryId ? { userId: queryId } : {};
       const response = await tipRecived(params);
-      console.log(response, 'tipRecived recivedd dd d d d d d ');
       const rawValue =
         response?.data?.totalTipEarning ??
         response?.data?.data?.totalTipEarning ??
@@ -781,7 +780,6 @@ const ProfilePersonData = ({
           if (!id) return;
 
           const response = await getProfile(id);
-          console.log(response, 'data in this didieeeieiei')
           if (!isActive) return;
 
           if (response.statusCode === 200 && response.data) {

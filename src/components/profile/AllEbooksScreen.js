@@ -157,7 +157,6 @@ const AllEbooksScreen = () => {
         return;
       }
 
-      console.log('Fetching marketplace ebooks in AllEbooksScreen for closetId:', closetIdToUse);
       const response = await getMarketplaceEbooksByClosetId(closetIdToUse);
       const payload =
         response?.data?.ebooks ??
@@ -203,7 +202,6 @@ const AllEbooksScreen = () => {
       setPurchasedMap(map);
 
     } catch (error) {
-      console.log('AllEbooksScreen fetch error:', error);
       setEbooks([]);
     } finally {
       setLoading(false);

@@ -373,7 +373,7 @@ const BusinessProfileForm = () => {
         return;
       }
       const snsMobileSDK = SNSMobileSDK.init(accessToken, () => accessToken)
-        .withHandlers({ onStatusChanged: event => console.log('Sumsub status:', event) })
+        .withHandlers({ onStatusChanged: event => {} })
         .withDebug(true)
         .build();
       await snsMobileSDK.launch();
@@ -393,9 +393,7 @@ const BusinessProfileForm = () => {
   const getVerificationStatus = useCallback(async () => {
     try {
       const response = await CheckVerificationStatus();
-      console.log(response, 'response in status');
     } catch (err) {
-      console.log(err, 'error in get status');
     }
   }, []);
 

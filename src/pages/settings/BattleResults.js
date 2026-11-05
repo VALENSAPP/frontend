@@ -339,7 +339,6 @@ export default function BattleResults({ navigation }) {
 
       try {
         const winnerRes = await battleWinner(battleId);
-        console.log('Fetched battle winner data:', winnerRes);
         // Supports both the API envelope and an axios response object.
         const result = winnerRes?.data?.data || winnerRes?.data || winnerRes;
 
@@ -347,7 +346,6 @@ export default function BattleResults({ navigation }) {
           setWinnerData(result);
         }
       } catch (err) {
-        console.log('Error fetching battle data:', err);
       } finally {
         if (active) setWinnerLookupComplete(true);
       }

@@ -75,20 +75,38 @@ const flattenCommentEntries = entries =>
 const buildCommentTree = comments => {
   const flatComments = flattenCommentEntries(comments).map(mapCommentItem);
   const byId = new Map();
+  const parentMap = new Map();
 
   flatComments.forEach(comment => {
-    byId.set(comment.id, { ...comment, replies: [] });
+    const sId = String(comment.id);
+    byId.set(sId, { ...comment, replies: [] });
+    if (comment.parentId) {
+      parentMap.set(sId, String(comment.parentId));
+    }
   });
 
   const roots = [];
 
   flatComments.forEach(comment => {
-    const normalizedComment = byId.get(comment.id);
+    const sId = String(comment.id);
+    const normalizedComment = byId.get(sId);
     const parentId = comment.parentId ? String(comment.parentId) : '';
 
     if (parentId && byId.has(parentId)) {
-      byId.get(parentId).replies.push(normalizedComment);
-      return;
+      let rootId = parentId;
+      const visited = new Set([sId]);
+      while (parentMap.has(rootId) && byId.has(parentMap.get(rootId)) && !visited.has(rootId)) {
+        visited.add(rootId);
+        rootId = parentMap.get(rootId);
+      }
+
+      const rootComment = byId.get(rootId);
+      if (rootComment && String(rootComment.id) !== sId) {
+        if (!rootComment.replies.some(r => String(r.id) === sId)) {
+          rootComment.replies.push(normalizedComment);
+        }
+        return;
+      }
     }
 
     roots.push(normalizedComment);
@@ -106,7 +124,10 @@ const DralensAiCommentView = memo(({
   isDarkMode,
   toast,
   isReply = false,
+  onReplyPress,
+  onAskDralens,
 }) => {
+  const { t } = useLanguage();
   return (
     <View style={styles.dralensCommentRow}>
       <View
@@ -146,6 +167,23 @@ const DralensAiCommentView = memo(({
         </View>
 
         <View style={styles.dralensActionsRow}>
+          <View style={styles.dralensActionLeftButtons}>
+            <TouchableOpacity
+              onPress={() => onReplyPress?.(item)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={[styles.replyButtonText, { color: accent }]}>
+                {t('commentSheet.reply') || 'Reply'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => onAskDralens?.(item)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={[styles.replyButtonText, { color: '#8B5CF6', fontWeight: '700' }]}>
+                ✦ Ask Dralens
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           <TouchableOpacity
             style={styles.dralensCopyButton}
             onPress={() => {
@@ -179,6 +217,7 @@ const CommentItem = memo(
     onThumbsUpPress,
     onThumbsDownPress,
     commentVotes,
+    onAskDralens,
   }) => {
     const { t } = useLanguage();
     const { cardStyle, border, mutedText, accent } = useAppTheme();
@@ -303,6 +342,8 @@ const CommentItem = memo(
             accent={accent}
             isDarkMode={isDarkMode}
             toast={toast}
+            onReplyPress={onReplyPress}
+            onAskDralens={onAskDralens}
           />
         ) : (
           <View style={styles.commentRow}>
@@ -332,6 +373,13 @@ const CommentItem = memo(
               <TouchableOpacity onPress={() => onReplyPress?.(item)}>
                 <Text style={[styles.replyButtonText, { color: accent }]}>
                   {t('commentSheet.reply')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => onAskDralens?.(item)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={[styles.replyButtonText, { color: '#8B5CF6', fontWeight: '700' }]}>
+                  ✦ Ask Dralens
                 </Text>
               </TouchableOpacity>
 
@@ -380,17 +428,27 @@ const CommentItem = memo(
                   )}
                 </TouchableOpacity>
               </View>
-
-              {hasReplies ? (
-                <TouchableOpacity onPress={() => onToggleReplies?.(item.id)}>
-                  <Text style={[styles.replyButtonText, { color: accent }]}>
-                    {isExpanded
-                      ? t('commentSheet.hideReplies')
-                      : t('commentSheet.viewReplies', { count: item.replies.length })}
-                  </Text>
-                </TouchableOpacity>
-              ) : null}
             </View>
+
+            {hasReplies ? (
+              <TouchableOpacity
+                onPress={() => onToggleReplies?.(item.id)}
+                style={styles.toggleRepliesRow}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <View style={[styles.toggleRepliesLine, { backgroundColor: mutedText }]} />
+                <Text style={[styles.toggleRepliesText, { color: accent }]}>
+                  {isExpanded
+                    ? t('commentSheet.hideReplies')
+                    : t('commentSheet.viewReplies', { count: item.replies.length })}
+                </Text>
+                <Icon
+                  name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={13}
+                  color={accent}
+                  style={{ marginLeft: 4 }}
+                />
+              </TouchableOpacity>
+            ) : null}
           </View>
 
           {canModerate && (
@@ -433,6 +491,8 @@ const CommentItem = memo(
                       isDarkMode={isDarkMode}
                       toast={toast}
                       isReply
+                      onReplyPress={onReplyPress}
+                      onAskDralens={onAskDralens}
                     />
                   </View>
                 );
@@ -464,6 +524,13 @@ const CommentItem = memo(
                       <TouchableOpacity onPress={() => onReplyPress?.(reply)}>
                         <Text style={[styles.replyButtonText, { color: accent }]}>
                           {t('commentSheet.reply')}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => onAskDralens?.(reply)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Text style={[styles.replyButtonText, { color: '#8B5CF6', fontWeight: '700' }]}>
+                          ✦ Ask Dralens
                         </Text>
                       </TouchableOpacity>
                       <View style={styles.votingContainer}>
@@ -567,6 +634,7 @@ export default function CommentSheet({
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const [isAskingDralens, setIsAskingDralens] = useState(false);
   const [askDralensTarget, setAskDralensTarget] = useState(null);
+  const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false);
 
   const isFetchingRef = useRef(false);
   const mentionSearchRef = useRef(null);
@@ -577,6 +645,131 @@ export default function CommentSheet({
   const replySelectionRef = useRef({ start: 0, end: 0 });
   const activeMentionRef = useRef(null);
   const inputRef = useRef(null);
+  const pendingAiRepliesRef = useRef(new Set());
+
+  const buildImagePayload = useCallback(() => {
+    let imagePayload = null;
+    const mediaObj = Array.isArray(postMedia) ? postMedia[0] : postMedia;
+    const rawUrl = mediaObj?.url || mediaObj?.uri || (typeof mediaObj === 'string' ? mediaObj : null);
+    if (rawUrl) {
+      const mediaUri = String(rawUrl);
+      imagePayload = {
+        uri: mediaUri,
+        name: mediaUri.split('/').pop()?.split('?')[0] || 'image.jpg',
+        type: mediaObj?.type === 'video' ? 'video/mp4' : 'image/jpeg',
+      };
+    }
+    return imagePayload;
+  }, [postMedia]);
+
+  const getRootCommentId = useCallback(
+    targetComment => {
+      if (!targetComment) return null;
+      const targetId = String(targetComment.id || '');
+      const parentId = targetComment.parentId ? String(targetComment.parentId) : '';
+
+      // 1. Direct top-level comment
+      for (const c of comments) {
+        if (String(c.id) === targetId) return String(c.id);
+      }
+
+      // 2. Target parent is a top-level comment
+      if (parentId) {
+        for (const c of comments) {
+          if (String(c.id) === parentId) return String(c.id);
+        }
+      }
+
+      // 3. Target is within any top-level comment's replies
+      for (const c of comments) {
+        if (Array.isArray(c.replies)) {
+          const found = c.replies.some(
+            r => String(r.id) === targetId || (parentId && String(r.id) === parentId),
+          );
+          if (found) return String(c.id);
+        }
+      }
+
+      return parentId || targetId;
+    },
+    [comments],
+  );
+
+  const fulfillDralensComment = useCallback(async (commentItem) => {
+    if (!commentItem?.id || pendingAiRepliesRef.current.has(commentItem.id)) return;
+    pendingAiRepliesRef.current.add(commentItem.id);
+
+    try {
+      const rawText = commentItem.text || '';
+      const userQuery = rawText.replace(/@dralens\s*/gi, '').trim() || rawText;
+      if (!userQuery) return;
+
+      const imagePayload = buildImagePayload();
+      const response = await postDralensReply({
+        postId,
+        commentId: commentItem.id,
+        userQuery,
+        postText: postText || '',
+        authorUsername: commentItem.username || postOwnerUsername || '',
+        parentCommentContext: commentItem.text || postText || '',
+        image: imagePayload,
+      });
+
+      const isSuccess = response?.status === 'success' || response?.success === true || (response && !response?.error && !response?.message);
+      if (!isSuccess || !response?.reply_text) return;
+
+      const aiReply = {
+        id: `dralens-${commentItem.id}-${Date.now()}`,
+        isDralensAi: true,
+        userId: 'dralens-bot',
+        username: response.bot_name || 'Dralens AI',
+        avatar: 'dralens_ai',
+        text: response.reply_text,
+        time: t('commentSheet.justNow') || 'Just now',
+        parentId: commentItem.id,
+        replies: [],
+        likeCount: 0,
+        dislikeCount: 0,
+      };
+
+      try {
+        const storageKey = `@dralens_replies_${postId}`;
+        const existingRaw = await AsyncStorage.getItem(storageKey);
+        const existing = existingRaw ? JSON.parse(existingRaw) : [];
+        if (!existing.some(r => r.id === aiReply.id || (r.parentId === commentItem.id && r.text === aiReply.text))) {
+          existing.push(aiReply);
+          await AsyncStorage.setItem(storageKey, JSON.stringify(existing));
+        }
+      } catch (storageErr) {
+        console.warn('Failed saving auto-fulfilled reply:', storageErr);
+      }
+
+      setComments(prev =>
+        prev.map(c => {
+          const isMatchingRoot = String(c.id) === String(commentItem.id);
+          const isMatchingChild =
+            Array.isArray(c.replies) &&
+            c.replies.some(r => String(r.id) === String(commentItem.id));
+
+          if (isMatchingRoot || isMatchingChild) {
+            const currentReplies = c.replies || [];
+            if (currentReplies.some(r => r.isDralensAi || r.text === aiReply.text)) return c;
+            return {
+              ...c,
+              replies: [...currentReplies, aiReply],
+            };
+          }
+          return c;
+        })
+      );
+      const rootId = getRootCommentId(commentItem);
+      if (rootId) {
+        setExpandedReplies(prev => ({ ...prev, [rootId]: true }));
+      }
+    } catch (err) {
+      console.warn('fulfillDralensComment error:', err);
+    }
+  }, [postId, postText, postOwnerUsername, buildImagePayload, t, getRootCommentId]);
 
   const toast = useToast();
   const { t, currentLanguage } = useLanguage();
@@ -637,30 +830,30 @@ export default function CommentSheet({
               storedDralens.forEach(aiReply => {
                 let placed = false;
                 for (let root of tree) {
-                  if (root.id === aiReply.parentId || (root.text && root.text.toLowerCase().includes('@dralens'))) {
+                  const rootIdStr = String(root.id);
+                  const parentIdStr = String(aiReply.parentId || '');
+                  const isMatchingRoot =
+                    rootIdStr === parentIdStr ||
+                    (root.text && root.text.toLowerCase().includes('@dralens'));
+                  const isMatchingChild =
+                    Array.isArray(root.replies) &&
+                    root.replies.some(
+                      child =>
+                        String(child.id) === parentIdStr ||
+                        (child.text && child.text.toLowerCase().includes('@dralens')),
+                    );
+
+                  if (isMatchingRoot || isMatchingChild) {
                     if (!root.replies) root.replies = [];
-                    if (!root.replies.some(r => r.id === aiReply.id || r.text === aiReply.text)) {
+                    if (!root.replies.some(r => String(r.id) === String(aiReply.id) || r.text === aiReply.text)) {
                       root.replies.push(aiReply);
                     }
                     placed = true;
                     break;
                   }
-                  if (root.replies) {
-                    for (let child of root.replies) {
-                      if (child.id === aiReply.parentId || (child.text && child.text.toLowerCase().includes('@dralens'))) {
-                        if (!child.replies) child.replies = [];
-                        if (!child.replies.some(r => r.id === aiReply.id || r.text === aiReply.text)) {
-                          child.replies.push(aiReply);
-                        }
-                        placed = true;
-                        break;
-                      }
-                    }
-                  }
-                  if (placed) break;
                 }
                 if (!placed) {
-                  if (!tree.some(c => c.id === aiReply.id || c.text === aiReply.text)) {
+                  if (!tree.some(c => String(c.id) === String(aiReply.id) || c.text === aiReply.text)) {
                     tree.unshift(aiReply);
                   }
                 }
@@ -676,6 +869,39 @@ export default function CommentSheet({
         setComments(tree);
         setCommentVotes(votes);
         onCommentCountUpdate?.(postId, tree.length);
+
+        // Auto-expand any comment threads that contain Dralens AI replies
+        const autoExpanded = {};
+        tree.forEach(root => {
+          if (root.replies && root.replies.some(r => r.isDralensAi)) {
+            autoExpanded[root.id] = true;
+          }
+        });
+        if (Object.keys(autoExpanded).length > 0) {
+          setExpandedReplies(prev => ({ ...autoExpanded, ...prev }));
+        }
+
+        // Auto-fulfill any @dralens comments from server that don't have an AI reply yet
+        tree.forEach(root => {
+          if (
+            root.text &&
+            root.text.toLowerCase().includes('@dralens') &&
+            !(root.replies && root.replies.some(r => r.isDralensAi))
+          ) {
+            fulfillDralensComment(root);
+          }
+          if (root.replies) {
+            root.replies.forEach(child => {
+              if (
+                child.text &&
+                child.text.toLowerCase().includes('@dralens') &&
+                !(child.replies && child.replies.some(r => r.isDralensAi))
+              ) {
+                fulfillDralensComment(child);
+              }
+            });
+          }
+        });
       } else {
         showToastMessage(toast, 'danger', t('commentSheet.errorLoadFailed'));
       }
@@ -907,7 +1133,37 @@ export default function CommentSheet({
     // ── REPLY FLOW ─────────────────────────────────────────────────────────────
     if (replyingToComment?.id) {
       setIsPosting(true);
-      const threadId = replyingToComment.threadId || replyingToComment.id;
+      const threadId = getRootCommentId(replyingToComment) || replyingToComment.threadId || replyingToComment.id;
+
+      // Optimistically add user's reply to the thread
+      const tempReplyId = `temp-reply-${Date.now()}`;
+      const optimisticReply = {
+        id: tempReplyId,
+        userId: currentUser?.id ?? userId,
+        username: currentUser?.displayName || currentUser?.username || t('commentSheet.you') || 'You',
+        avatar:
+          currentUser?.avatar ||
+          profileImage ||
+          'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+        text: trimmedComment,
+        time: t('commentSheet.justNow') || 'Just now',
+        parentId: threadId,
+        replies: [],
+        isOptimistic: true,
+      };
+
+      setComments(prev =>
+        prev.map(c => {
+          if (String(c.id) === String(threadId)) {
+            return {
+              ...c,
+              replies: [...(c.replies || []), optimisticReply],
+            };
+          }
+          return c;
+        }),
+      );
+      setExpandedReplies(prev => ({ ...prev, [threadId]: true }));
 
       setReplyText('');
       replyTextRef.current = '';
@@ -920,9 +1176,31 @@ export default function CommentSheet({
           await fetchComments();
           showToastMessage(toast, 'success', postedMessage('commentSheet.successReplyPosted'));
         } else {
+          setComments(prev =>
+            prev.map(c => {
+              if (String(c.id) === String(threadId)) {
+                return {
+                  ...c,
+                  replies: (c.replies || []).filter(r => r.id !== tempReplyId),
+                };
+              }
+              return c;
+            }),
+          );
           showToastMessage(toast, 'danger', t('commentSheet.errorReplyFailed'));
         }
       } catch {
+        setComments(prev =>
+          prev.map(c => {
+            if (String(c.id) === String(threadId)) {
+              return {
+                ...c,
+                replies: (c.replies || []).filter(r => r.id !== tempReplyId),
+              };
+            }
+            return c;
+          }),
+        );
         showToastMessage(toast, 'danger', t('commentSheet.errorReply'));
       } finally {
         setIsPosting(false);
@@ -979,6 +1257,7 @@ export default function CommentSheet({
     toast,
     t,
     clearMentionState,
+    getRootCommentId,
   ]);
 
   const handleSendComment = useCallback(async () => {
@@ -1018,7 +1297,6 @@ export default function CommentSheet({
         language: currentLanguage || 'en',
       });
 
-      console.log('Moderation response comment Sheet screen:', response);
       moderation = parseModerationResult(response);
       if (!moderation.decision) {
         throw new Error(response?.message || 'Moderation check failed');
@@ -1072,6 +1350,7 @@ export default function CommentSheet({
     publishComment,
     toast,
     t,
+    getRootCommentId,
   ]);
 
   // ─── comment actions ─────────────────────────────────────────────────────────
@@ -1084,66 +1363,139 @@ export default function CommentSheet({
 
   const handleReplyPress = useCallback(comment => {
     setEditingComment(null);
+    const rootId = getRootCommentId(comment);
     setReplyingToComment({
       id: comment.id,
       username: comment.username,
       parentId: comment.parentId,
-      threadId: comment.parentId || comment.id,
+      threadId: rootId,
     });
     replyTextRef.current = '';
     setReplyText('');
     clearMentionState();
     setExpandedReplies(prev => ({
       ...prev,
-      [comment.parentId || comment.id]: true,
+      [rootId]: true,
     }));
     setTimeout(() => {
       inputRef.current?.focus();
     }, 80);
-  }, [clearMentionState]);
+  }, [clearMentionState, getRootCommentId]);
 
-  const handleAskDralens = useCallback(comment => {
-    const target = comment || replyingToComment || {
-      id: postId,
-      username: postOwnerUsername,
-      text: postText,
-      parentId: null,
-    };
+  const handleAskDralens = useCallback(async comment => {
+    const isCommentReply = Boolean(comment?.id && comment.id !== postId);
+    const target = isCommentReply
+      ? comment
+      : (replyingToComment?.id && replyingToComment.id !== postId ? replyingToComment : {
+          id: postId,
+          username: postOwnerUsername || '',
+          text: postText || '',
+          parentId: null,
+        });
     if (!target?.id) return;
 
     setAskDralensTarget(target);
-    setReplyingToComment({
-      id: target.id,
-      username: target.username,
-      parentId: target.parentId,
-      threadId: target.parentId || target.id,
-    });
-    const mention = '@dralens ';
-    replyTextRef.current = mention;
-    setReplyText(mention);
-    clearMentionState();
-  }, [clearMentionState, postId, postText, postOwnerUsername, replyingToComment]);
+
+    if (isCommentReply || (replyingToComment?.id && replyingToComment.id !== postId)) {
+      const rootId = getRootCommentId(target);
+      setReplyingToComment({
+        id: target.id,
+        username: target.username || (target.isDralensAi ? 'Dralens AI' : ''),
+        parentId: target.parentId || target.id,
+        threadId: rootId,
+      });
+      setExpandedReplies(prev => ({ ...prev, [rootId]: true }));
+      const curReply = replyTextRef.current || '';
+      const baseReply = curReply.trim()
+        ? (/@dralens\b/i.test(curReply) ? curReply : `@dralens ${curReply}`)
+        : '@dralens ';
+      replyTextRef.current = baseReply;
+      setReplyText(baseReply);
+      clearMentionState();
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 80);
+
+      // Auto-analyze specific comment and suggest a relevant reply that user can edit & post
+      if (target.text && target.text.trim()) {
+        setIsGeneratingSuggestion(true);
+        try {
+          const imagePayload = buildImagePayload();
+          const response = await postDralensReply({
+            postId,
+            commentId: target.id,
+            userQuery: 'Suggest a friendly, engaging, relevant reply to this comment',
+            postText: postText || '',
+            authorUsername: target.username || '',
+            parentCommentContext: target.text,
+            image: imagePayload,
+          });
+
+          if (response?.reply_text) {
+            const cleanSuggestion = response.reply_text.trim();
+            const curNow = replyTextRef.current || '';
+            // If user hasn't typed their own text yet, populate the suggested reply
+            if (curNow === '@dralens ' || curNow === '@dralens' || curNow === '' || curNow === baseReply) {
+              const fullSuggested = `@dralens ${cleanSuggestion}`;
+              replyTextRef.current = fullSuggested;
+              setReplyText(fullSuggested);
+              showToastMessage(toast, 'normal', 'Dralens suggested a reply. You can edit it before posting.');
+            }
+          }
+        } catch (sugErr) {
+          console.warn('AI suggestion error:', sugErr);
+        } finally {
+          setIsGeneratingSuggestion(false);
+        }
+      }
+    } else {
+      setReplyingToComment(null);
+      const curComment = commentTextRef.current || '';
+      const newComment = curComment.trim()
+        ? (/@dralens\b/i.test(curComment) ? curComment : `@dralens ${curComment}`)
+        : '@dralens ';
+      commentTextRef.current = newComment;
+      setCommentText(newComment);
+      clearMentionState();
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 80);
+    }
+  }, [clearMentionState, postId, postText, postOwnerUsername, replyingToComment, buildImagePayload, toast, getRootCommentId]);
 
   const handleSubmitDralens = useCallback(async () => {
-    const target = askDralensTarget || replyingToComment;
-    const rawText = replyText.trim();
-    const userQuery = rawText.replace(/^@dralens\s*/i, '').trim();
-    if (!target?.id || !userQuery || isAskingDralens) return;
+    const isTargetComment = Boolean(
+      (replyingToComment?.id && replyingToComment.id !== postId) ||
+      (askDralensTarget?.id && askDralensTarget.id !== postId)
+    );
+    const target = isTargetComment
+      ? (askDralensTarget || replyingToComment)
+      : {
+          id: postId,
+          username: postOwnerUsername || '',
+          text: postText || '',
+          parentId: null,
+        };
+
+    const activeText = (replyingToComment ? replyText : commentText) || replyText || commentText;
+    const rawText = activeText.trim();
+    if (!rawText) return;
+    const userQuery = rawText.replace(/@dralens\s*/gi, '').trim() || rawText;
+    if (isAskingDralens) return;
 
     Keyboard.dismiss();
     setIsAskingDralens(true);
 
-    const isTargetComment = target.id !== postId;
-    const threadId = isTargetComment ? (target.parentId || target.id) : null;
+    const threadId = isTargetComment ? getRootCommentId(target) : null;
     const tempUserCommentId = `temp-user-${Date.now()}`;
     const tempAiReplyId = `dralens-${Date.now()}`;
 
-    // 1. Optimistically display user's question
+    // 1. Optimistically display user's question (matching Image 2)
     const optimisticUserComment = {
       id: tempUserCommentId,
-      userId: currentUser?.id,
-      username: currentUser?.displayName || t('commentSheet.you') || 'You',
-      avatar: currentUser?.avatar || 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+      userId: currentUser?.id ?? userId,
+      username: currentUser?.displayName || currentUser?.username || t('commentSheet.you') || 'You',
+      avatar: currentUser?.avatar || profileImage || 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
       text: rawText,
       time: t('commentSheet.justNow') || 'Just now',
       parentId: threadId,
@@ -1170,9 +1522,12 @@ export default function CommentSheet({
     }
 
     setReplyText('');
+    setCommentText('');
     replyTextRef.current = '';
+    commentTextRef.current = '';
     setReplyingToComment(null);
     setAskDralensTarget(null);
+    clearMentionState();
 
     try {
       // 2. Post user question to Valens API
@@ -1187,23 +1542,14 @@ export default function CommentSheet({
       }
 
       // 3. Build image payload & call Dralens AI API
-      let imagePayload;
-      if (postMedia?.url) {
-        const mediaUri = String(postMedia.url);
-        imagePayload = {
-          uri: mediaUri,
-          name: mediaUri.split('/').pop() || 'image.jpg',
-          type: postMedia.type === 'video' ? 'video/mp4' : 'image/jpeg',
-        };
-      }
-
+      const imagePayload = buildImagePayload();
       const response = await postDralensReply({
         postId,
         commentId: target.id,
         userQuery,
-        postText,
-        authorUsername: target.username,
-        parentCommentContext: target.text,
+        postText: postText || '',
+        authorUsername: target.username || postOwnerUsername || '',
+        parentCommentContext: target.text || postText || '',
         image: imagePayload,
       });
 
@@ -1232,7 +1578,10 @@ export default function CommentSheet({
         const storageKey = `@dralens_replies_${postId}`;
         const existingRaw = await AsyncStorage.getItem(storageKey);
         const existing = existingRaw ? JSON.parse(existingRaw) : [];
-        existing.push(aiReply);
+        existing.push({
+          ...aiReply,
+          parentCommentContext: rawText,
+        });
         await AsyncStorage.setItem(storageKey, JSON.stringify(existing));
       } catch (storageErr) {
         console.warn('Failed to save Dralens reply to storage:', storageErr);
@@ -1240,9 +1589,8 @@ export default function CommentSheet({
 
       // 6. Update comments state to attach Dralens AI reply under the question
       setComments(prev => {
-        const parentKey = threadId || realUserCommentId;
         return prev.map(c => {
-          if (c.id === parentKey || c.id === tempUserCommentId) {
+          if (!threadId && (String(c.id) === String(tempUserCommentId) || String(c.id) === String(realUserCommentId))) {
             return {
               ...c,
               id: realUserCommentId,
@@ -1250,16 +1598,41 @@ export default function CommentSheet({
               replies: [...(c.replies || []).filter(r => r.id !== tempAiReplyId), aiReply],
             };
           }
+          if (threadId && String(c.id) === String(threadId)) {
+            const currentReplies = c.replies || [];
+            const updatedReplies = currentReplies.map(r => {
+              if (String(r.id) === String(tempUserCommentId) || String(r.id) === String(realUserCommentId)) {
+                return {
+                  ...r,
+                  id: realUserCommentId,
+                  isOptimistic: false,
+                };
+              }
+              return r;
+            });
+            if (!updatedReplies.some(r => String(r.id) === String(tempAiReplyId) || String(r.id) === String(aiReply.id))) {
+              updatedReplies.push(aiReply);
+            }
+            return {
+              ...c,
+              replies: updatedReplies,
+            };
+          }
           return c;
         });
       });
 
-      // Expand the thread so reply is visible immediately
-      const expandTarget = threadId || realUserCommentId || tempUserCommentId;
-      setExpandedReplies(prev => ({ ...prev, [expandTarget]: true }));
+      // Expand the thread so reply is visible immediately (matching Image 2)
+      setExpandedReplies(prev => ({
+        ...prev,
+        [realUserCommentId]: true,
+        [tempUserCommentId]: true,
+        ...(threadId ? { [threadId]: true } : {}),
+      }));
 
       showToastMessage(toast, 'success', 'Dralens replied');
     } catch (error) {
+      console.error('Dralens AI error:', error);
       showToastMessage(toast, 'danger', error?.message || 'Unable to ask Dralens');
     } finally {
       setIsAskingDralens(false);
@@ -1268,22 +1641,29 @@ export default function CommentSheet({
     askDralensTarget,
     replyingToComment,
     replyText,
+    commentText,
     isAskingDralens,
     postId,
     postText,
-    postMedia,
+    postOwnerUsername,
+    buildImagePayload,
     currentUser,
+    userId,
+    profileImage,
     comments.length,
     onCommentCountUpdate,
     toast,
     t,
   ]);
 
-
   const handleSubmitReply = useCallback(() => {
-    if (askDralensTarget) return handleSubmitDralens();
+    const activeText = (replyingToComment ? replyText : commentText).trim();
+    const isDralens = Boolean(askDralensTarget) || /@dralens\b/i.test(activeText);
+    if (isDralens) {
+      return handleSubmitDralens();
+    }
     return handleSendComment();
-  }, [askDralensTarget, handleSendComment, handleSubmitDralens]);
+  }, [askDralensTarget, replyingToComment, replyText, commentText, handleSendComment, handleSubmitDralens]);
 
   const handleToggleReplies = useCallback(commentId => {
     setExpandedReplies(prev => ({ ...prev, [commentId]: !prev[commentId] }));
@@ -1309,7 +1689,14 @@ export default function CommentSheet({
     const commentId = selectedComment.id;
     if (isDeleting.has(commentId)) return;
 
-    setComments(prev => prev.filter(c => c.id !== commentId));
+    setComments(prev =>
+      prev
+        .filter(c => String(c.id) !== String(commentId))
+        .map(c => ({
+          ...c,
+          replies: (c.replies || []).filter(r => String(r.id) !== String(commentId)),
+        })),
+    );
     onCommentCountUpdate?.(postId, Math.max(0, comments.length - 1));
     setIsDeleting(prev => new Set(prev).add(commentId));
     setIsModalVisible(false);
@@ -1469,6 +1856,7 @@ export default function CommentSheet({
         returnTo={returnTo}
         returnParams={returnParams}
         onReplyPress={handleReplyPress}
+        onAskDralens={handleAskDralens}
         expandedReplies={expandedReplies}
         onToggleReplies={handleToggleReplies}
         onThumbsUpPress={handleThumbsUpPress}
@@ -1485,6 +1873,7 @@ export default function CommentSheet({
       returnTo,
       returnParams,
       handleReplyPress,
+      handleAskDralens,
       expandedReplies,
       handleToggleReplies,
       handleThumbsUpPress,
@@ -1616,14 +2005,22 @@ export default function CommentSheet({
                   : 'rgba(0,0,0,0.03)',
               },
             ]}>
-            <Text
-              style={[styles.replyingBarText, { color: mutedText }]}
-              numberOfLines={1}>
-              {t('commentSheet.replyingTo')}{' '}
-              <Text style={[styles.replyingBarUsername, { color: accent }]}>
-                @{replyingToComment.username}
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+              <Text
+                style={[styles.replyingBarText, { color: mutedText }]}
+                numberOfLines={1}>
+                {askDralensTarget ? 'Asking Dralens about ' : t('commentSheet.replyingTo')}{' '}
+                <Text style={[styles.replyingBarUsername, { color: accent }]}>
+                  @{replyingToComment.username}
+                </Text>
               </Text>
-            </Text>
+              {isGeneratingSuggestion && (
+                <View style={styles.suggestingPill}>
+                  <ActivityIndicator size="small" color="#8B5CF6" style={{ transform: [{ scale: 0.7 }], marginRight: 4 }} />
+                  <Text style={styles.suggestingPillText}>Suggesting reply...</Text>
+                </View>
+              )}
+            </View>
             <TouchableOpacity
               onPress={() => {
                 setReplyingToComment(null);
@@ -1730,6 +2127,7 @@ export default function CommentSheet({
             onPress={handleSubmitReply}
             disabled={
               isPosting ||
+              isAskingDralens ||
               !(replyingToComment ? replyText.trim() : commentText.trim())
             }>
             {isPosting || isAskingDralens ? (
@@ -1746,8 +2144,8 @@ export default function CommentSheet({
                 {editingComment
                   ? t('commentSheet.update')
                   : replyingToComment
-                    ? t('commentSheet.reply')
-                    : t('commentSheet.send')}
+                    ? (askDralensTarget || /@dralens\b/i.test(replyText) ? 'Ask' : t('commentSheet.reply'))
+                    : (askDralensTarget || /@dralens\b/i.test(commentText) ? 'Ask' : t('commentSheet.send'))}
               </Text>
             )}
           </TouchableOpacity>
@@ -1864,8 +2262,45 @@ const styles = StyleSheet.create({
   dralensActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginTop: 2,
+    justifyContent: 'space-between',
+    marginTop: 6,
+    paddingTop: 2,
+  },
+  dralensActionLeftButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  suggestingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 8,
+  },
+  suggestingPillText: {
+    fontSize: 11,
+    color: '#8B5CF6',
+    fontWeight: '600',
+  },
+  toggleRepliesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 4,
+    alignSelf: 'flex-start',
+  },
+  toggleRepliesLine: {
+    width: 22,
+    height: 1.5,
+    marginRight: 6,
+    borderRadius: 1,
+  },
+  toggleRepliesText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   dralensCopyButton: {
     flexDirection: 'row',

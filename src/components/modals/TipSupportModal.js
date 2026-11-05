@@ -151,7 +151,6 @@ export default function TipSupportModal({
         amount: Number(finalAmount),
         receiverUserId: String(vendorId),
       });
-      console.log('sendTip response:', response);
       const url = getPaymentSessionUrl(response);
 
       if (!url) {

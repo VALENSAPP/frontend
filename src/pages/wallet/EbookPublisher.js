@@ -239,10 +239,8 @@ const EbookPublisher = ({ navigation }) => {
           const closetRecord = closetData?.closetDetails || closetData;
           const resolvedClosetId = closetData?.closetId ?? closetRecord?.id ?? closetRecord?._id ?? null;
           setClosetId(resolvedClosetId);
-          console.log('EbookPublisher loaded closetId:', resolvedClosetId);
         }
       } catch (error) {
-        console.log('Failed to load current user id / closet details for ebook publisher', error);
       }
     })();
   }, []);
@@ -461,7 +459,6 @@ const EbookPublisher = ({ navigation }) => {
         const localFileName = `sample-cover-${selectedCoverInfo.id}.jpg`;
         const localFilePath = `${RNFS.CachesDirectoryPath}/${localFileName}`;
 
-        console.log('Downloading sample cover:', selectedCoverInfo.imageUri, 'to:', localFilePath);
 
         await RNFS.downloadFile({
           fromUrl: selectedCoverInfo.imageUri,
@@ -505,7 +502,6 @@ const EbookPublisher = ({ navigation }) => {
           promoCode: String(promoCode || '').trim(),
           tableContent: chapters.map(item => item.title),
         };
-        console.log('Sending marketplace ebook payload:', marketplacePayload);
         response = await createMarketplaceEbook(marketplacePayload);
       } else {
         const payload = {
@@ -530,14 +526,11 @@ const EbookPublisher = ({ navigation }) => {
             },
           },
         };
-        console.log('Sending standard post payload:', payload);
         response = await createPost(payload);
       }
 
-      console.log('API Response:', response);
       const isSuccess = response?.status === 200 || response?.statusCode === 200 || response?.success === true;
       if (isSuccess) {
-        console.log('✅ Ebook published successfully');
         if (fromRootNavigator) {
           setIsPublished(true);
         } else {
@@ -546,10 +539,6 @@ const EbookPublisher = ({ navigation }) => {
       }
 
     } catch (error) {
-      console.log('❌ API Error:', error);
-      console.log('❌ Error Response:', error?.response);
-      console.log('❌ Error Status:', error?.response?.status);
-      console.log('❌ Error Data:', error?.response?.data);
 
       Alert.alert(
         tf('ebookPublisher.uploadFailedTitle', 'Upload failed'),

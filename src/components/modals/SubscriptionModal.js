@@ -202,7 +202,6 @@ const SubscribeFlowModal = ({
             const verifyFanSubscriptionActive = async () => {
                 try {
                     const statusResponse = await getFansubscriptionStatus(targetUserId);
-                    console.log(statusResponse,"statusResponse..")
                     const data = statusResponse?.data;
                     if (
                         isActiveStatus(statusResponse?.status) ||

@@ -47,7 +47,6 @@ export const persistPaymentProvider = async (provider) => {
       await AsyncStorage.setItem(PAYMENT_PROVIDER_STORAGE_KEY, normalized);
     }
   } catch (error) {
-    console.log('persistPaymentProvider failed', error?.message || error);
   }
   return normalized;
 };
@@ -57,7 +56,6 @@ export const hydratePaymentProvider = async () => {
     const stored = await AsyncStorage.getItem(PAYMENT_PROVIDER_STORAGE_KEY);
     if (stored) setActivePaymentProvider(stored);
   } catch (error) {
-    console.log('hydratePaymentProvider failed', error?.message || error);
   }
   return getActivePaymentProvider();
 };

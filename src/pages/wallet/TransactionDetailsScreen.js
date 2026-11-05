@@ -392,7 +392,6 @@ export default function TransactionDetailsScreen() {
         });
       }
     } catch (err) {
-      console.log('Error sharing receipt:', err);
     }
   };
 

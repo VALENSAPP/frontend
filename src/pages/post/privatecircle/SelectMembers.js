@@ -285,7 +285,6 @@ export default function PrivateCircleSelectMembers() {
     setRemovingIds((prev) => [...prev, normalized]);
     try {
       const response = await removePrivateCircleMember(normalized);
-      console.log(response, "remove member response=>>>>>>>>>>>>>>");
       if (!isPrivateCircleApiSuccess(response)) {
         showToastMessage(
           toast,
@@ -368,7 +367,6 @@ export default function PrivateCircleSelectMembers() {
         }
 
         const response = await addPrivateCircleMembers(selectedIds);
-        console.log(response, "add members response=>>>>>>>>>>>>>>");
         if (!isPrivateCircleApiSuccess(response)) {
           showToastMessage(
             toast,

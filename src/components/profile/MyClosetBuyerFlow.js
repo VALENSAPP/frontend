@@ -1934,7 +1934,6 @@ const MyClosetBattlesScreen = ({ navigation, route }) => {
     if (!closetId) return;
     try {
       const res = await getClosetBattlesPriority(closetId, { page: pageToLoad, limit: LIMIT });
-      console.log('loadPage res:', res);
       const raw = unwrapBattlesResponse(res);
       const mapped = raw.map(mapBattle);
       // A shop owner can review all of their battles (including COMPLETED).
@@ -2788,7 +2787,6 @@ const MyClosetBuyerCartScreen = ({ navigation, route }) => {
         try {
           const closetRes = await getClosetItemsByClosetId(cartObj.closetId);
           const closetItems = closetRes?.data?.data ?? closetRes?.data ?? [];
-          console.log('[DEBUG] raw closet item sample:', JSON.stringify(closetItems[0], null, 2));
 
           const map = {};
           const pickupMap = {};
@@ -2804,8 +2802,6 @@ const MyClosetBuyerCartScreen = ({ navigation, route }) => {
               };
             }
           });
-          console.log('[DEBUG] shippingOptionsMap:', map);
-          console.log('[DEBUG] cartItems productIds:', cartItems.map(ci => ({ id: ci.id, productId: cartItemProductId(ci) })));
           setShippingOptionsMap(map);
           setPickupAddressMap(pickupMap);
         } catch {
@@ -2862,7 +2858,6 @@ const MyClosetBuyerCartScreen = ({ navigation, route }) => {
             });
           }
         } catch (fetchErr) {
-          console.log('[DEBUG] Failed to fetch closet items for wishlist population', fetchErr);
         }
       }
 
@@ -3060,7 +3055,6 @@ const MyClosetBuyerCartScreen = ({ navigation, route }) => {
     const quantity = Math.max(1, Number(item?.quantity || 1));
     try {
       const response = await addCartItem({ productId, quantity });
-      console.log('[DEBUG] addCartItem response:', response);
       if (response?.statusCode === 200 || response?.statusCode === 201) {
         await fetchCart();
       }
@@ -4253,9 +4247,7 @@ const MyClosetBuyerReviewScreen = ({ navigation, route }) => {
   const [checking, setChecking] = useState(false);
   // shippingAddress passed from Shipping screen via nextCart
   const addr = route?.params?.shippingAddress ?? null;
-  console.log('route?.params?.cartItemsSnapshot, route?.params?.shippingOptionsMap:', route?.params?.cartItemsSnapshot, route?.params?.shippingOptionsMap);
   const derivedRequiresShipping = cartRequiresShippingPostChoice(route?.params?.cartItemsSnapshot, route?.params?.shippingOptionsMap);
-  console.log('derivedRequiresShipping:', derivedRequiresShipping, 'route?.params?.requiresShipping:', route?.params?.requiresShipping);
   const requiresShipping = derivedRequiresShipping || route?.params?.requiresShipping === true;
   const shipOnlyItemsNeedingSync = useMemo(
     () => getShipOnlyCartItems(route?.params?.cartItemsSnapshot, route?.params?.shippingOptionsMap),
@@ -4360,7 +4352,6 @@ const MyClosetBuyerReviewScreen = ({ navigation, route }) => {
         currency: 'usd',
       });
 
-      console.log('createPaymentSession response:', response);
       const session = response?.data?.data ?? response?.data ?? null;
       const checkoutUrl = session?.url ?? session?.checkoutUrl ?? session?.session?.url ?? null;
 
@@ -4525,7 +4516,6 @@ const MyClosetBuyerOrderReceivedScreen = ({ navigation, route }) => {
   const payment = route?.params?.payment ?? null;
   const cart = buildCart(route, t);
 
-  console.log("MyClosetBuyerOrderReceivedScreen--------response ", route?.params)
 
   const orderId = payment?.orderId || route?.params?.orderId;
   const amount = payment?.amount != null ? payment.amount / 100 : cart.total; // amount is in cents per your sample

@@ -124,7 +124,6 @@ const SubscriptionDetails = ({ route }) => {
   const [isBusinessProfile, setIsBusinessProfile] = useState(false);
   const paymentPollRef = useRef(null);
 
-  console.log(selectedPlan,"selectedPlan==>>>>")
 
   useEffect(() => {
     let cancelled = false;
@@ -149,7 +148,6 @@ const SubscriptionDetails = ({ route }) => {
           setIsBusinessProfile(accountType !== 'user' && accountType !== 'normal');
         }
       } catch (error) {
-        console.log('subscription document country load failed', error?.message || error);
       }
     })();
     return () => {
@@ -376,7 +374,6 @@ const SubscriptionDetails = ({ route }) => {
         amount: checkoutPlan.price,
         currency: checkoutPlan.currency,
       });
-      console.log(response,"createCheckoutSessionresponse444444>>>>>")
       const checkoutUrl = response?.data?.url || (typeof response?.url === 'string' ? response.url : null);
       if (!checkoutUrl || response?.success === false) {
         const apiErrorMessage =

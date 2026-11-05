@@ -133,7 +133,6 @@ export const SettingsScreen = ({ navigation }) => {
             let formattedImageUrl = userDataToSet.image.trim();
 
             if (formattedImageUrl.startsWith('http://') || formattedImageUrl.startsWith('https://')) {
-              console.log('Image URL is already absolute:', formattedImageUrl);
             } else if (formattedImageUrl.startsWith('/')) {
               formattedImageUrl = `${BASE_URL}${formattedImageUrl}`;
             } else {
@@ -143,7 +142,6 @@ export const SettingsScreen = ({ navigation }) => {
             userDataToSet.image = formattedImageUrl;
           }
 
-          console.log(userDataToSet, 'this is response from getUserDashboard in wallet');
           setUserData(userDataToSet);
         } else {
           showToastMessage(toast, 'danger', response.data.message);
@@ -167,13 +165,11 @@ export const SettingsScreen = ({ navigation }) => {
         dispatch(showLoader());
         const response = await getProfile(id);
         if (response.statusCode === 200 && response.data) {
-          console.log('response in fetchProfile useFocusEffect:', response);
           setProfileData(response.data);
         } else {
           showToastMessage(toast, 'danger', response.data.message);
         }
       } catch (err) {
-        console.log('Error in fetchProfile:', err);
       } finally {
         dispatch(hideLoader());
       }

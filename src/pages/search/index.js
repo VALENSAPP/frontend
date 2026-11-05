@@ -888,7 +888,6 @@ const SearchScreen = () => {
 
     try {
       const userRes = await getUserCredentials(id);
-      console.log(userRes, 'data in ueser profile efrafaha');
 
       if (userRes?.statusCode === 200) {
         const loggedInProfile =
@@ -941,7 +940,6 @@ const SearchScreen = () => {
         getAllUser({ ...params, limit: USER_SEARCH_LIMIT }).catch(() => ({
           statusCode: 0,
         }));
-        console.log(fetchUserSlice,'serch reposeeneneen')
       const [byUserName, byDisplayName, byName, byBusinessName] = await Promise.all([
         fetchUserSlice({ userName: searchQuery }),
         fetchUserSlice({ displayName: searchQuery }),
@@ -1050,7 +1048,6 @@ const SearchScreen = () => {
     setHistoryLoading(true);
     try {
       const response = await getSearchHistory();
-      console.log(response,'datsa in get serch hostosys')
       if (requestId !== historyRequestIdRef.current) return;
       setSearchHistory(normalizeSearchHistory(response));
     } catch (_error) {
@@ -1068,13 +1065,11 @@ const SearchScreen = () => {
     const currentSearch = searchTextRef.current;
     if (currentSearch && currentSearch.trim().length > 0) {
       const payload = { query: currentSearch.trim() };
-      console.log('[postSearchHistory] Request payload on submit:', payload);
       postSearchHistory(payload)
         .then(res => {
-          console.log('[postSearchHistory] Response on submit:', res?.data || res);
           fetchSearchHistory();
         })
-        .catch(err => console.log('[postSearchHistory] Error on submit:', err?.response?.data || err));
+        .catch(err => {});
     }
   }, [fetchSearchHistory]);
 
@@ -1155,11 +1150,8 @@ const SearchScreen = () => {
         dispatch(showLoader());
       }
       const response = await getSearchPagePost(pageToFetch, limit);
-      console.log('FULL RESPONSE:', JSON.stringify(response));
       if (response?.statusCode === 200) {
         const postsData = response.data || [];
-        console.log(postsData, 'posts data in search screen');
-        console.log('postsData.length:', postsData.length, 'limit:', limit);
         const flattenedPosts = [];
         postsData.forEach(post => {
           const isBoostedProduct =
@@ -1266,7 +1258,6 @@ const SearchScreen = () => {
       setLoadingLiveBattles(true);
       const response = await exploretBattle();
       if (response?.statusCode === 200 || response?.status === 200) {
-        console.log("exploretBattle------------------response----", response)
         const rawBattles = response?.data?.battles || response?.data?.data || response?.data || [];
         const normalizedBattles = [];
         const seenBattleIds = new Set();
@@ -1278,7 +1269,6 @@ const SearchScreen = () => {
             normalizedBattles.push(mappedBattle);
           });
         }
-        console.log(rawBattles, 'battles in search');
         setLiveBattles(normalizedBattles);
       } else {
         setLiveBattles([]);
@@ -1387,13 +1377,11 @@ const SearchScreen = () => {
       query: currentSearch.trim(),
       searchedUserId: String(targetId)
     };
-    console.log('[postSearchHistory] Request payload:', payload);
     postSearchHistory(payload)
       .then(res => {
-        console.log('[postSearchHistory] Response:', res?.data || res);
         fetchSearchHistory();
       })
-      .catch(err => console.log('[postSearchHistory] Error:', err?.response?.data || err));
+      .catch(err => {});
 
     if (String(targetId) === String(userId || '')) {
       navigation.navigate('ProfileMain', {
@@ -1513,8 +1501,6 @@ const SearchScreen = () => {
         battleId: item?.battleId || item?.battle?.id || rawProduct?.battleId || null,
         battleTitle: item?.battleTitle || item?.battle?.title || rawProduct?.battleTitle || item?.title || 'Battle Winner',
       } : null;
-      console.log("userId------------------",userId)
-      console.log("cleanProduct?.id------------------",cleanProduct)
       const isOwnProfileForCloset = String(userId || '') === String(cleanProduct?.seller?.id || '');
       navigation.navigate('ProfileMain', {
         screen: 'MyClosetBuyerItemDetail',
@@ -1716,7 +1702,6 @@ const SearchScreen = () => {
   }, []);
 
   const loadMorePosts = useCallback(() => {
-    console.log('onEndReached fired', { isSearchActive, isFetchingMore, hasMore, page });
     if (isSearchActive || isFetchingMore || !hasMore) return;
     fetchPosts(page + 1, true);
   }, [isSearchActive, isFetchingMore, hasMore, page, fetchPosts]);

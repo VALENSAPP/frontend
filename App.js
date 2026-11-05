@@ -34,13 +34,10 @@ const initAppsFlyer = async () => {
       if (trackingStatus === 'not-determined') {
         // Show the iOS ATT permission dialog
         const result = await requestTrackingPermission();
-        console.log('ATT permission result:', result);
       } else {
-        console.log('ATT permission status already set:', trackingStatus);
       }
     } catch (error) {
       // Do not bail out – always proceed to start AppsFlyer
-      console.log('ATT permission error:', error);
     }
   }
 
@@ -61,12 +58,10 @@ const initAppsFlyer = async () => {
     options,
 
     result => {
-      console.log('AppsFlyer initialized:', result);
       appsFlyer.startSdk();
     },
 
     error => {
-      console.log('AppsFlyer initialization error:', error);
     },
   );
 };

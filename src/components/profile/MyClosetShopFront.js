@@ -260,7 +260,6 @@ const BATTLES_FALLBACK = [
 ];
 
 export const BattleSlide = ({ battle, accent, t, onPress, card, border, textColor, mutedText, isDark, thumbSurface, mutedColor, loadingOverlayColor, customWidth, imageSize }) => {
-  console.log(battle, 'battlesssssss')
   let winnerSide = battle?.left?.isWinner ? 'left' : battle?.right?.isWinner ? 'right' : null;
   const isPending =
     String(battle?.status || '').toUpperCase() === 'LIVE' &&
@@ -384,7 +383,6 @@ const ItemTile = ({
   const [liked, setLiked] = useState(false);
   const [updatingWishlist, setUpdatingWishlist] = useState(false);
   const [wishlistItemId, setWishlistItemId] = useState(null);
-  console.log("------------winnerMeta---------------", winnerMeta)
 
   useEffect(() => {
     let mounted = true;
@@ -615,9 +613,7 @@ const MyClosetShopFront = ({ navigation, userData, shopDraft, isOwnProfile = tru
         return;
       }
 
-      console.log('Fetching marketplace ebooks for closetId:', resolvedClosetId);
       const response = await getMarketplaceEbooksByClosetId(resolvedClosetId);
-      console.log("response of getMarketplaceEbooksByClosetId-----------", response);
       const payload =
         response?.data?.ebooks ??
         response?.ebooks ??
@@ -659,7 +655,6 @@ const MyClosetShopFront = ({ navigation, userData, shopDraft, isOwnProfile = tru
       }
       setPurchasedMap(map);
     } catch (err) {
-      console.log('MyClosetShopFront fetchEbooks error:', err);
       setEbooks([]);
     } finally {
       setEbooksLoading(false);
@@ -705,12 +700,10 @@ const MyClosetShopFront = ({ navigation, userData, shopDraft, isOwnProfile = tru
     setBattlesLoading(true);
     try {
       const res = await getClosetBattlesPriority(id, { page: 1, limit: 30 });
-      console.log('getClosetBattlesPriority response:', JSON.stringify(res, null, 2));
       const raw = unwrapBattlesResponse(res);
       setBattles(raw.map(mapBattle));
       setPinnedItems(raw.filter(b => b?.isPinnedOnTop).map(normalizePriorityBattle).filter(b => b.id));
     } catch (err) {
-      console.log('getClosetBattlesPriority error:', err);
       setBattles([]);
     } finally {
       setBattlesLoading(false);
@@ -726,7 +719,6 @@ const MyClosetShopFront = ({ navigation, userData, shopDraft, isOwnProfile = tru
         const closetRes = await getMyClosetById({ userId: targetUserId }).catch(() => null);
         const apiCloset = unwrapMyClosetResponse(closetRes);
         const closetRecord = apiCloset?.closetDetails || apiCloset || null;
-        console.log("----------------------closetRecord----------------------", closetRecord)
         setClosetDetails(closetRecord);
 
         resolvedClosetId = apiCloset?.closetId ?? closetRecord?.id ?? closetRecord?._id ?? null;
@@ -804,7 +796,6 @@ const MyClosetShopFront = ({ navigation, userData, shopDraft, isOwnProfile = tru
   const shopLogo = useMemo(() => {
     return closetDetails?.shopLogo || '';
   }, [closetDetails?.shopLogo]);
-console.log("shopLogo------------------", shopLogo)
   const shopLocation = useMemo(() => {
     return closetDetails?.location || '';
   }, [closetDetails?.location]);
@@ -1003,12 +994,9 @@ console.log("shopLogo------------------", shopLogo)
         });
       }
     } catch (err) {
-      console.log('Error checking ebook purchase:', err);
     }
   };
 
-  console.log("displayBattlesdisplayBattlesdisplayBattlesdisplayBattlesdisplayBattles", displayBattles)
-  console.log("tilestilestilestilestilestilestilestiles", tiles)
 
   return (
     <>

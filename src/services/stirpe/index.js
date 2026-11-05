@@ -2,7 +2,6 @@ import axiosInstance from "..";
 
 export const createCheckoutSession = async (data) => {
 
-    console.log(data,"createCheckoutSession==>>>>")
     return data
         ? axiosInstance.post('billing/subscribe', data)
         : axiosInstance.post('billing/subscribe');
@@ -45,7 +44,6 @@ export const getFansubscriptionStatus = async (id) => {
 };
 
 export const sendTip = async (data) => {
-    console.log('sendTip data:', data);
   return axiosInstance.post('billing/send-tip', data);
 };
 

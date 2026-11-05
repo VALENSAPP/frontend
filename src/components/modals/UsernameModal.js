@@ -99,10 +99,6 @@ const UsernameModal = ({ visible, onClose, data, canReport = false, onReport }) 
     showToastMessage(toast, 'success', t('usernameModal.linkCopied'));
   };
 
-  console.log('resolvedData:', resolvedData);
-console.log('resolvedUserId:', resolvedUserId);
-console.log('resolvedUsername:', resolvedUsername);
-console.log('qrShareUrl:', qrShareUrl);
 
   return (
     <RBSheet

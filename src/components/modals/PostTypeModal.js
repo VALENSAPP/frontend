@@ -155,7 +155,6 @@ const PostTypeModal = ({ visible, onClose, onSelect, setShowTypeModal }) => {
     try {
       dispatch(showLoader());
       const response = await privateSetup();
-      console.log(response, "Private circle setup response=>>>>>>>>>>>>>>");
       if (!isPrivateCircleApiSuccess(response)) {
         showToastMessage(
           toast,

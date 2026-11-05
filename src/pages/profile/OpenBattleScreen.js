@@ -961,7 +961,6 @@ export default function OpenBattleScreen() {
     }
 
     setSubmitting(true);
-    console.log('Submitting battle with payload:', payload);
     try {
       let moderationDecision;
       try {
@@ -983,7 +982,6 @@ export default function OpenBattleScreen() {
       if (!moderationDecision) return;
 
       const response = await createBattle(payload);
-      console.log('Received response:', response);
       if (
         (response?.statusCode >= 200 && response?.statusCode < 300) ||
         response?.success ||

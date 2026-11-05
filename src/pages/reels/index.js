@@ -2010,7 +2010,6 @@ export default function FlipsScreen() {
         return;
       }
 
-      console.log('[Flips] downloading reel media:', mediaUrl);
       const looksLikeImage = /\.(jpe?g|png|gif|webp|heic|heif)(\?|#|$)/i.test(
         mediaUrl,
       );

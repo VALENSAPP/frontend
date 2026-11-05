@@ -88,7 +88,6 @@ const NewPasswordScreen = () => {
     try {
       const newPassword = password;
       const response = await resetPassword({ email, newPassword });
-      console.log('response in reset password', response);
 
       if (response.statusCode == 200 && response) {
         showToastMessage(toast, 'success', response.data.message);

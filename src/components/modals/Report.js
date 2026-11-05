@@ -100,7 +100,6 @@ const ReportFlowScreen = forwardRef(({
         reason_code: selectedReason.code,
       });
 
-      console.log(response,'response reportContent:')
 
       const ok = response?.statusCode === 200 && response?.success === true;
       if (!ok) {

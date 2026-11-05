@@ -97,7 +97,6 @@ const PrivateContentHeader = ({
             if (mounted) setServerMessages(next);
             serverVal = getMessageForType(next, messageType);
           } catch (err) {
-            console.log('private content message load error', err?.response || err?.message || err);
           }
         }
 
@@ -143,7 +142,6 @@ const PrivateContentHeader = ({
                 setServerMessages(next);
                 showToastMessage(toast, 'success', 'Message updated');
               } catch (err) {
-                console.log('updateMessages error', err?.response || err?.message || err);
                 showToastMessage(toast, 'danger', 'Failed to update message on server');
               }
             }

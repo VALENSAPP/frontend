@@ -198,7 +198,6 @@ const ProfileEbookScreen = ({
     try {
       setLoading(true);
       const response = await getPostByUser(id, 'private');
-      console.log(resolvedIsSubscribed, 'data in this apiaaaaaaaaaaaaiai')
       const payload =
         response?.data?.posts ??
         response?.data?.data?.posts ??
@@ -228,7 +227,6 @@ const ProfileEbookScreen = ({
 
       setEbooks(ebookData);
     } catch (error) {
-      console.log('ProfileEbookScreen fetch error:', error);
       setEbooks([]);
     } finally {
       setLoading(false);
@@ -277,7 +275,6 @@ const ProfileEbookScreen = ({
 
   const data = useMemo(() => (Array.isArray(ebooks) ? ebooks : []), [ebooks]);
   const openEbook = (item) => {
-    console.log('📖 EbookCard clicked:', item?.caption);
     onOpenEbook?.(item);
   };
 
@@ -298,7 +295,6 @@ const ProfileEbookScreen = ({
         userId={userData?.id}
         profileType={profileThemeType}
         onSave={(text) => {
-          console.log('Saved ebook private message:', text);
         }}
       />
       <View style={styles.headerRow}>

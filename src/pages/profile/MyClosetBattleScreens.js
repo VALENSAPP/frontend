@@ -212,14 +212,6 @@ const daysLeftFromEndAt = endAt => {
 };
 
 const participantToItem = (participant, raw, idx) => {
-  console.log('PTI DEBUG', {
-    idx,
-    productUserId: participant?.product?.userId,
-    closetShopName: raw?.closet?.shopName,
-    opponentClosetShopName: raw?.opponentCloset?.shopName,
-    sellerId: raw?.seller?.id,
-    opponentSellerId: raw?.opponentSellerId,
-  });
   const product = participant?.product;
   let userName = '';
   let shopName = '';
@@ -290,7 +282,6 @@ const productToBattleItem = (product, fallback = {}) => ({
 });
 
 const normalizeBattle = raw => {
-  console.log("raw in battle-----------------------", raw)
   if (!raw) return null;
   const participants = [...(raw?.participants || [])].sort((a, b) => (a?.position ?? 0) - (b?.position ?? 0));
   const items = participants.map((p, idx) => participantToItem(p, raw, idx));
@@ -705,7 +696,6 @@ export function CreateBattleScreen({ navigation, route }) {
     navigateToTargetClosetScreen(navigation, targetScreen);
   }, [isEditing, route?.params?.fromEdit, route?.params?.editingBattleId, fromRoute, navigation, targetScreen]);
 
-  console.log('CreateBattleScreen route params', { sellerId, fromRoute, headerTitle, nextRoute, targetScreen });
 
   const initialPassedItems = useMemo(() => {
     const passed = route?.params?.selectedItems || route?.params?.initialSelectedItems || [];
@@ -1217,7 +1207,6 @@ export function BattlePreviewScreen({ navigation, route }) {
 
       if (isEditing && editingBattleId) {
         const payload = buildEditBattlePayload();
-        console.log("updateMarketplaceBattleQuestion-------------------", editingBattleId, payload);
         await updateMarketplaceBattleQuestion(editingBattleId, payload);
         if (moderationDecision === 'REVIEW') {
           showToastMessage(toast, 'success', t('openBattle.moderationReview'));
@@ -1243,7 +1232,6 @@ export function BattlePreviewScreen({ navigation, route }) {
       } else {
         const payload = buildBattlePayload();
         const response = await createMarketplaceBattle(payload);
-        console.log("createMarketplaceBattle-------------------", response);
         if (moderationDecision === 'REVIEW') {
           showToastMessage(toast, 'success', t('openBattle.moderationReview'));
         }
@@ -1580,7 +1568,6 @@ export function ChallengeShopListScreen({ navigation, route }) {
       try {
         const res = await getShops();
         let payload = res?.data?.data ?? res?.data;
-        console.log("resresresresresresresres in getShops", res)
         let finalUsers = Array.isArray(payload) ? payload : (payload?.shops || payload?.items || payload?.users || []);
         if (!Array.isArray(finalUsers)) finalUsers = [];
         setUsers(finalUsers);
@@ -1819,7 +1806,6 @@ export function BattleLiveScreen({ navigation, route }) {
   const targetScreen = useTargetClosetScreen();
   const isFocused = useIsFocused();
 
-  console.log("-----------------initialBattle-----------------", initialBattle)
   const handleBack = useCallback(() => {
     if (returnTo?.screen === "SearchHome") {
       navigation.navigate('MainApp', {
@@ -1907,7 +1893,6 @@ export function BattleLiveScreen({ navigation, route }) {
 
   const question = battle?.title || route?.params?.question || t('battle.defaultQuestion');
   const battleDescription = (battle?.description || route?.params?.description || '').trim();
-  console.log("battle?.items-------------------------------------", battle)
   const selectedItems = useMemo(
     () => (battle?.items?.length ? battle.items : route?.params?.selectedItems || []),
     [battle?.items, route?.params?.selectedItems],
@@ -1942,7 +1927,6 @@ export function BattleLiveScreen({ navigation, route }) {
   const canDeleteBattle = isCreator && isWithinDeleteGracePeriod;
   const liveScreenTitle = isBattleExpired ? (t('battleInProgress.battleEnded') || 'Battle Ended') : t('battle.liveTitle');
   const votedLabel = t('battle.voting') || 'Voting...';
-  console.log("selectedItems---------------------------", selectedItems)
   const leftItem = selectedItems[0] || {};
   const rightItem = selectedItems[1] || {};
   const leftProfileId =
@@ -2033,9 +2017,7 @@ export function BattleLiveScreen({ navigation, route }) {
   const showWinnerCard = battleIsResolved && !!winnerSide;
 
   const handleSellerPress = useCallback(() => {
-    console.log(battle,'data in battle')
     const targetId = battle?.createdBy ? String(battle.createdBy).trim() : '';
-    console.log(targetId,'data in targetId')
 
     if (!targetId) return;
 
@@ -2384,7 +2366,6 @@ export function BattleLiveScreen({ navigation, route }) {
 
     try {
       const response = await reactToMarketplaceBattleComment(battleId, comment.id, nextReaction);
-      console.log("-----------reactToMarketplaceBattleComment----------", response)
       const data = response?.data?.data ?? response?.data ?? response;
       setComments(prev =>
         prev.map(item =>
@@ -2435,7 +2416,6 @@ export function BattleLiveScreen({ navigation, route }) {
     const fetchBattleViews = async () => {
       try {
         const response = await getMarketplaceBattleViews(battleId);
-        console.log('Battle views:', response);
       } catch (error) {
         console.error('Error fetching battle views:', error);
       }
@@ -3226,7 +3206,6 @@ export function BattleResultsScreen({ navigation, route }) {
     insights?.loser?.product,
     battle?.runnerUpProduct || fallbackItems?.[0],
   );
-  console.log("insights----------------", insights)
   const winnerVotePercent = insights?.winner?.votePercentage ?? battle?.winnerVotePercent;
   const totalVotes = insights?.totalVotes ?? battle?.totalVotes ?? 0;
   const totalViews = insights?.viewCount ?? battle?.totalViews ?? 0;
@@ -3804,7 +3783,6 @@ export function ChallengeReceivedScreen({ navigation, route }) {
     setAccepting(true);
     try {
       const response = await acceptMarketplaceBattle(battleId);
-      console.log("response in acceptMarketplaceBattle-----------", response)
       navigation.replace('ChallengeAccepted', { battleId, battle });
     } catch (err) {
       Alert.alert(t('battle.errors.errorTitle', 'Error'), t('battle.errors.acceptChallengeFailed', 'Could not accept challenge. Please try again.'));
@@ -3847,9 +3825,6 @@ export function ChallengeReceivedScreen({ navigation, route }) {
   const leftItem = battle.items?.[1] || battle.items?.[0];
   const rightItem = battle.items?.[0] || battle.items?.[1];
 
-  console.log("------------battle battles---------------", battle)
-  console.log("------------leftItem battles---------------", leftItem)
-  console.log("------------rightItem battles---------------", rightItem)
 
   return (
     <View style={[styles.screen, bgStyle, { backgroundColor: bg || '#FBF8FF' }]}>

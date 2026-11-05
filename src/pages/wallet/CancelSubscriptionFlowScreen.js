@@ -19,13 +19,11 @@ const CancelSubscriptionFlowScreen = ({ navigation, route }) => {
     try {
       setLoading(true);
       const response = await cancelFanSubscription({ followingId: subscription.id, creatorId: subscription.id, contentUserId: subscription.id });
-      console.log('cancelFanSubscription response:', response);
       setStep(3);
       if (route.params?.onCancelSuccess) {
         route.params.onCancelSuccess();
       }
     } catch (e) {
-      console.log('cancelFanSubscription error:', e?.response?.data || e);
       const msg = e?.response?.data?.message || '';
       if (msg.toLowerCase().includes('already') && msg.toLowerCase().includes('cancel')) {
         // Treat as already canceled success

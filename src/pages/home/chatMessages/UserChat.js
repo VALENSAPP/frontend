@@ -711,7 +711,7 @@ const UserChat = ({ route, navigation }) => {
     );
   }, []);
 
-  useSocket('messageSeenError', error => console.log('[UserChat] messageSeenError:', error), []);
+  useSocket('messageSeenError', error => {}, []);
 
   // Process & set messages
   const processAndSetMessages = (conversationMessages, senderId, receiverId) => {
@@ -995,7 +995,6 @@ const UserChat = ({ route, navigation }) => {
           viewStory({ storyId: storyIdToShare }).catch(() => { });
         }
       }
-      console.log('[UserChat] Sending message. Socket ready?', socketReady);
       const socket = getSocket();
       if (socket?.connected && socketReady) sendSocketMessage(messageData);
 
@@ -1803,7 +1802,7 @@ const UserChat = ({ route, navigation }) => {
   useEffect(() => {
     const socket = getSocket();
     if (!socket) return;
-    const logEvent = name => data => console.log(`[UserChat] Socket event: ${name}`, data);
+    const logEvent = name => data => {};
     socket.on('connect', logEvent('connect'));
     socket.on('disconnect', logEvent('disconnect'));
     socket.on('connect_error', logEvent('connect_error'));

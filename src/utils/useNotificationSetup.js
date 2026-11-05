@@ -26,7 +26,7 @@ import { resolveBattleNotificationRoute } from './battleNotificationNavigation';
 /** Logs every known notification type with its relevant fields. */
 const logTypedNotification = (tag, data = {}, type = '(no type)') => {
     const log = (label, ...args) =>
-        console.log(`[NOTIF] ${tag} [${type}] ${label}`, ...args);
+        {};
 
     switch (type) {
         case 'follow':
@@ -262,7 +262,6 @@ const useNotificationSetup = ({ showNotificationToast, setMessage, onNotificatio
     }, [showNotificationToast, setMessage, onNotificationOpen]);
 
     useEffect(() => {
-        console.log('[NOTIF] 🔧 Registering notification listeners (once)');
 
         // Create channels on Android (no-op on iOS)
         createNotificationChannels();
@@ -272,16 +271,12 @@ const useNotificationSetup = ({ showNotificationToast, setMessage, onNotificatio
             try {
                 const raw = await AsyncStorage.getItem(PENDING_NOTIFICATION_MODAL_KEY);
                 if (!raw) {
-                    console.log('[NOTIF] 📭 No pending notifee notification in storage');
                     return;
                 }
-                console.log('[NOTIF] 📬 Found pending notifee notification:', raw);
                 await AsyncStorage.removeItem(PENDING_NOTIFICATION_MODAL_KEY);
                 const parsed = JSON.parse(raw);
-                console.log('[NOTIF] ✅ Parsed pending notification:', JSON.stringify(parsed, null, 2));
                 openNotification(parsed);
             } catch (error) {
-                console.log('[NOTIF] ❌ Failed to parse pending notification:', error?.message || error);
             }
         };
 
@@ -299,10 +294,6 @@ const useNotificationSetup = ({ showNotificationToast, setMessage, onNotificatio
         };
 
         const unsubscribeOnMessage = messaging().onMessage(async remoteMessage => {
-            console.log('[NOTIF] 🟢 ──────────────────────────────────────────');
-            console.log('[NOTIF] 🟢 FOREGROUND MESSAGE RECEIVED');
-            console.log('[NOTIF] 🟢 ──────────────────────────────────────────');
-            console.log('[NOTIF] 🟢 Full payload:', JSON.stringify(remoteMessage, null, 2));
 
             const title  = remoteMessage?.notification?.title ?? remoteMessage?.data?.title;
             const body   = remoteMessage?.notification?.body  ?? remoteMessage?.data?.body;
@@ -312,19 +303,12 @@ const useNotificationSetup = ({ showNotificationToast, setMessage, onNotificatio
                 ? new Date(remoteMessage.sentTime).toISOString()
                 : '(no sentTime)';
 
-            console.log('[NOTIF] 🟢 messageId  :', msgId);
-            console.log('[NOTIF] 🟢 sentTime   :', sentAt);
-            console.log('[NOTIF] 🟢 type       :', type);
-            console.log('[NOTIF] 🟢 title      :', title);
-            console.log('[NOTIF] 🟢 body       :', body);
-            console.log('[NOTIF] 🟢 data       :', JSON.stringify(remoteMessage?.data, null, 2));
 
             logTypedNotification('🟢', remoteMessage?.data, type);
 
             // Display rich local notification (foreground FCM doesn't auto-display)
             try {
                 await displayFcmAsExpandable(remoteMessage);
-                console.log('[NOTIF] 🟢 ✅ displayFcmAsExpandable completed');
             } catch (err) {
                 console.error('[NOTIF] 🟢 ❌ displayFcmAsExpandable failed:', err?.message || err);
             }
@@ -332,7 +316,6 @@ const useNotificationSetup = ({ showNotificationToast, setMessage, onNotificatio
             // Show in-app toast banner
             try {
                 showNotificationToastRef.current(remoteMessage);
-                console.log('[NOTIF] 🟢 ✅ showNotificationToast completed');
             } catch (err) {
                 console.error('[NOTIF] 🟢 ❌ showNotificationToast failed:', err?.message || err);
             }
@@ -340,7 +323,6 @@ const useNotificationSetup = ({ showNotificationToast, setMessage, onNotificatio
 
         // ── BACKGROUND TAP (app in background, user taps notification) ────────
         const unsubscribeOnNotificationOpened = messaging().onNotificationOpenedApp(remoteMessage => {
-            console.log('[NOTIF] 🟡 BACKGROUND TAP');
             const body = remoteMessage?.notification?.body ?? remoteMessage?.data?.body ?? '';
             setMessageRef.current(body);
             openNotification(remoteMessage);
@@ -350,7 +332,6 @@ const useNotificationSetup = ({ showNotificationToast, setMessage, onNotificatio
         // This fires once on app launch if the app was opened via a notification.
         messaging().getInitialNotification().then(remoteMessage => {
             if (remoteMessage) {
-                console.log('[NOTIF] 🔴 QUIT STATE TAP');
                 const body = remoteMessage?.notification?.body ?? remoteMessage?.data?.body ?? '';
                 setMessageRef.current(body);
                 openNotification(remoteMessage);
@@ -364,14 +345,8 @@ const useNotificationSetup = ({ showNotificationToast, setMessage, onNotificatio
         // Handles taps/dismissals on local (notifee-displayed) notifications
         // while the app is in the foreground.
         const unsubscribeNotifeeForeground = notifee.onForegroundEvent(({ type, detail }) => {
-            console.log('[NOTIF] 🔔 NOTIFEE FOREGROUND EVENT');
-            console.log('[NOTIF] 🔔 Event type:', type, '— (1=Press, 2=Dismiss, 3=Action)');
-            console.log('[NOTIF] 🔔 Title:', detail?.notification?.title);
-            console.log('[NOTIF] 🔔 Body:', detail?.notification?.body);
-            console.log('[NOTIF] 🔔 Data:', JSON.stringify(detail?.notification?.data, null, 2));
 
             if (type === EventType.PRESS && detail?.notification) {
-                console.log('[NOTIF] 🔔 User PRESSED notifee notification — opening target');
                 openNotification({
                     notification: {
                         title: detail.notification?.title,
@@ -380,12 +355,10 @@ const useNotificationSetup = ({ showNotificationToast, setMessage, onNotificatio
                     data: detail.notification?.data || {},
                 });
             } else if (type === EventType.DISMISSED) {
-                console.log('[NOTIF] 🔔 User DISMISSED notifee notification');
             }
         });
 
         return () => {
-            console.log('[NOTIF] 🧹 Cleaning up notification listeners');
             unsubscribeOnMessage();
             unsubscribeOnNotificationOpened();
             unsubscribeNotifeeForeground();

@@ -72,7 +72,6 @@ const WithdrawalModal = ({ onWithdrawal }) => {
             setIsProcessingWithdraw(true);
             dispatch(showLoader());
             const response = await requestWithdrawal({ amount: Number(breakdown.finalAmount) });
-            console.log('requestWithdrawal--------------', response);
             if (response.statusCode === 200) {
                 onWithdrawal();
             } else {

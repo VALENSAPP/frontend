@@ -1,3 +1,4 @@
+import { dedupeRequest } from '../../utils/apiDeduplicator';
 import axiosInstance from '..';
 
 const appendIfPresent = (formData, key, value) => {
@@ -296,7 +297,11 @@ export const getSellerOrderDetails = async orderId => {
 };
 
 export const getUnviewedOrderIds = async () => {
-  return axiosInstance.get('seller/orders/unviewed-ids');
+  return dedupeRequest(
+    'seller/orders/unviewed-ids',
+    () => axiosInstance.get('seller/orders/unviewed-ids'),
+    { ttlMs: 4000 }
+  );
 };
 
 export const markAllOrdersAsViewed = async () => {
@@ -403,7 +408,6 @@ export const resolveOrderIdFromPaymentId = async (paymentId, viewType = 'seller'
       pData?.payment?.order_id;
     if (foundId) return foundId;
   } catch (e) {
-    console.log('getPaymentDetailsByPaymentId failed:', e?.message || e);
   }
 
   if (viewType === 'seller') {
@@ -418,7 +422,6 @@ export const resolveOrderIdFromPaymentId = async (paymentId, viewType = 'seller'
       });
       if (match) return match.id || match._id;
     } catch (e) {
-      console.log('getSellerOrders search failed:', e?.message || e);
     }
   } else {
     try {
@@ -432,7 +435,6 @@ export const resolveOrderIdFromPaymentId = async (paymentId, viewType = 'seller'
       });
       if (match) return match.id || match._id;
     } catch (e) {
-      console.log('getBuyerOrders search failed:', e?.message || e);
     }
   }
 
@@ -448,7 +450,6 @@ export const resolveOrderIdFromPaymentId = async (paymentId, viewType = 'seller'
       });
       if (match) return match.id || match._id;
     } catch (e) {
-      console.log('getBuyerOrders fallback search failed:', e?.message || e);
     }
   } else {
     try {
@@ -462,7 +463,6 @@ export const resolveOrderIdFromPaymentId = async (paymentId, viewType = 'seller'
       });
       if (match) return match.id || match._id;
     } catch (e) {
-      console.log('getSellerOrders fallback search failed:', e?.message || e);
     }
   }
 

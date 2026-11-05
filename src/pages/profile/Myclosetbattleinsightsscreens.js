@@ -981,7 +981,6 @@ export function PromotionDetailsScreen({ navigation, route }) {
           }
         }
       } catch (err) {
-        console.log('Could not load promotion packages:', err);
       } finally {
         if (mounted) setLoadingPackages(false);
       }
@@ -1001,7 +1000,6 @@ export function PromotionDetailsScreen({ navigation, route }) {
             if (mounted) setExistingPendingPromoId(promoId);
           }
         } catch (e) {
-          console.log('Error checking battle promotion status:', e);
         } finally {
           if (mounted) setCheckingStatus(false);
         }

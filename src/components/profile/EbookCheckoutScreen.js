@@ -98,7 +98,6 @@ const confirmEbookPurchased = async (itemId, closetId) => {
           return { purchased: true, ebook: latestEbook };
         }
       } catch (err) {
-        console.log('Ebook purchase check by closet failed:', err);
       }
     }
 
@@ -110,7 +109,6 @@ const confirmEbookPurchased = async (itemId, closetId) => {
         return { purchased: true, ebook: latestEbook };
       }
     } catch (err) {
-      console.log('Ebook purchase check by id failed:', err);
     }
 
     try {
@@ -120,7 +118,6 @@ const confirmEbookPurchased = async (itemId, closetId) => {
         return { purchased: true, ebook: { ...(latestEbook || {}), ...purchasedEbook } };
       }
     } catch (err) {
-      console.log('Purchased ebook list check failed:', err);
     }
   }
 
@@ -206,7 +203,6 @@ const EbookCheckoutScreen = () => {
         loggedInUserId,
       });
     } catch (err) {
-      console.log('Error executing ebook payment:', err);
       Alert.alert(t('ebookCheckout.paymentError', 'Payment Error'), t('ebookCheckout.paymentErrorMsg', 'An error occurred during payment processing. Please try again.'));
       setPaying(false);
     }

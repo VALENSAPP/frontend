@@ -375,7 +375,6 @@ const MyClosetDashboard = ({ navigation, userData, shopDraft }) => {
           : Array.isArray(payload?.data)
             ? payload.data
             : [];
-      console.log("-----------------list-------------------", list)
       setRecentOrders(list.slice(0, 3).map((order, index) => normalizeBuyerOrder(order, index, t)));
     } catch (error) {
       console.warn('Unable to load recent orders:', error);
@@ -692,7 +691,6 @@ const MyClosetDashboard = ({ navigation, userData, shopDraft }) => {
       ].join('\n');
       await Share.share({ message: shareMessage });
     } catch (error) {
-      console.log('Share error', error);
     }
   };
 

@@ -658,19 +658,6 @@ export default function PostView({ postData = [], userData = {} }) {
       const payload = res?.data?.data && typeof res.data.data === 'object'
         ? res.data.data
         : res?.data;
-      console.log('[PostView] like API', {
-        postId,
-        statusCode: res?.statusCode,
-        success: res?.success,
-        liked: payload?.liked,
-        isLiked: payload?.isLiked,
-        isLike: payload?.isLike,
-        dislike: payload?.dislike ?? payload?.isDislike ?? payload?.disliked,
-        likesCount: payload?.likesCount,
-        likeCount: payload?.likeCount,
-        totalLikes: payload?.totalLikes,
-        data: res?.data,
-      });
       const ok = res?.statusCode === 200 && res?.success;
 
       if (ok) {
@@ -759,7 +746,6 @@ export default function PostView({ postData = [], userData = {} }) {
           ? await apiUnhidePost(postId)
           : await apiHidePost(postId);
         const ok = resp?.statusCode === 200 && (resp?.success ?? true);
-        console.log(ok, resp, 'ok respose in this ');
         if (!ok) {
           setHiddenById(prev => ({ ...prev, [postId]: isHidden }));
           showToastMessage(
@@ -769,7 +755,6 @@ export default function PostView({ postData = [], userData = {} }) {
             resp?.message ||
             t(isHidden ? 'postView.failedUnhidePost' : 'postView.failedHidePost'),
           );
-          console.log(ok, resp, 'hide post here chcek the data ');
         } else {
           showToastMessage(
             toast,

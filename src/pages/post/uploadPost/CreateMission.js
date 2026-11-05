@@ -248,7 +248,6 @@ const CreateMission = () => {
       activeField.setFieldValue(fieldName, date);
       activeField.setFieldTouched(fieldName, true);
     } else {
-      console.log('activeField is null!');
     }
   };
 

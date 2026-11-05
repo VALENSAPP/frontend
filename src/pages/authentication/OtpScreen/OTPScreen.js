@@ -122,7 +122,6 @@ export default function OTPScreen() {
     if (!response) return false;
 
     const subData = response?.data?.subscription || response?.subscription || response?.data || response;
-    console.log('📢 Subscription data:', subData);
     const isCanceled = Boolean(
       response?.data?.isCancel === 'No' ||
       response?.data?.isCancel === true ||
@@ -239,13 +238,11 @@ export default function OTPScreen() {
         if (profileType !== 'company') {
           try {
             const subResponse = await checkSubscription();
-            console.log('📢 checkSubscription response on signup complete:', subResponse);
             const hasActiveSubscription = hasValidSubscriptionAccess(subResponse);
             if (!hasActiveSubscription) {
               showRegularSubscriptionPrompt = true;
             }
           } catch (subErr) {
-            console.log('❌ Error in checkSubscription on signup complete:', subErr);
             showRegularSubscriptionPrompt = true;
           }
         }

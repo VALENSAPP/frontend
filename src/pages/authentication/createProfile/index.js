@@ -309,7 +309,6 @@ export default function CreateProfile() {
 
     try {
       const resp = await checkUsername({ userName: trimmed, username: trimmed });
-      console.log('Username check response:', resp);
 
       if (resp && (resp.statusCode === 200 || resp.statusCode === 201) && resp.success) {
         const data = resp.data || {};
@@ -682,7 +681,6 @@ export default function CreateProfile() {
       dispatch(showLoader());
       try {
         const response = await saveProfileToApi(profileData);
-        console.log(response,'data in this api setup ')
         if (response?.statusCode === 200 && displayName) {
           await AsyncStorage.setItem('currentUsername', displayName);
         } else if (response?.statusCode !== 200) {

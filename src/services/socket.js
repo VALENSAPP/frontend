@@ -23,23 +23,19 @@ export const initializeSocket = async (userId) => {
   }
 
   if (socket?.connected && connectedUserId === resolvedUserId) {
-    console.log('✅ Socket already connected with matching userId:', resolvedUserId);
     return socket;
   }
 
   if (socket) {
-    console.log('🔌 Disconnecting existing socket to update userId to:', resolvedUserId);
     socket.disconnect();
     socket = null;
   }
 
   if (isConnecting) {
-    console.log('⏳ Socket connection in progress...');
     return null;
   }
 
   isConnecting = true;
-  console.log('🔌 Initializing socket connection for userId:', resolvedUserId);
 
   try {
     socket = io(SOCKET_URL, {
@@ -52,15 +48,12 @@ export const initializeSocket = async (userId) => {
     connectedUserId = resolvedUserId;
 
     socket.on('connect', () => {
-      console.log('✅ Socket connected successfully. Socket ID:', socket.id);
       if (resolvedUserId) {
-        console.log('📤 Auto-requesting chat box for user:', resolvedUserId);
         getUserChatBox(resolvedUserId);
       }
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('⚠️ Socket disconnected. Reason:', reason);
     });
 
     socket.on('connect_error', (error) => {
@@ -74,7 +67,6 @@ export const initializeSocket = async (userId) => {
     });
 
     socket.on('reconnect', (attemptNumber) => {
-      console.log('🔄 Socket reconnected after', attemptNumber, 'attempts');
       // Re-request chat box on reconnect
       if (resolvedUserId) {
         try {
@@ -84,7 +76,6 @@ export const initializeSocket = async (userId) => {
     });
 
     socket.on('reconnect_attempt', (attemptNumber) => {
-      console.log('🔄 Reconnection attempt', attemptNumber);
     });
 
     socket.on('reconnect_error', (error) => {
@@ -113,12 +104,10 @@ export const getSocket = () => {
 };
 
 export const disconnectSocket = () => {
-  console.log('🔌 Disconnecting socket...');
   if (socket) {
     socket.disconnect();
     socket = null;
     listeners.clear();
-    console.log('✅ Socket disconnected and cleaned up');
   }
 };
 
@@ -136,7 +125,6 @@ export const getUserChatBox = (userId) => {
     return;
   }
   
-  console.log('📤 Emitting getUserChatBox for user:', userId);
   socket.emit('getUserChatBox', { userId });
 };
 
@@ -150,10 +138,8 @@ export const onUserChatBox = (callback) => {
     return;
   }
   
-  console.log('👂 Setting up listener for userChatBox');
   
   socket.on('userChatBox', (data) => {
-    console.log('📥 Received userChatBox data:', data);
     callback(data);
   });
   
@@ -176,7 +162,6 @@ export const getConversation = (userId, otherUserId) => {
   }
   
   // ✅ FIXED: Use userId and otherUserId as backend expects
-  console.log('📤 Emitting getConversation:', { userId, otherUserId });
   socket.emit('getConversation', { userId, otherUserId });
 };
 
@@ -190,10 +175,8 @@ export const onUserConversation = (callback) => {
     return;
   }
   
-  console.log('👂 Setting up listener for userConversation');
   
   socket.on('userConversation', (data) => {
-    console.log('📥 Received userConversation data:', data);
     callback(data);
   });
   
@@ -214,7 +197,6 @@ export const sendMessage = (messageData) => {
     return;
   }
   
-  console.log('📤 Emitting sendMessage:', messageData);
   socket.emit('sendMessage', messageData);
 };
 
@@ -228,10 +210,8 @@ export const onNewMessage = (callback) => {
     return;
   }
   
-  console.log('👂 Setting up listener for newMessage');
   
   socket.on('newMessage', (message) => {
-    console.log('📥 Received new message:', message);
     callback(message);
   });
   
@@ -248,10 +228,8 @@ export const onMessageSent = (callback) => {
     return;
   }
   
-  console.log('👂 Setting up listener for messageSent');
   
   socket.on('messageSent', (data) => {
-    console.log('📥 Message sent confirmation:', data);
     callback(data);
   });
   
@@ -272,7 +250,6 @@ export const emitTyping = (receiverId) => {
     return;
   }
   
-  console.log('📤 Emitting typing to:', receiverId);
   socket.emit('typing', { receiverId });
 };
 
@@ -286,7 +263,6 @@ export const emitStopTyping = (receiverId) => {
     return;
   }
   
-  console.log('📤 Emitting stopTyping to:', receiverId);
   socket.emit('stopTyping', { receiverId });
 };
 
@@ -300,10 +276,8 @@ export const onTyping = (callback) => {
     return;
   }
   
-  console.log('👂 Setting up listener for typing');
   
   socket.on('typing', (data) => {
-    console.log('📥 User is typing:', data);
     callback(data);
   });
   
@@ -320,10 +294,8 @@ export const onStopTyping = (callback) => {
     return;
   }
   
-  console.log('👂 Setting up listener for stopTyping');
   
   socket.on('stopTyping', (data) => {
-    console.log('📥 User stopped typing:', data);
     callback(data);
   });
   
@@ -343,7 +315,6 @@ export const removeListener = (eventName) => {
     const callback = listeners.get(eventName);
     socket.off(eventName, callback);
     listeners.delete(eventName);
-    console.log('🗑️ Removed listener for:', eventName);
   }
 };
 
@@ -356,7 +327,6 @@ export const removeAllListeners = () => {
       socket.off(eventName, callback);
     });
     listeners.clear();
-    console.log('🗑️ Removed all socket listeners');
   }
 };
 
@@ -366,7 +336,6 @@ export const removeAllListeners = () => {
  */
 export const isSocketConnected = () => {
   const connected = socket?.connected || false;
-  console.log('🔍 Socket connection status:', connected);
   return connected;
 };
 
@@ -383,7 +352,6 @@ export const getClosetChatThreads = (userId) => {
     console.error('❌ Cannot get closet chat threads: Socket not connected');
     return;
   }
-  console.log('📤 Emitting getClosetChatThreads for user:', userId);
   socket.emit('getClosetChatThreads', { userId });
 };
 
@@ -399,7 +367,6 @@ export const getClosetChatMessages = (userId, threadId, page = 1, limit = 20) =>
     console.error('❌ Cannot get closet chat messages: Socket not connected');
     return;
   }
-  console.log('📤 Emitting getClosetChatMessages:', { userId, threadId, page, limit });
   socket.emit('getClosetChatMessages', { userId, threadId, page, limit });
 };
 
@@ -414,7 +381,6 @@ export const sendClosetChatMessage = (userId, threadId, message) => {
     console.error('❌ Cannot send closet chat message: Socket not connected');
     return;
   }
-  console.log('📤 Emitting sendClosetChatMessage:', { userId, threadId, message });
   socket.emit('sendClosetChatMessage', { userId, threadId, message });
 };
 
@@ -428,6 +394,5 @@ export const markClosetChatMessageSeen = (userId, messageId) => {
     console.error('❌ Cannot mark closet chat message seen: Socket not connected');
     return;
   }
-  console.log('📤 Emitting markClosetChatMessageSeen:', { userId, messageId });
   socket.emit('markClosetChatMessageSeen', { userId, messageId });
 };

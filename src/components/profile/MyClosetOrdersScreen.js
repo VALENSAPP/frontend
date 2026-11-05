@@ -525,7 +525,6 @@ const MyClosetOrdersScreen = ({ navigation, route }) => {
       append ? setLoadingMore(true) : setLoading(true);
       try {
         const response = await fetchOrdersPage(page, tabConfig.status);
-        console.log("response for buyer ordersssssssssssssss", response)
         const list = extractList(response);
         const pagination = extractPagination(response);
         const normalized = list.map((order, index) =>
@@ -598,7 +597,6 @@ const MyClosetOrdersScreen = ({ navigation, route }) => {
       setUnviewedIds(Array.isArray(ids) ? ids.map(id => String(id)) : []);
     } catch (error) {
       // A badge is supplementary; do not block the order list if it fails.
-      console.log('API CALL: getUnviewedOrderIds error:', error?.response?.data ?? error?.message ?? error);
       setUnviewedIds([]);
     }
   }, [mode]);

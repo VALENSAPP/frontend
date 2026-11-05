@@ -1168,7 +1168,6 @@ export default function BattleInProgress() {
     if (!isSilent && !hasInitialBattleData) setLoading(true);
     try {
       const response = await getbattle({ params: { battleId } });
-      console.log(response, 'dtaa in this getbattle im getbattle kya a getbattle krta hu ')
       const storedId = await AsyncStorage.getItem('userId');
       const rawBattle = response?.data?.battle || response?.data?.data || response?.data || response?.battle || routeBattle;
       const enrichedBattle = {
@@ -1631,7 +1630,6 @@ export default function BattleInProgress() {
     }));
     try {
       const response = await pinComment({ battleId: finalBattleId, commentId });
-      console.log(response, 'popin')
 
       if (!isSuccessfulResponse(response)) {
         const errorMessage = String(response?.message || response?.data?.message || 'Unable to pin comment.');
@@ -1669,7 +1667,6 @@ export default function BattleInProgress() {
     }));
     try {
       const response = await unpinComment({ battleId: finalBattleId, commentId });
-      console.log(response, 'unpin')
       if (!isSuccessfulResponse(response)) {
         const errorMessage = String(response?.message || response?.data?.message || 'Unable to unpin comment.');
         setBattle(prev => ({
@@ -1707,7 +1704,6 @@ export default function BattleInProgress() {
         ...(battle?.invitedUserId ? { invitedUserId: battle.invitedUserId } : {}),
       };
       const response = await declinetBattle(declinePayload);
-      console.log(response, 'data in declieneeen')
       if (!isSuccessfulResponse(response)) {
         const msg = String(response?.message || response?.data?.message || '').toLowerCase();
         const statusCode = Number(response?.statusCode || response?.status || 0);

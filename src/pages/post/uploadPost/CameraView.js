@@ -59,7 +59,6 @@ const CameraScreen = ({ mode = 'photo', onCapture, onCancel }) => {
 
       const camOK = cam === 'authorized' || cam === 'granted';
       const micOK = mic === 'granted';
-      console.log(mic);
 
       if (systemGranted && camOK) {
         setPermissionsGranted(true);
@@ -84,7 +83,6 @@ const CameraScreen = ({ mode = 'photo', onCapture, onCancel }) => {
 
     if (mode === 'photo') {
       const photo = await camera.current.takePhoto({ flash });
-      console.log('Photo captured:', photo);
       onCapture?.(photo);
     } else {
       if (!isRecording) {
@@ -92,7 +90,6 @@ const CameraScreen = ({ mode = 'photo', onCapture, onCancel }) => {
         await camera.current.startRecording({
           flash,
           onRecordingFinished: (video) => {
-            console.log('Video:', video);
             onCapture?.(video);
             setIsRecording(false);
           },

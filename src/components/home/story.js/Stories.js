@@ -565,11 +565,9 @@ const StoryViewer = ({
           storyId: currentStory.storyId,
         });
 
-        console.log('viewStory response =>', response);
 
         // check response data here
         if (response?.success) {
-          console.log('Story viewed successfully');
         }
 
       } catch (e) {
@@ -871,7 +869,6 @@ const StoryViewer = ({
     }),
   ).current;
 
-console.log('VIEWER currentUser:', currentUser?.id, currentUser?.username, 'isUser:', currentUser?.isUser);
 
 
   if (!visible || !currentUser || !currentStory) return null;
@@ -1702,13 +1699,11 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
   const route = useRoute();
 
   useEffect(() => {
-    console.log('[Stories] stories state updated:', stories);
   }, [stories]);
 
   // Auto-open story from deep link
   useEffect(() => {
   const sharedStoryId = route?.params?.sharedStoryId;
-  console.log('DEEP LINK EFFECT sharedStoryId:', sharedStoryId, 'stories count:', stories.length);
   if (!sharedStoryId || !stories.length) return;
 
   for (let userIdx = 0; userIdx < stories.length; userIdx++) {

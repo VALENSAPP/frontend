@@ -48,7 +48,6 @@ const BuyMissionPostScreen = () => {
       const parsed = parseTotalPlatformPointsPayload(response);
       setTotalPoints(parsed.totalPlatformPoints);
     } catch (error) {
-      console.log('BuyMissionPostScreen refreshPoints error:', error);
     }
   }, []);
 

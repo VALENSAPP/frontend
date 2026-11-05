@@ -59,7 +59,6 @@ export async function moderateBattleContent({
     media_refs: Array.isArray(mediaRefs) ? mediaRefs : [],
     language: language || 'en',
   });
-  console.log('Moderation check response Battle screen:', response);
   const parsed = parseModerationResult(response);
   return resolveModerationDecision(parsed, response, t, 'openBattle');
 };
@@ -118,6 +117,5 @@ export async function moderateBattleComment({
     language: language || 'en',
   });
 
-  console.log('Moderation check response Battle comment screen:', response);
   return resolveModerationDecision(parseModerationResult(response), response, t, 'battleInProgress');
 };

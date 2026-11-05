@@ -82,6 +82,5 @@ export async function moderateMarketplaceProduct({
     media_refs: collectProductMediaRefs(draft),
     language: language || 'en',
   });
-  console.log('Moderation check response Marketplace product screen:', response);
   return resolveProductDecision(parseModerationResult(response), response, t);
 };

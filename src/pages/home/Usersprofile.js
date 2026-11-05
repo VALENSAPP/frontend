@@ -300,10 +300,8 @@ const Usersprofile = () => {
 
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('PAYMENT_COMPLETED', (data) => {
-      console.log('✅ Payment completed event received in Usersprofile:', data);
 
       if (global.isDonationInProgress) {
-        console.log('Usersprofile: Donation in progress, skipping profile reload.');
         return;
       }
 

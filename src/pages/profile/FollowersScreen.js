@@ -229,7 +229,6 @@ export default function FollowersFollowingScreen({ navigation, route }) {
           setFollowingList(usersWithProfile);
         }
       } catch (e) {
-        console.log(e);
         Alert.alert(
           t('followersFollowing.errorTitle'),
           e?.response?.data?.message || t('followersFollowing.loadListError'),

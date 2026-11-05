@@ -147,7 +147,6 @@ export async function resolveUserIdFromUsername(incomingUsername) {
       fallbackUser?.id || fallbackUser?._id || fallbackUser?.userId || null;
     return id != null ? String(id).trim() : null;
   } catch (error) {
-    console.log('Username resolution failed:', error?.message || error);
     return null;
   }
 }

@@ -46,7 +46,6 @@ const SubscriptionUpdateSummaryScreen = () => {
 
     try {
       const res = await getPriceUpdateSummary();
-      console.log('getPriceUpdateSummary response:', res);
       const data = res?.data?.data || res?.data || res;
       if (data && typeof data === 'object') {
         setApiData(data);
@@ -64,7 +63,6 @@ const SubscriptionUpdateSummaryScreen = () => {
         }));
       }
     } catch (error) {
-      console.log('fetchSummary error:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -141,7 +139,6 @@ const SubscriptionUpdateSummaryScreen = () => {
       const list = Array.isArray(body) ? body : body?.subscribers || body?.users || body?.items || body?.results || [];
       setSubscriberList(list);
     } catch (error) {
-      console.log('getPriceUpdateSubscribers error:', error);
       setSubscriberList([]);
     } finally {
       setSubscriberLoading(false);

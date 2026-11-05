@@ -55,7 +55,6 @@ const EbookBuyDetailsScreen = () => {
           setLoadedEbook(fetchedData);
         }
       } catch (err) {
-        console.log('Error fetching fresh ebook details:', err);
       }
     };
     fetchFreshData();
@@ -102,7 +101,6 @@ const EbookBuyDetailsScreen = () => {
           setAuthorProfile(data);
         }
       } catch (err) {
-        console.log('Error fetching author profile in EbookBuyDetailsScreen:', err);
       }
     };
     fetchAuthorData();

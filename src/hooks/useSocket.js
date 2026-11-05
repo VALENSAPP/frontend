@@ -11,15 +11,12 @@ export default function useSocket(eventName, callback, deps = []) {
     }
 
     const loggedCallback = (...args) => {
-      console.log(`📥 [useSocket] Event "${eventName}" received with payload:`, JSON.stringify(args, null, 2));
       callback(...args);
     };
 
-    console.log(`🔌 [useSocket] Registering listener for event: "${eventName}"`);
     socket.on(eventName, loggedCallback);
 
     return () => {
-      console.log(`🔌 [useSocket] Cleaning up listener for event: "${eventName}"`);
       socket.off(eventName, loggedCallback);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

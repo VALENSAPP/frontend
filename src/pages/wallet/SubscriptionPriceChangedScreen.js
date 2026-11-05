@@ -162,11 +162,6 @@ const waitForPriceUpdatePayment = async ({ creatorId, newPrice, oldPrice }) => {
       newPrice,
       oldPrice,
     });
-    console.log('[SubscriptionPriceChanged] payment status API', {
-      attempt: attempt + 1,
-      decision,
-      fanSubscriptionStatus,
-    });
     if (decision === 'paid') return 'paid';
     if (decision === 'unpaid') sawUnpaid = true;
   }
@@ -226,7 +221,6 @@ const SubscriptionPriceChangedScreen = () => {
 
   const [statusState, setStatusState] = useState(resolveStatusState);
 
-  console.log(statusState,"statusStateScreenLog");
 
   useEffect(() => {
     setStatusState(resolveStatusState());
@@ -240,7 +234,6 @@ const SubscriptionPriceChangedScreen = () => {
 
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('PAYMENT_COMPLETED', (data) => {
-      console.log('✅ [SubscriptionPriceChanged] PAYMENT_COMPLETED event received:', data);
       const paymentStatus = String(data?.status || 'success').toLowerCase();
       const isSuccess = !['failed', 'cancelled', 'canceled'].includes(paymentStatus);
       if (isSuccess) {
@@ -270,7 +263,6 @@ const SubscriptionPriceChangedScreen = () => {
           setCreatorProfile(data);
         }
       } catch (err) {
-        console.log('SubscriptionPriceChangedScreen loadCreator error:', err);
       } finally {
         if (isMounted) setLoadingProfile(false);
       }
@@ -306,7 +298,6 @@ const SubscriptionPriceChangedScreen = () => {
       };
 
       const response = await FanPageSubscription(payload);
-      console.log('[SubscriptionPriceChanged] pay-following response', response);
       const sessionUrl = getPaymentSessionUrl(response);
 
       if (sessionUrl) {
@@ -366,7 +357,6 @@ const SubscriptionPriceChangedScreen = () => {
         t('subscriptionPriceChangedScreen.acceptSuccess')
       );
     } catch (err) {
-      console.log('SubscriptionPriceChangedScreen handleAccept error:', err);
       Alert.alert(
         t('subscriptionPriceChangedScreen.errorTitle'),
         err?.response?.data?.message ||
@@ -402,7 +392,6 @@ const SubscriptionPriceChangedScreen = () => {
         t('subscriptionPriceChangedScreen.declineSuccess')
       );
     } catch (err) {
-      console.log('SubscriptionPriceChangedScreen confirmDecline error:', err);
       Alert.alert(
         t('subscriptionPriceChangedScreen.errorTitle'),
         err?.response?.data?.message ||

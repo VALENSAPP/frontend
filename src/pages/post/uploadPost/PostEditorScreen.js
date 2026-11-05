@@ -236,7 +236,6 @@ const PostEditorScreen = () => {
   const { t, currentLanguage } = useLanguage();
 
   const toast = useToast();
-  console.log('PostEditor received data:', { images, currentFilter, metadata, imageEdits, postType });
 
   const getMediaUri = (media) =>
     media?.processedUri ||
@@ -273,7 +272,6 @@ const PostEditorScreen = () => {
   useEffect(() => {
     const loadProfileType = async () => {
       const type = await AsyncStorage.getItem('profile');
-      console.log('Loaded profile type:', type);
       setProfile(type);
     };
     loadProfileType();
@@ -438,7 +436,6 @@ const PostEditorScreen = () => {
       language: currentLanguage || 'en',
     });
 
-    console.log('Moderation check response:', response);
     const parsed = parseModerationResult(response);
     if (!parsed.decision) {
       const error = new Error(response?.message || 'Moderation check failed');
@@ -669,7 +666,6 @@ const PostEditorScreen = () => {
           ...(youtubeMusicMeta ? { youtubeMusicMeta } : {}),
           ...(videoText ? { videoText, videoTextItems } : {}),
         });
-        console.log('Post creation response:', response);
 
         if (response.statusCode == 200) {
           const created =
@@ -745,7 +741,6 @@ const PostEditorScreen = () => {
       const fallbackUser = exactMatch || users[0];
       return fallbackUser?.id || fallbackUser?._id || fallbackUser?.userId || null;
     } catch (error) {
-      console.log('Username resolution failed:', error?.message || error);
       return null;
     }
   }, []);

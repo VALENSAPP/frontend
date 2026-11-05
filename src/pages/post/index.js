@@ -60,8 +60,6 @@ export default function PostScreen({ navigation }) {
   const isPrivateEntry = String(rawPostTypeParam || '').toLowerCase() === 'private';
   const isFlipEntry = String(rawMediaTypeParam || '').toLowerCase() === 'flips';
   const mediaType = rawMediaTypeParam;
-  console.log('mediaTypemediaType',mediaType)
-  console.log("isFlipEntryisFlipEntry",isFlipEntry)
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
 
@@ -286,7 +284,6 @@ const cropImage = (imageUri, index) => {
         dispatch(hideLoader());
       })
       .catch((error) => {
-        console.log('Gallery error:', error);
         dispatch(hideLoader());
 
         if (error.code === 'E_PICKER_CANCELLED') {
@@ -425,7 +422,6 @@ const cropImage = (imageUri, index) => {
 
       })
       .catch((err) => {
-        console.log('Camera cancelled or error:', err);
         dispatch(hideLoader());
       });
   };
@@ -625,7 +621,6 @@ const cropImage = (imageUri, index) => {
           controls={false}
           onLoad={() => setFlipVideoPaused(false)}
           onError={(error) => {
-            console.log('Flip preview video error:', error);
             setFlipVideoPaused(true);
           }}
         />
@@ -819,7 +814,6 @@ const cropImage = (imageUri, index) => {
 
   const handleSelectType = (type) => {
     setPostType(type);
-    console.log('User chose post type:', type);
   };
 
   return (

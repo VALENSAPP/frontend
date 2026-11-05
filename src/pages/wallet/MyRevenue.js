@@ -153,7 +153,6 @@ export default function RevenueFromSubscriptions({ navigation, route }) {
         try {
             const interval = PERIOD_MAP[chartPeriod] ?? 'daily';
             const response = await subscriptionEarningGraph({ interval });
-            console.log('Subscription graph response chcek this as oii chcek date s:', response);
             const { points, totalAmount } = parseSubscriptionGraphResponse(response, interval);
             setGraphData(points);
             setGraphTotalAmount(totalAmount);

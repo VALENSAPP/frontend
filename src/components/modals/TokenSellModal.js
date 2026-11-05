@@ -57,7 +57,6 @@ const TokenSellModal = ({ onSell, tokenAddress, userId }) => {
         }
       }
     } catch (err) {
-      console.log(err);
       Alert.alert(t('tokenSell.errorTitle'), err.message || t('tokenSell.fetchAmountError'));
     } finally {
       dispatch(hideLoader());

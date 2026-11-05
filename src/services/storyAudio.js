@@ -34,7 +34,6 @@ export async function fetchYoutubeTrimmedAudioDownloadUrl({
     return null;
   }
 
-  console.log('[Story audio] story/youtube-audio-clip OK:', res);
 
   const inner = res?.data != null && typeof res.data === 'object' ? res.data : res;
   const url =

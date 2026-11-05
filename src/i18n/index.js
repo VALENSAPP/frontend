@@ -41,9 +41,7 @@ export const fetchAndApplyUserLanguage = async (deviceId) => {
   try {
     const resolvedDeviceId = deviceId || (await getAuthDeviceId());
     if (!resolvedDeviceId) return null;
-    console.log('Fetched deviceId:', resolvedDeviceId);
     const response = await getUserLanguage(resolvedDeviceId);
-    console.log('Fetched user language response:', response);
     const rawData = response?.data;
     const lang =
       typeof rawData === 'string'

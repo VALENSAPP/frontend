@@ -254,7 +254,6 @@ const resolveActivityLabel = (item, timestamp, range) => {
   return formatActivityBucketLabel(timestamp, range);
 };
 
-console.log('WalletDashboardScreen loaded');
 
 const HexStarIcon = ({ size = 36, starSize = 16, starColor = '#ffffff', bgColor = '#5a2d82' }) => {
   const cx = size / 2;
@@ -922,7 +921,6 @@ export const WalletDashboardScreen = ({ navigation }) => {
         ),
       );
     } catch (err) {
-      console.log(err, 'erro in thi aposississsi');
       setRewardSummary(DEFAULT_REWARD_POINTS);
     }
   };
@@ -949,14 +947,12 @@ export const WalletDashboardScreen = ({ navigation }) => {
       const id = await AsyncStorage.getItem('userId');
 
       if (!id) {
-        console.log('User ID not found');
         return;
       }
       setUserId(id);
 
       const response = await getUserCredentials(id);
 
-      console.log('API Response: data in thi apiaiaaiaiaai', response);
       const storedProfile = await AsyncStorage.getItem('profile');
       const accountType = String(
         response?.data?.profile || storedProfile || 'user',
@@ -968,7 +964,6 @@ export const WalletDashboardScreen = ({ navigation }) => {
         const savedProvider = await persistPaymentProvider(profileProvider);
         setPaymentProvider(savedProvider);
       }
-      console.log(response, 'data in this apiaia for resposne ')
       // 🔥 Adjust keys based on your API response
       const stripeCustomerId =
         response?.data?.stripeAccountId ||
@@ -1002,7 +997,6 @@ export const WalletDashboardScreen = ({ navigation }) => {
       });
 
     } catch (error) {
-      console.log('Error fetching user details:', error);
     } finally {
       dispatch(hideLoader());
     }
@@ -1181,7 +1175,6 @@ export const WalletDashboardScreen = ({ navigation }) => {
         params,
       });
     } catch (error) {
-      console.log('TotalEarnings nested navigate failed, trying direct:', error);
       navigation.navigate('TotalEarnings', params);
     }
   }, [navigation, totalEarningAmount, isBusinessProfile]);
@@ -1210,7 +1203,6 @@ export const WalletDashboardScreen = ({ navigation }) => {
         params,
       });
     } catch (error) {
-      console.log('ReferralPoints nested navigate failed, trying direct:', error);
       navigation.navigate('ReferralPoints', params);
     }
   }, [navigation, rewardSummary, isBusinessProfile]);
@@ -1349,7 +1341,6 @@ export const WalletDashboardScreen = ({ navigation }) => {
   const fetchCreditsLeft = async () => {
     try {
       const response = await getCreditsLeft();
-      console.log(response, 'credits left')
       if (response?.statusCode === 200) {
         const hitLeftRaw = response?.data?.hitLeft;
         const hitLeft = Number(hitLeftRaw);
@@ -1379,8 +1370,6 @@ export const WalletDashboardScreen = ({ navigation }) => {
         userId ? getTotalFollowers({ userId, range }) : Promise.resolve(null),
         subscriptionEarningGraph({ interval: range }),
       ]);
-      console.log('Followers API Response:', followersRes);
-      console.log('Subscription Graph Response:', supportRes);
       const { followers: fp, unfollowers: up } = parseFollowersGraphSeries(followersRes, range);
       const sp = mapSubscriptionGraphPoints(supportRes, range);
       const aligned = alignThreeActivitySeries(fp, up, sp, range);
@@ -1436,7 +1425,6 @@ export const WalletDashboardScreen = ({ navigation }) => {
   const fetchTotalSupport = async () => {
     try {
       const response = await totalSupport();
-      console.log(response, 'data in total support ')
       const rawValue =
         response?.data?.totalAmount ??
         response?.data?.data?.totalAmount ??
@@ -1463,7 +1451,6 @@ export const WalletDashboardScreen = ({ navigation }) => {
   const fetchTotalEarning = async () => {
     try {
       const response = await totalamount();
-      console.log(response, 'data in total earning totalamounttotalamounttotalamounttotalamounttotalamount')
       const rawValue =
         response?.data?.totalAmount ??
         response?.data?.data?.totalAmount ??
@@ -1538,7 +1525,6 @@ export const WalletDashboardScreen = ({ navigation }) => {
       );
 
     } catch (error) {
-      console.log(error, "Error in total mission API");
     }
   };
 
@@ -1547,7 +1533,6 @@ export const WalletDashboardScreen = ({ navigation }) => {
     try {
       const response = await getTopCreators();
       if (response?.statusCode === 200) {
-        console.log('Top creators', response.data);
 
         const formattedCreators = response.data.map((creator, index) => ({
           id: index + 1,

@@ -1,6 +1,6 @@
 // src/navigations/MainStack.js
 import React, { useEffect, useLayoutEffect, useRef } from 'react';
-import { View, ActivityIndicator, Alert, StyleSheet, Animated, Dimensions, TouchableWithoutFeedback, TouchableOpacity, Switch } from 'react-native';
+import { View, ActivityIndicator, Alert, StyleSheet, Animated, Dimensions, TouchableWithoutFeedback, TouchableOpacity, Switch, DeviceEventEmitter, Image } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
 import { useDispatch, useSelector } from 'react-redux';
@@ -57,6 +57,8 @@ import WhiteScreen from '../pages/authentication/WhiteScreen';
 import { useThemeContext } from '../theme/ThemeContext';
 import { normalizeProfileType } from '../utils/closetNavigation';
 
+import DralensAiModal from '../components/dralens/DralensAiModal';
+
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
 
@@ -95,10 +97,8 @@ const CustomDrawerContent = (props) => {
   const [unviewedCount, setUnviewedCount] = React.useState(0);
 
   const checkUnviewedOrders = React.useCallback(async () => {
-    console.log('API CALL: getUnviewedOrderIds started');
     try {
       const res = await getUnviewedOrderIds();
-      console.log('API CALL: getUnviewedOrderIds success response:', res?.data ?? res);
       const data = res?.data?.data ?? res?.data ?? res;
       const countVal = Number(
         data?.count ??
@@ -110,7 +110,6 @@ const CustomDrawerContent = (props) => {
       );
       setUnviewedCount(countVal);
     } catch (err) {
-      console.log('API CALL: getUnviewedOrderIds error:', err?.response?.data ?? err?.message ?? err);
     }
   }, []);
 
@@ -142,7 +141,6 @@ const CustomDrawerContent = (props) => {
 
       // Handle success here
     } catch (err) {
-      console.log(err, 'blockProfile error');
     }
   }, []);
   useEffect(() => {
@@ -380,6 +378,45 @@ const CustomDrawerContent = (props) => {
         <Feather name="settings" size={20} color={drawerColors.inactive} style={{ marginRight: 16 }} />
         <Text style={{ fontSize: 15, color: drawerColors.inactive, fontWeight: '600' }}>
           {t('drawerNav.settings')}
+        </Text>
+      </TouchableOpacity>
+
+      {/* Dralens AI Button */}
+      <TouchableOpacity
+        onPress={() => {
+          props.navigation.closeDrawer();
+          setTimeout(() => {
+            DeviceEventEmitter.emit('OPEN_DRALENS_AI');
+          }, 250);
+        }}
+        activeOpacity={0.8}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginHorizontal: 16,
+          marginTop: 10,
+          marginBottom: 6,
+          paddingVertical: 12,
+          paddingHorizontal: 14,
+          borderRadius: 14,
+          backgroundColor: isDarkMode ? '#241738' : '#FAF5FF',
+          borderWidth: 1.5,
+          borderColor: isDarkMode ? '#7C3AED' : '#C084FC',
+        }}
+      >
+        <Image
+          source={require('../assets/icons/pngicons/dralens_drawer_icon.png')}
+          style={{ width: 30, height: 30, marginRight: 12 }}
+          resizeMode="contain"
+        />
+        <Text
+          style={{
+            fontSize: 15,
+            fontWeight: '700',
+            color: isDarkMode ? '#F3E8FF' : '#581C87',
+          }}
+        >
+          {t('drawerNav.dralensAi', 'Dralens AI')}
         </Text>
       </TouchableOpacity>
 
@@ -750,12 +787,15 @@ export default function MainStack({ isFirstLaunch }) {
   }
 
   return (
-    <Stack.Navigator key="appStack" screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="AppDrawer" component={GlobalDrawerNavigator} />
-      <Stack.Screen name="BusinessSetup" component={BusinessSetup} />
-      <Stack.Screen name="kycverify" component={KYCVerification} />
-      <Stack.Screen name="CallbackScreen" component={CallbackScreen} />
-    </Stack.Navigator>
+    <>
+      <Stack.Navigator key="appStack" screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="AppDrawer" component={GlobalDrawerNavigator} />
+        <Stack.Screen name="BusinessSetup" component={BusinessSetup} />
+        <Stack.Screen name="kycverify" component={KYCVerification} />
+        <Stack.Screen name="CallbackScreen" component={CallbackScreen} />
+      </Stack.Navigator>
+      <DralensAiModal />
+    </>
   );
 }
 

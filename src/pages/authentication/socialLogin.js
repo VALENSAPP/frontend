@@ -73,7 +73,6 @@ export const onGoogleButtonPress = async (dispatch, navigation, toast, profile, 
         user?._user?.displayName ??
         user?.providerData?.[0]?.displayName ??
         'Unknown';
-      console.log("idTokenFromUser--------------", idTokenFromUser)
       if (idToken) {
         signupReference('GOOGLE', idTokenFromUser, toast, dispatch, navigation, profile, username, t)
       }
@@ -108,7 +107,6 @@ export const onAppleButtonPress = async (dispatch, navigation, toast, profile, t
     const appleCredential = auth.AppleAuthProvider.credential(identityToken, nonce);
 
     const userCredential = await auth().signInWithCredential(appleCredential);
-    console.log('appleCredential------>>>>>>>>>', userCredential);
 
     const user = userCredential.user;
     const username =
@@ -121,13 +119,11 @@ export const onAppleButtonPress = async (dispatch, navigation, toast, profile, t
       auth().onAuthStateChanged((user) => {
         if (user) {
           user.providerData.forEach((provider) => {
-            console.log('Provider: ', provider.providerId);
           });
         }
       });
 
       const idToken = await user.getIdToken();
-      console.log('idtokennnnnnnn', idToken);
 
       signupReference('APPLE', idToken, toast, dispatch, navigation, profile, username, t)
     }
@@ -143,7 +139,6 @@ export const signInWithFirebase = async idToken => {
   try {
     const dispatch = useDispatch();
     const lookupResponse = await firebasePost('lookup', { idToken });
-    console.log('-----lookupResponse-------', lookupResponse);
 
     const username =
       lookupResponse?.users?.[0]?.displayName ??
@@ -161,7 +156,6 @@ export const signInWithFirebase = async idToken => {
 };
 
 export async function twitterOAuthLogin(dispatch, toast, navigation, profile, t) {
-  console.log('enter', REDIRECT_URI)
   const state = uuidv4();
   const codeChallenge = state;
   codeVerifierRef.current = codeChallenge;
@@ -187,7 +181,6 @@ export async function twitterOAuthLogin(dispatch, toast, navigation, profile, t)
         const codeMatch = result.url.match(/code=([^&]+)/);
         if (codeMatch) {
           const code = codeMatch[1];
-          console.log('Authorization code:', code);
           await exchangeCodeForToken(code, dispatch, toast, navigation, profile, t);
         } else {
           showToastMessage(toast, 'danger', t('socialLogin.authCodeNotFound'));
@@ -203,7 +196,6 @@ export async function twitterOAuthLogin(dispatch, toast, navigation, profile, t)
 }
 
 const getProfileData = async (dispatch, navigation, toast, accessToken, refreshToken, t) => {
-  console.log('profile status--------after toast---------')
   try {
     dispatch(showLoader());
     const id = await AsyncStorage.getItem('userId');
@@ -285,9 +277,7 @@ export const signupReference = async (type, idtoken, toast, dispatch, navigation
     } else {
       payload.twitterId = idtoken
     }
-    console.log("payload-----------------", payload)
     const response = await signup(payload);
-    console.log('google signup', response)
     if (
       response && (response.statusCode == 200 || response.statusCode == 201)
     ) {
@@ -436,7 +426,6 @@ export const connectWalletLogin = async (toast, navigation, dispatch, t, options
 
     const session = await approval();
     const accounts = session?.namespaces?.eip155?.accounts || [];
-    console.log('All accounts from session:', accounts);
 
     const accountOnPreferredChain =
       accounts.find((item) => item.startsWith('eip155:137:')) ||
@@ -448,8 +437,6 @@ export const connectWalletLogin = async (toast, navigation, dispatch, t, options
     const connectedChainId = parts[1];
     const address = parts[2];
 
-    console.log('Connected Chain ID:', connectedChainId);
-    console.log('Connected Address:', address);
 
     if (connectedChainId) {
       await AsyncStorage.setItem('walletChainId', connectedChainId);
@@ -498,7 +485,6 @@ export const exchangeCodeForToken = async (code, dispatch, toast, navigation, pr
     );
 
     const accessToken = response.data.access_token;
-    console.log('Access token:', accessToken);
 
     if (accessToken) {
       await signupReference('TWITTER', accessToken, toast, dispatch, navigation, profile, undefined, t);

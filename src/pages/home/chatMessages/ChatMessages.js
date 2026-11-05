@@ -136,9 +136,7 @@ export default function ChatMessages() {
     if (!currentUserId) return;
     try {
       if (closetThreadsCountRef.current === 0) setIsClosetLoading(true);
-      console.log('📡 ChatMessages: Fetching closet threads via API');
       const response = await getClosetChatThreadsApi();
-      console.log('📥 API getClosetChatThreads response:', response);
       if (response && response.success) {
         const received = Array.isArray(response.data)
           ? response.data
@@ -239,15 +237,12 @@ export default function ChatMessages() {
         const userId = await AsyncStorage.getItem('userId');
         if (userId) {
           setCurrentUserId(userId);
-          console.log('📱 ChatMessages: Current user ID set:', userId);
           
           const socket = getSocket();
           if (!socket || !socket.connected) {
-            console.log('🔌 ChatMessages: Initializing socket...');
             await initializeSocket(userId);
             setSocketReady(true);
           } else {
-            console.log('🔌 ChatMessages: Socket already connected');
             setSocketReady(true);
           }
         } else {
@@ -268,37 +263,30 @@ export default function ChatMessages() {
     if (!socket) return;
 
     const handleConnect = () => {
-      console.log('🔌 ChatMessages: Socket connected');
       setSocketReady(true);
       
       if (currentUserId) {
         if (activeTab === CHAT_TABS.CLOSET) {
-          console.log('📡 ChatMessages: Requesting closet chat threads on connect');
           getClosetChatThreads(currentUserId);
           fetchClosetConversations();
         } else {
-          console.log('📡 ChatMessages: Requesting chat box on connect');
           socket.emit('getUserChatBox', { userId: currentUserId });
         }
       }
     };
 
     const handleDisconnect = () => {
-      console.log('🔌 ChatMessages: Socket disconnected');
       setSocketReady(false);
     };
 
     const handleReconnect = () => {
-      console.log('🔌 ChatMessages: Socket reconnected');
       setSocketReady(true);
       
       if (currentUserId) {
         if (activeTab === CHAT_TABS.CLOSET) {
-          console.log('📡 ChatMessages: Requesting closet chat threads on reconnect');
           getClosetChatThreads(currentUserId);
           fetchClosetConversations();
         } else {
-          console.log('📡 ChatMessages: Requesting chat box on reconnect');
           socket.emit('getUserChatBox', { userId: currentUserId });
         }
       }
@@ -326,11 +314,9 @@ export default function ChatMessages() {
       if (socket?.connected) {
         if (activeTab === CHAT_TABS.CLOSET) {
           setIsClosetLoading(true);
-          console.log('📡 ChatMessages: Requesting initial closet chat threads');
           getClosetChatThreads(currentUserId);
           fetchClosetConversations();
         } else {
-          console.log('📡 ChatMessages: Requesting initial chat box');
           socket.emit('getUserChatBox', { userId: currentUserId });
         }
       }
@@ -347,26 +333,17 @@ export default function ChatMessages() {
       }
 
       if (hasProcessedShareRef.current) {
-        console.log('🚫 Shared content already processed, skipping');
         return;
       }
       
       if (!currentUserId) {
-        console.log('⏳ Waiting for currentUserId to be set...');
         return;
       }
 
       hasProcessedShareRef.current = true;
 
-      console.log('📤 ChatMessages: Received shared content:', {
-        sharedContent,
-        selectedUserIds,
-        userCount: selectedUserIds.length,
-        currentUserId: currentUserId
-      });
 
       try {
-        console.log('📬 Sending shared content to', selectedUserIds.length, 'user(s)');
         
         showToastMessage(
           toast,
@@ -378,7 +355,6 @@ export default function ChatMessages() {
         let successCount = 0;
         let failCount = 0;
 
-        console.log('📋 Starting Step 1: sharePost API call (ONCE with all users)');
         try {
           let mediaType, mediaId;
           if (sharedContent.post) {
@@ -395,7 +371,6 @@ export default function ChatMessages() {
             }
           }
 
-          console.log('📋 Media details:', { mediaType, mediaId });
 
           if (mediaType && mediaId) {
             const sharePayload = {
@@ -405,15 +380,12 @@ export default function ChatMessages() {
               sharedUserId: currentUserId,
               receiverUserId: selectedUserIds
             };
-            console.log('📡 Calling sharePost API ONCE with', selectedUserIds.length, 'users:', sharePayload);
             const shareResponse = await sharePost(sharePayload);
-            console.log('✅ SharePost API response: Success');
           }
         } catch (shareError) {
           console.error('❌ SharePost API error:', shareError.message);
         }
 
-        console.log('📋 Starting Step 2: Send messages to', selectedUserIds.length, 'users');
         for (let i = 0; i < selectedUserIds.length; i++) {
           const userId = selectedUserIds[i];
           
@@ -422,7 +394,6 @@ export default function ChatMessages() {
           }
           
           try {
-            console.log(`📤 Sending message to user ${userId} (${i + 1}/${selectedUserIds.length})...`);
 
             const messageType = sharedContent.post ? 'POST_SHARE'
               : sharedContent.reel ? 'REEL_SHARE'
@@ -449,18 +420,15 @@ export default function ChatMessages() {
               );
             }
 
-            console.log('📤 Sending message data to user', userId, ':', messageData);
 
             const socket = getSocket();
             if (socket?.connected) {
               socket.emit('sendMessage', messageData);
-              console.log('📡 Socket sent for', userId);
             }
 
             try {
               const response = await sendMessageAPI(messageData);
               if (response?.success) {
-                console.log(`✅ API success for ${userId}`);
                 successCount++;
               } else {
                 console.warn(`⚠️ API failed for ${userId}:`, response?.message);
@@ -474,11 +442,9 @@ export default function ChatMessages() {
           }
         }
 
-        console.log('✅ Completed sending to all users:', { successCount, failCount });
 
         const socket = getSocket();
         if (socket?.connected) {
-          console.log('📡 Refreshing chat box after multi-share');
           socket.emit('getUserChatBox', { userId: currentUserId });
         }
 
@@ -528,10 +494,8 @@ export default function ChatMessages() {
 
   // ✅ Listen for chat box updates (conversation list)
   useSocket('userChatBox', (data) => {
-    console.log('📨 ChatMessages: Received userChatBox data');
     
     if (!data) {
-      console.log('⚠️ ChatMessages: No data received');
       return;
     }
 
@@ -543,10 +507,8 @@ export default function ChatMessages() {
       conversationsData = data.data;
     }
 
-    console.log(`📊 ChatMessages: Processing ${conversationsData.length} conversations`);
     
     const processedConversations = processConversationsData(conversationsData);
-    console.log(`✅ ChatMessages: Processed ${processedConversations.length} conversations`);
     
     setConversations(processedConversations);
     setDataSource('socket');
@@ -568,10 +530,8 @@ export default function ChatMessages() {
 
   // ✅ Listen for new messages to update conversation list in real-time
   useSocket('newMessage', (message) => {
-    console.log('🔔 ChatMessages: New message received');
 
     if (!message || !currentUserId) {
-      console.log('⚠️ ChatMessages: Missing message or currentUserId');
       return;
     }
 
@@ -605,14 +565,12 @@ export default function ChatMessages() {
 
     const socket = getSocket();
     if (socket?.connected) {
-      console.log('📡 ChatMessages: Requesting fresh chat box after new message');
       socket.emit('getUserChatBox', { userId: currentUserId });
     }
   }, [currentUserId, toast, isScreenFocused, t]);
 
   // ✅ Listen for messageSent event to update conversation list
   useSocket('messageSent', (message) => {
-    console.log('📤 ChatMessages: Message sent event received');
 
     if (!message || !currentUserId) return;
 
@@ -620,7 +578,6 @@ export default function ChatMessages() {
     const me = String(currentUserId);
 
     if (senderId === me) {
-      console.log('📤 ChatMessages: Current user sent message, refreshing');
       const socket = getSocket();
       if (socket?.connected) {
         socket.emit('getUserChatBox', { userId: currentUserId });
@@ -630,7 +587,6 @@ export default function ChatMessages() {
 
   // ✅ Listen for Closet Chat thread success
   useSocket('closetChatThreads', (data) => {
-    console.log('📨 ChatMessages: Received closetChatThreads data');
     setClosetThreads(Array.isArray(data) ? data : data?.threads || []);
     setClosetUnreadTotal(readClosetUnreadTotal(data));
     setIsClosetLoading(false);
@@ -646,7 +602,6 @@ export default function ChatMessages() {
 
   // ✅ Listen for Closet Chat new message push to refresh list
   useSocket('closetChatNewMessage', (message) => {
-    console.log('🔔 ChatMessages: Received closetChatNewMessage, refreshing threads');
     if (currentUserId) {
       getClosetChatThreads(currentUserId);
     }
@@ -654,7 +609,6 @@ export default function ChatMessages() {
 
   // ✅ Listen for Closet Chat seen confirmations to update unread badge / seen state in list
   useSocket('closetChatMessageSeen', (data) => {
-    console.log('📨 ChatMessages: Received closetChatMessageSeen, refreshing threads');
     if (currentUserId) {
       getClosetChatThreads(currentUserId);
     }
@@ -663,27 +617,22 @@ export default function ChatMessages() {
   // ✅ Periodic refresh to catch any missed messages
   useEffect(() => {
     if (!currentUserId || !socketReady) {
-      console.log('⏸️ ChatMessages: Skipping periodic refresh - not ready');
       return;
     }
 
-    console.log('⏰ ChatMessages: Setting up periodic refresh');
     
     const interval = setInterval(() => {
       const socket = getSocket();
       if (socket?.connected && isScreenFocused) {
         if (activeTab === CHAT_TABS.CLOSET) {
-          console.log('🔄 ChatMessages: Periodic refresh - requesting closet threads');
           getClosetChatThreads(currentUserId);
         } else {
-          console.log('🔄 ChatMessages: Periodic refresh - requesting chat box');
           socket.emit('getUserChatBox', { userId: currentUserId });
         }
       }
     }, 10000);
 
     return () => {
-      console.log('⏰ ChatMessages: Clearing periodic refresh');
       clearInterval(interval);
     };
   }, [currentUserId, socketReady, isScreenFocused, activeTab]);
@@ -693,7 +642,6 @@ export default function ChatMessages() {
   // ✅ Track screen focus state and request fresh data when focused
   useFocusEffect(
     useCallback(() => {
-      console.log('👁️ ChatMessages: Screen focused');
       setIsScreenFocused(true);
 
       // Refresh conversations when screen becomes active
@@ -705,26 +653,21 @@ export default function ChatMessages() {
         const checkAndReconnectSocket = async () => {
           const socket = getSocket();
           if (!socket || !socket.connected) {
-            console.log('🔌 ChatMessages focus: Socket not connected. Re-initializing socket...');
             const newSocket = await initializeSocket(currentUserId);
             if (newSocket?.connected) {
               setSocketReady(true);
               if (activeTab === CHAT_TABS.CLOSET) {
-                console.log('📡 ChatMessages: Requesting closet chat threads after re-init');
                 getClosetChatThreads(currentUserId);
                 fetchClosetConversations();
               } else {
-                console.log('📡 ChatMessages: Requesting chat box after re-init');
                 newSocket.emit('getUserChatBox', { userId: currentUserId });
               }
             }
           } else {
             if (activeTab === CHAT_TABS.CLOSET) {
-              console.log('📡 ChatMessages: Requesting closet chat threads on focus');
               getClosetChatThreads(currentUserId);
               fetchClosetConversations();
             } else {
-              console.log('📡 ChatMessages: Requesting chat box on focus');
               socket.emit('getUserChatBox', { userId: currentUserId });
             }
           }
@@ -733,7 +676,6 @@ export default function ChatMessages() {
       }
 
       return () => {
-        console.log('👁️ ChatMessages: Screen unfocused');
         setIsScreenFocused(false);
       };
     }, [currentUserId, activeTab, fetchConversations, fetchClosetConversations])
@@ -748,11 +690,9 @@ export default function ChatMessages() {
     const socket = getSocket();
     if (socket?.connected) {
       if (activeTab === CHAT_TABS.CLOSET) {
-        console.log('🔄 ChatMessages: Manual refresh - requesting closet threads');
         getClosetChatThreads(currentUserId);
         fetchClosetConversations();
       } else {
-        console.log('🔄 ChatMessages: Manual refresh - requesting chat box');
         socket.emit('getUserChatBox', { userId: currentUserId });
       }
     }
@@ -786,7 +726,6 @@ export default function ChatMessages() {
   }, [t]);
 
   const processConversationsData = useCallback((conversationsData) => {
-    console.log('🔍 Processing conversations data - count:', conversationsData);
 
     if (!Array.isArray(conversationsData)) {
       console.warn('❌ Invalid conversations data format:', conversationsData);
@@ -794,12 +733,10 @@ export default function ChatMessages() {
     }
 
     if (conversationsData.length === 0) {
-      console.log('📭 No conversations in data');
       return [];
     }
 
     const conversationMap = new Map();
-    console.log('👤 Current user ID:', currentUserId);
 
     conversationsData.forEach((item, index) => {
       const hasLastMessage = !!item.lastMessage;
@@ -816,13 +753,10 @@ export default function ChatMessages() {
           String(item?.isHidden || '').toLowerCase() === 'true' ||
           String(item?.isHidden || '') === '1';
         if (isHidden || (rawChatId && hiddenChatIdsRef.current.has(rawChatId))) {
-          console.log(`ðŸš« Skipping hidden conversation: ${rawChatId}`);
           return;
         }
-        console.log(`✅ Item ${index}: NEW FORMAT (conversation)`);
 
         if (item.isHidden === true) {
-          console.log(`🚫 Skipping hidden conversation: ${item.id}`);
           return;
         }
 
@@ -830,11 +764,8 @@ export default function ChatMessages() {
         message = item.lastMessage;
         chatId = item.id;
 
-        console.log(`  - conversation.id (chatId): ${chatId}`);
-        console.log(`  - isHidden: ${item.isHidden}`);
       }
       else if (hasSender && hasReceiver) {
-        console.log(`✅ Item ${index}: OLD FORMAT (message)`);
 
         // ✅ CHECK isHidden for old format too
         if (
@@ -842,7 +773,6 @@ export default function ChatMessages() {
           String(item?.isHidden || '').toLowerCase() === 'true' ||
           String(item?.isHidden || '') === '1'
         ) {
-          console.log(`🚫 Skipping hidden message: ${item.id}`);
           return;
         }
 
@@ -864,12 +794,8 @@ export default function ChatMessages() {
 
         const generatedChatId = [currentUserId, partnerId].sort().join('_');
         chatId = serverChatId || generatedChatId;
-        console.log(
-          `  - chatId: ${chatId} (server: ${serverChatId || 'n/a'}, generated: ${generatedChatId})`,
-        );
 
         if (chatId && hiddenChatIdsRef.current.has(String(chatId).trim())) {
-          console.log(`ðŸš« Skipping locally hidden conversation: ${chatId}`);
           return;
         }
 
@@ -886,12 +812,10 @@ export default function ChatMessages() {
       }
 
       if (!message) {
-        console.log('⚠️ No message found');
         return;
       }
 
       if (chatId && hiddenChatIdsRef.current.has(String(chatId))) {
-        console.log(`🚫 Skipping locally hidden conversation: ${chatId}`);
         return;
       }
 
@@ -900,7 +824,6 @@ export default function ChatMessages() {
       const chatPartner = conversation.user || (isCurrentUserSender ? message.receiver : message.sender);
 
       if (!chatPartner?.id) {
-        console.log('⚠️ No chat partner found');
         return;
       }
 
@@ -961,7 +884,6 @@ export default function ChatMessages() {
           }
         };
 
-        console.log(`  💾 Storing conversation - Partner: ${partnerId}, chatId: ${chatId}`);
         conversationMap.set(partnerId, conversationData);
       }
     });
@@ -970,7 +892,6 @@ export default function ChatMessages() {
       (a, b) => new Date(b.lastMessageTime) - new Date(a.lastMessageTime)
     );
 
-    console.log(`✅ Final processed conversations: ${result.length} items`);
     return result;
   }, [currentUserId, t, formatTimestamp]);
 
@@ -979,7 +900,6 @@ export default function ChatMessages() {
     if (!currentUserId) return;
 
     if (dataSource === 'socket') {
-      console.log('✅ Already have socket data, skipping API call');
       return;
     }
 
@@ -988,11 +908,9 @@ export default function ChatMessages() {
       if (conversations.length === 0) setIsLoading(true);
 
       const response = await getAllConversations();
-      console.log('📥 API Response (fallback):', response);
 
       if (response.success && response.data) {
         const processedConversations = processConversationsData(response.data);
-        console.log('⚠️ Using API data as fallback - count:', processedConversations.length);
         setConversations(processedConversations);
         setDataSource('api');
         setError(null);
@@ -1026,7 +944,6 @@ export default function ChatMessages() {
       try {
         chatStatusUpdate(item.chatId)
           .then((response) => {
-            console.log('✅ Chat marked as read:', response);
             
             const socket = getSocket();
             if (socket?.connected) {
@@ -1034,10 +951,8 @@ export default function ChatMessages() {
             }
           })
           .catch((err) => {
-            console.log('❌ Chat status update error:', err);
           });
       } catch (error) {
-        console.log('❌ Background API Error:', error);
       }
     }
 
@@ -1053,7 +968,6 @@ export default function ChatMessages() {
   };
 
   const handleDeleteConversation = async () => {
-    console.log('🗑️ Attempting to delete conversation:', selectedConversation);
 
     if (!selectedConversation || !selectedConversation.chatId) {
       showToastMessage(toast, 'error', t('chatMessages.unableToDelete'), 2000);
@@ -1064,10 +978,8 @@ export default function ChatMessages() {
     setIsDeleting(true);
 
     try {
-      console.log('🗑️ Deleting conversation with chatId:', selectedConversation.chatId);
       const response = await getHideChatConversation(selectedConversation.chatId);
 
-      console.log('📡 Hide conversation response:', response);
 
       if (response.success) {
         // Store both conversation id and partner id as hidden keys, since the

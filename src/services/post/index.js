@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import RNFS from 'react-native-fs';
 import axiosInstance from '..';
+import { dedupeRequest } from '../../utils/apiDeduplicator';
 import { appendStoryAudioFiles } from '../../utils/storyAudioUpload';
 
 const appendMultipartFile = (formData, fieldName, file) => {
@@ -18,7 +19,6 @@ const appendMultipartFile = (formData, fieldName, file) => {
 };
 
 export const createPost = async data => {
-  console.log('Creating post with data:', data);
   const formData = new FormData();
 
   if (data.music != null && String(data.music).trim() !== '') {
@@ -132,10 +132,8 @@ export const createPost = async data => {
   }
 
 if (data.tableContent) {
-  console.log('Appending table contents');
 
   data.tableContent.forEach(item => {
-    console.log('Appending:', item);
     formData.append('tableContents', item);
   });
 }
@@ -281,7 +279,6 @@ export const deleteMarketplaceEbook = async (ebookId) => {
 };
 
 export const createMarketplaceEbook = async data => {
-  console.log('Creating marketplace ebook with data:', data);
   const formData = new FormData();
 
   if (data.closetId) {
@@ -332,7 +329,6 @@ export const createMarketplaceEbook = async data => {
     });
   }
 
-  console.log('marketplace-ebooks/create formData:', formData);
   return axiosInstance.post('marketplace-ebooks/create', formData);
 };
 
@@ -345,11 +341,19 @@ export const getPostById = async (postId) => {
 };
 
 export async function getUserCredentials(userId) {
-  return axiosInstance.get(`user/profile?userId=${userId}`);
+  return dedupeRequest(
+    `user/profile:${userId}`,
+    () => axiosInstance.get(`user/profile?userId=${userId}`),
+    { ttlMs: 4000 }
+  );
 }
 
 export async function getUserDashboard(userId) {
-  return axiosInstance.get(`user/dashboard?userId=${userId}`);
+  return dedupeRequest(
+    `user/dashboard:${userId}`,
+    () => axiosInstance.get(`user/dashboard?userId=${userId}`),
+    { ttlMs: 4000 }
+  );
 }
 
 // services/post.js
@@ -408,7 +412,6 @@ export async function postDralensReply({
       try {
         const ext = (image.name || 'image.jpg').split('.').pop() || 'jpg';
         const localPath = `${RNFS.CachesDirectoryPath}/dralens_${Date.now()}.${ext}`;
-        console.log('Downloading remote image for Dralens to local cache:', localPath);
         const downloadRes = await RNFS.downloadFile({
           fromUrl: uri,
           toFile: localPath,
@@ -416,7 +419,6 @@ export async function postDralensReply({
         if (downloadRes.statusCode === 200) {
           uri = Platform.OS === 'android' ? `file://${localPath}` : localPath;
           tempDownloadedFilePath = localPath;
-          console.log('Downloaded image successfully, local uri:', uri);
         } else {
           console.warn('Image download returned status:', downloadRes.statusCode);
         }
@@ -435,40 +437,19 @@ export async function postDralensReply({
   }
 
   try {
-    console.log('========== DRALENS REPLY API REQUEST ==========');
-    console.log('Request Data:', {
-      postId,
-      commentId,
-      userQuery,
-      postText,
-      authorUsername,
-      parentCommentContext,
-      image: image?.uri ? {
-        uri: image.uri,
-        name: image.name,
-        type: image.type,
-      } : null,
-    });
 
     const response = await axiosInstance.post(
-      'http://192.168.1.14:8081/api/v1/ai-comment-reply',
+      'http://192.168.29.203:8081/api/v1/ai-comment-reply',
       formData,
       {
         timeout: 60000,
       }
     );
 
-    console.log('========== DRALENS REPLY API RESPONSE ==========');
-    console.log('Response:', JSON.stringify(response, null, 2));
 
     return response;
 
   } catch (error) {
-    console.log('========== DRALENS REPLY API ERROR ==========');
-    console.log('Error Message:', error.message);
-    console.log('Error Response:', error.response?.data);
-    console.log('Error Status:', error.response?.status);
-    console.log('Error Headers:', error.response?.headers);
 
     throw error;
   } finally {
@@ -614,13 +595,11 @@ export async function unfollow(followingId) {
 }
 
 export async function HidePost(postId) {
-  console.log(HidePost, 'hide post')
 
   return axiosInstance.post('post/hide', { postId })
 }
 
 export async function unHidePost(postId) {
-  console.log(unHidePost, 'unhide post')
   return axiosInstance.post('post/unhide', { postId })
 }
 

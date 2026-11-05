@@ -213,7 +213,6 @@ export function appendStoryThumbnailFiles(formData, processedArray = []) {
   });
 
   if (appended.length > 0) {
-    console.log('[Story upload] thumbnail parts attached for clip indexes:', appended);
   }
 }
 

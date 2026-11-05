@@ -380,7 +380,6 @@ const BattleCard = memo(({ item, selectedOption, onCardPress, onOptionSelect, on
         );
         return team?.flag || team?.logo || team?.image || null;
     };
-    console.log("itemitemitemitemitemitemitemitem",item)
     const optionPercents = useMemo(() => {
         const countsSource = item?.voteCounts && Object.keys(item.voteCounts).length > 0
             ? item.voteCounts

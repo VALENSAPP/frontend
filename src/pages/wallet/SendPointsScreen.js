@@ -228,7 +228,6 @@ const SendPointsScreen = () => {
       const parsed = parseTotalPlatformPointsPayload(response);
       setTotalPoints(parsed.totalPlatformPoints);
     } catch (error) {
-      console.log('SendPointsScreen refreshPoints error:', error);
     }
   }, []);
 
@@ -243,7 +242,6 @@ const SendPointsScreen = () => {
         .filter(u => u && u.id && u.id !== String(currentUserId));
       setFollowingList(list);
     } catch (error) {
-      console.log('SendPointsScreen loadFollowing error:', error);
       setFollowingList([]);
     } finally {
       setLoadingUsers(false);
@@ -359,7 +357,6 @@ const SendPointsScreen = () => {
       };
 
       const res = await sendPlatformPoints(payload);
-      console.log('Send points response:', res);
 
       if (res?.error || res?.success === false || res?.statusCode >= 400) {
         const msg = res?.message || t('sendPointsScreen.failedMessage', 'Failed to send points');
@@ -377,7 +374,6 @@ const SendPointsScreen = () => {
         navigation.goBack();
       }
     } catch (error) {
-      console.log('sendPlatformPoints error:', error);
       const msg =
         error?.response?.data?.message ||
         error?.message ||

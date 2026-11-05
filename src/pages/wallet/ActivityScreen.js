@@ -158,7 +158,6 @@ export const ActivityScreen = ({ navigation }) => {
       dispatch(showLoader());
       const apiTypeParam = filterKey === 'all' ? null : filterKey;
       const response = await getRecentActivities(apiTypeParam);
-      console.log(response.data, 'data in activity response');
 
       if (response?.statusCode === 200 || response?.status === 200 || response?.data) {
         const rawData =
@@ -196,7 +195,6 @@ export const ActivityScreen = ({ navigation }) => {
         } else if (Array.isArray(rawData) && rawData.length) {
           listToProcess = rawData;
         }
-        console.log('listToProcess:', listToProcess);
 
         const parsed = listToProcess.map((item, idx) => parseActivityItem(item, idx));
         parsed.sort((a, b) => b.createdAt - a.createdAt);
@@ -205,7 +203,6 @@ export const ActivityScreen = ({ navigation }) => {
         setActivities([]);
       }
     } catch (error) {
-      console.log('Error fetching activities', error);
       setActivities([]);
     } finally {
       dispatch(hideLoader());
@@ -283,7 +280,6 @@ export const ActivityScreen = ({ navigation }) => {
     }
   };
 
-  console.log('Activities:', activities);
 
   const getSectionTitle = () => {
     if (activeFilter === 'following') return t('activity.followingActivity', 'Following Activity');

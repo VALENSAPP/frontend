@@ -174,7 +174,6 @@ const EbookDetailScreen = () => {
           setAuthorProfile(data);
         }
       } catch (err) {
-        console.log('Error fetching author profile in EbookDetailScreen:', err);
       }
     };
     fetchAuthorData();
@@ -294,7 +293,6 @@ const EbookDetailScreen = () => {
           }));
         }
       } catch (error) {
-        console.log('Failed to fetch ebook by ID:', error);
       }
     };
 
@@ -604,7 +602,6 @@ const EbookDetailScreen = () => {
         const id = await AsyncStorage.getItem('userId');
         setCurrentUserId(id ? String(id) : null);
       } catch (e) {
-        console.log('Read userId failed', e);
       }
     })();
   }, []);
@@ -641,7 +638,6 @@ const EbookDetailScreen = () => {
           setIsLiked(serverLiked);
         }
       } catch (error) {
-        console.log('Load like state error', error);
       }
     };
 
@@ -676,7 +672,6 @@ const EbookDetailScreen = () => {
     } catch (error) {
       setIsLiked(prevLiked);
       setLikes(prevLikes);
-      console.log('Like Error', error);
       showToastMessage(
         toast,
         'danger',
@@ -696,7 +691,6 @@ const EbookDetailScreen = () => {
         setIsSaved(true);
       }
     } catch (error) {
-      console.log('Save Error', error);
     }
   };
   const fetchEbookComments = useCallback(async () => {
@@ -709,7 +703,6 @@ const EbookDetailScreen = () => {
       setCommentItems(flattened);
       setComments(Math.max(0, flattened.length));
     } catch (error) {
-      console.log('Load e-book comments error:', error);
     } finally {
       setCommentsLoading(false);
     }
@@ -893,7 +886,6 @@ const EbookDetailScreen = () => {
               DeviceEventEmitter.emit('EBOOK_DELETED', { postId });
               navigation.goBack();
             } catch (error) {
-              console.log('Delete Error', error);
               showToastMessage(
                 toast,
                 'danger',
@@ -906,7 +898,6 @@ const EbookDetailScreen = () => {
     );
   };
   const handleReadBook = async () => {
-    console.log('📖 Attempting to read ebook. Passed params:', { ebook, pdfUrl });
     if (!pdfUrl) {
       Alert.alert(t('common.error', 'Error'), t('ebookDetail.pdfUrlNotAvailable', 'Ebook PDF URL is not available'));
       return;
@@ -924,7 +915,6 @@ const EbookDetailScreen = () => {
         Alert.alert(t('common.error', 'Error'), t('ebookPaymentSuccess.browserNotAvailable', 'InAppBrowser is not available on this device'));
       }
     } catch (err) {
-      console.log('InAppBrowser opening failed:', err);
       Alert.alert(t('common.error', 'Error'), t('ebookPaymentSuccess.unableToOpen', 'Unable to open ebook. Invalid or unreachable PDF link.'));
     }
   };
@@ -961,7 +951,6 @@ const EbookDetailScreen = () => {
         toFile: filePath,
         progress: (res) => {
           const progress = Math.floor((res.bytesWritten / res.contentLength) * 100);
-          console.log(`PDF Download progress: ${progress}%`);
         },
       }).promise;
 
@@ -983,7 +972,6 @@ const EbookDetailScreen = () => {
         Alert.alert(t('common.error', 'Error'), t('ebookDetail.unableToDownload', 'Failed to download PDF'));
       }
     } catch (error) {
-      console.log('Download error:', error);
       Alert.alert(t('ebookDetail.downloadFailed', 'Download Failed'), error.message || t('ebookDetail.unableToDownload', 'Unable to download PDF'));
     } finally {
       setIsDownloading(false);

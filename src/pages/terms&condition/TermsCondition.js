@@ -57,7 +57,6 @@ export default function TermsCondition() {
         acceptPrivacy,
         agreementTimestamp: new Date().toISOString(),
       };
-      console.log('createProfile');
       navigation.navigate('CreateProfile', { agreementData });
     } else {
       Alert.alert(t('terms.alertTitle'), t('terms.alertMessage'));

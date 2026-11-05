@@ -36,10 +36,6 @@ export function WalletConnectedSuccessModal({
       onBackButtonPress={onClose}
       onModalHide={onModalHide}
       onModalShow={() => {
-        console.log('[WalletConnectedSuccessModal] visible', {
-          hasAddress,
-          preview: hasAddress ? truncateAddress(address) : null,
-        });
       }}
       style={styles.modalRoot}
     >
@@ -67,7 +63,6 @@ export function WalletConnectedSuccessModal({
           style={[styles.primaryButton, !hasAddress && styles.primaryButtonDisabled]}
           onPress={() => {
             if (!hasAddress) return;
-            console.log('[WalletConnectedSuccessModal] Continue to pay pressed');
             onContinueToPay();
           }}
           disabled={!hasAddress}

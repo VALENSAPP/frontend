@@ -5,7 +5,6 @@ export async function getAllUser(params = {}) {
     
     if (Object.keys(params).length === 0) {
         // No params, call API normally
-        console.log('No params, fetching all users');
         
         return axiosInstance.get('user/all');
     } else {
@@ -42,7 +41,6 @@ export async function deleteSearchHistoryItem(id) {
 
 export async function updateUserLanguage(language, deviceId) {
   const resolvedDeviceId = (deviceId || (await getAuthDeviceId())) ?? '';
-  console.log('Updating user language to:', language, 'deviceId:', resolvedDeviceId);
   return axiosInstance.post('/user/deviceLanguageUpdate', {
     language,
     deviceId: resolvedDeviceId,
@@ -54,7 +52,6 @@ export async function updateUserLanguage(language, deviceId) {
  */
 export async function getUserLanguage(deviceId) {
   const resolvedDeviceId = (deviceId || (await getAuthDeviceId())) ?? '';
-  console.log('Fetching user language with deviceId:', resolvedDeviceId);
   return axiosInstance.get('/user/deviceLanguage', {
     params: { deviceId: resolvedDeviceId },
   });

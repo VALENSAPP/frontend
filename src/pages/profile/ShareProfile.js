@@ -134,7 +134,6 @@ const ShareProfile = ({ navigation }) => {
       showToastMessage(toast, 'success', t('shareProfile.qrSavedToGallery'));
 
     } catch (error) {
-      console.log('FINAL ERROR:', error);
       Alert.alert(t('shareProfile.errorTitle'), error?.message || t('shareProfile.captureFailed'));
     }
   };
@@ -255,12 +254,9 @@ const ShareProfile = ({ navigation }) => {
 
       if (result.action === Share.sharedAction) {
         if (result.activityType) {
-          console.log('Shared with activity type:', result.activityType);
         } else {
-          console.log('Shared successfully');
         }
       } else if (result.action === Share.dismissedAction) {
-        console.log('Share dismissed');
       }
     } catch (error) {
       Alert.alert(

@@ -180,7 +180,6 @@ const TwoFactorAuthScreen = () => {
         }
       }
     } catch (error) {
-      console.log('Error opening authenticator:', error);
       setErrorMessage(t('twoFactor.openAuthError'));
     }
   };

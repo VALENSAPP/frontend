@@ -151,13 +151,29 @@ const Posts = forwardRef(function Posts(
     }, [])
   );
 
-  // Fetch following status for each post user
+  // Fetch following status for each post user (optimized: cached & incremental)
   useEffect(() => {
     const fetchFollowingStatus = async () => {
       if (!list || list.length === 0) return;
 
-      // Extract unique user IDs to avoid duplicate API calls
-      const uniqueUserIds = [...new Set(list.map(item => item?.userId).filter(Boolean))];
+      // Seed any known follow states directly from feed items to bypass network calls
+      const initialMap = {};
+      list.forEach(item => {
+        if (item?.userId && item?.isFollow !== undefined && userFollowStatus[item.userId] === undefined) {
+          initialMap[item.userId] = {
+            isFollowing: Boolean(item.isFollow),
+            tokenAddress: null,
+            image: item.userImage || null,
+          };
+        }
+      });
+      if (Object.keys(initialMap).length > 0) {
+        setUserFollowStatus(prev => ({ ...prev, ...initialMap }));
+      }
+
+      // Extract unique user IDs that are still unknown
+      const uniqueUserIds = [...new Set(list.map(item => item?.userId).filter(Boolean))]
+        .filter(userId => userFollowStatus[userId] === undefined && initialMap[userId] === undefined);
 
       if (uniqueUserIds.length === 0) return;
 
@@ -181,8 +197,6 @@ const Posts = forwardRef(function Posts(
             image: followingImage
           };
         } catch (e) {
-          console.log('Error checking follow status for user:', userId, e);
-          // Return safe default instead of throwing
           return {
             userId,
             isFollowing: false,
@@ -206,29 +220,28 @@ const Posts = forwardRef(function Posts(
           }
         });
 
-        setUserFollowStatus(followingMap);
+        setUserFollowStatus(prev => ({ ...prev, ...followingMap }));
       } catch (error) {
-        console.log('Error fetching following statuses:', error);
-        setUserFollowStatus({});
+        // preserve state
       }
     };
 
     // Debounce to prevent rapid successive calls
     const timer = setTimeout(() => {
       fetchFollowingStatus();
-      loadSuggestions();
     }, 300);
 
     return () => clearTimeout(timer);
   }, [list]);
 
-  // -------- Fetch followers for each post (for "Followed by" section) - optimized --------
+  // -------- Fetch followers for each post (incremental & cached) --------
   useEffect(() => {
     const fetchPostFollowers = async () => {
       if (!list || list.length === 0) return;
 
-      // Extract unique user IDs
-      const uniqueUserIds = [...new Set(list.map(item => item?.userId).filter(Boolean))];
+      // Extract unique user IDs not yet cached in postFollowers
+      const uniqueUserIds = [...new Set(list.map(item => item?.userId).filter(Boolean))]
+        .filter(userId => postFollowers[userId] === undefined);
 
       if (uniqueUserIds.length === 0) return;
 
@@ -238,7 +251,6 @@ const Posts = forwardRef(function Posts(
           let followersData = res?.data?.data || res?.data || [];
 
           if (!Array.isArray(followersData)) {
-            console.warn('Non-array followers data:', followersData);
             return { userId, followers: [] };
           }
 
@@ -259,7 +271,6 @@ const Posts = forwardRef(function Posts(
             followers: transformedFollowers
           };
         } catch (e) {
-          console.error('Error fetching followers for user:', userId, e);
           return { userId, followers: [] };
         }
       });
@@ -274,10 +285,9 @@ const Posts = forwardRef(function Posts(
           }
         });
 
-        setPostFollowers(followersMap);
+        setPostFollowers(prev => ({ ...prev, ...followersMap }));
       } catch (error) {
-        console.error('Error fetching post followers:', error);
-        setPostFollowers({});
+        // preserve cache
       }
     };
 
@@ -477,7 +487,6 @@ const Posts = forwardRef(function Posts(
             resp?.message ||
             t(isHidden ? 'optionsModal.errorUnhideFailed' : 'optionsModal.errorHideFailed'),
           );
-          console.log(resp, 'hide the post in homese');
         } else {
           showToastMessage(
             toast,

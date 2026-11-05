@@ -4,7 +4,6 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useLanguage } from '../../i18n';
 
 export default function ModalHome({ visible, onClose }) {
-    console.log('ModalHome', visible);
     const { t } = useLanguage();
 
     return (

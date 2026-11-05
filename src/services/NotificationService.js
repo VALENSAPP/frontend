@@ -23,7 +23,6 @@ export async function requestUserPermission() {
             PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
         );
         if (result !== PermissionsAndroid.RESULTS.GRANTED) {
-            console.log('Android notification permission not granted:', result);
             return;
         }
     }
@@ -34,10 +33,8 @@ export async function requestUserPermission() {
         authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
     if (enabled) {
-        console.log('Authorization status:', authStatus);
         getFcmToken();
     } else {
-        console.log('authStatus not enabled------------');
     }
 }
 
@@ -45,19 +42,15 @@ export async function requestUserPermission() {
 // TOKEN
 // ─────────────────────────────────────────────
 const getFcmToken = async () => {
-    console.log('Checking for existing FCM token...');
     let fcmToken = await AsyncStorage.getItem('fcmToken');
-    console.log(fcmToken, 'the old token');
 
     if (!fcmToken) {
         try {
             const token = await messaging().getToken();
             if (token) {
-                console.log(token, 'the new generated token');
                 await AsyncStorage.setItem('fcmToken', token);
             }
         } catch (error) {
-            console.log(error, 'error raised in fcmtoken');
         }
     }
 };
@@ -93,9 +86,6 @@ export const displayExpandableNotification = async ({
     data = {},
     androidStyle: customStyle,
 }) => {
-    console.log('[NOTIFEE] 🚀 displayExpandableNotification called');
-    console.log('[NOTIFEE] id:', notifId, '| title:', title, '| body:', body);
-    console.log('[NOTIFEE] customStyle:', customStyle ? customStyle.type : '(none)');
 
     let androidStyle = customStyle;
 
@@ -120,7 +110,6 @@ export const displayExpandableNotification = async ({
                 title: bigTitle ?? title,
                 summary: bigText ?? body,
             };
-            console.log('[NOTIFEE] Using BigPictureStyle');
         } else if (bigText) {
             androidStyle = {
                 type: AndroidStyle.BIGTEXT,
@@ -128,9 +117,7 @@ export const displayExpandableNotification = async ({
                 title: bigTitle ?? title,
                 summary: body,
             };
-            console.log('[NOTIFEE] Using BigTextStyle');
         } else {
-            console.log('[NOTIFEE] Plain notification — no style');
         }
     }
 
@@ -159,7 +146,6 @@ export const displayExpandableNotification = async ({
                 },
             },
         });
-        console.log('[NOTIFEE] ✅ Notification displayed successfully');
     } catch (error) {
         console.error('[NOTIFEE] ❌ Failed to display notification:', error?.message || error);
     }
@@ -182,7 +168,6 @@ export const displayFcmAsExpandable = async (remoteMessage) => {
     const fcmTitle = notification?.title ?? data?.title ?? '';
     const fcmBody = notification?.body ?? data?.body ?? '';
 
-    console.log('[NOTIF] 🎨 Building expandable for type:', type, '| notifId:', notifId);
 
     let title = '', body = '', bigText = '', bigTitle = '', subtitle = '';
     let imageUrl;
@@ -748,9 +733,6 @@ export const displayFcmAsExpandable = async (remoteMessage) => {
         subtitle = data?.subtitle;
     }
 
-    console.log('[NOTIF] 🎨 Final → title:', title);
-    console.log('[NOTIF] 🎨 Final → body:', body);
-    console.log('[NOTIF] 🎨 Final → androidStyle type:', androidStyle?.type ?? 'none (using bigText/imageUrl)');
 
     await displayExpandableNotification({
         notifId,
@@ -772,7 +754,6 @@ export const displayFcmAsExpandable = async (remoteMessage) => {
 
 export const registerBackgroundHandler = () => {
     messaging().setBackgroundMessageHandler(async remoteMessage => {
-        console.log('[NOTIF] ⚫ BACKGROUND HANDLER FIRED', Platform.OS);
 
         // ── iOS: cancel any OS-delivered duplicate, then show our rich version
         // (same as Android — Notifee works in background on iOS too)
@@ -780,7 +761,6 @@ export const registerBackgroundHandler = () => {
             const displayed = await notifee.getDisplayedNotifications();
             await Promise.all(displayed.map(n => notifee.cancelNotification(n.id)));
         } catch (e) {
-            console.log('[NOTIF] ⚫ Pre-clear error:', e?.message);
         }
 
         await displayFcmAsExpandable(remoteMessage);
@@ -797,13 +777,11 @@ export const registerBackgroundHandler = () => {
                         .map(n => notifee.cancelNotification(n.id))
                 );
             } catch (e) {
-                console.log('[NOTIF] ⚫ Post-cancel error:', e?.message);
             }
         }
     });
 
     notifee.onBackgroundEvent(async ({ type, detail }) => {
-        console.log('[NOTIF] ⚫ NOTIFEE BACKGROUND EVENT type:', type);
         if (type === EventType.PRESS && detail?.notification) {
             await AsyncStorage.setItem(
                 PENDING_NOTIFICATION_MODAL_KEY,

@@ -225,7 +225,6 @@ const MilesTravelRewardsScreen = () => {
         setTotalPts(parsed.totalPlatformPoints);
       }
     } catch (err) {
-      console.log('MilesTravelRewardsScreen refreshPoints error:', err);
     }
   }, []);
 
@@ -270,7 +269,6 @@ const MilesTravelRewardsScreen = () => {
         setCatalog(filtered);
       }
     } catch (err) {
-      console.log('fetchCatalogData error (using default catalog):', err);
       let filtered = DEFAULT_CATALOG_DATA;
       if (catCategory && catCategory !== 'ALL') {
         filtered = DEFAULT_CATALOG_DATA.filter(item => item.category === catCategory);
@@ -304,7 +302,6 @@ const MilesTravelRewardsScreen = () => {
         setSelectedAccountId(defaultAcc[0].id);
       }
     } catch (err) {
-      console.log('fetchLinkedAccountsData error:', err);
       const defaultAcc = [
         {
           id: 'acc_demo_1',
@@ -328,7 +325,6 @@ const MilesTravelRewardsScreen = () => {
       const items = ensureArray(res);
       setHistory(items || []);
     } catch (err) {
-      console.log('fetchHistoryData error:', err);
       setHistory([]);
     } finally {
       setLoading(false);
@@ -368,7 +364,6 @@ const MilesTravelRewardsScreen = () => {
         const qObj = res?.data ?? res;
         setQuoteData(qObj);
       } catch (err) {
-        console.log('triggerDebouncedQuote error:', err);
       } finally {
         setQuoteLoading(false);
       }
@@ -511,7 +506,6 @@ const MilesTravelRewardsScreen = () => {
               await unlinkAccount(id);
               fetchLinkedAccountsData();
             } catch (err) {
-              console.log('handleUnlinkAccount error:', err);
             }
           },
         },

@@ -306,7 +306,6 @@ export default function UserClosetChat({ route, navigation }) {
         if (socket?.connected) {
           setSocketReady(true);
         } else {
-          console.log('🔌 UserClosetChat: Initializing socket...');
           await initializeSocket(userId);
           setSocketReady(true);
         }
@@ -322,9 +321,7 @@ export default function UserClosetChat({ route, navigation }) {
 
   const loadMessagesViaApi = useCallback(async (pageNumber = 1) => {
     try {
-      console.log(`📡 UserClosetChat: Fetching messages via API (page: ${pageNumber})`);
       const response = await getClosetChatMessagesApi(threadId, pageNumber, limit);
-      console.log(`📥 API getClosetChatMessages response:`, response);
       if (response && response.success) {
         const receivedMsgs = Array.isArray(response.data)
           ? response.data
@@ -347,7 +344,6 @@ export default function UserClosetChat({ route, navigation }) {
           const senderId = String(msg.senderId || msg.sender?.id || '');
           const isUnread = !msg.isSeen && msg.seen !== true;
           if (senderId && senderId !== String(currentUserId) && isUnread && msg.id) {
-            console.log('📤 UserClosetChat: Marking message seen via API:', msg.id);
             markClosetChatMessageSeenApi(msg.id).catch(err => {
               console.warn('❌ API markClosetChatMessageSeen error:', err);
             });
@@ -371,7 +367,6 @@ export default function UserClosetChat({ route, navigation }) {
       setIsLoading(true);
       setError(null);
       setPage(1);
-      console.log('📡 UserClosetChat: Requesting page 1 messages for thread:', threadId);
       getClosetChatMessages(currentUserId, threadId, 1, limit);
       loadMessagesViaApi(1);
     }
@@ -389,7 +384,6 @@ export default function UserClosetChat({ route, navigation }) {
     const handleConnect = () => {
       setSocketReady(true);
       if (currentUserId && threadId) {
-        console.log('🔄 UserClosetChat: Reconnected, re-requesting messages');
         getClosetChatMessages(currentUserId, threadId, 1, limit);
         loadMessagesViaApi(1);
       }
@@ -424,7 +418,6 @@ export default function UserClosetChat({ route, navigation }) {
       const senderId = String(msg.senderId || msg.sender?.id || '');
       const isUnread = !msg.isSeen && msg.seen !== true;
       if (senderId && senderId !== String(currentUserId) && isUnread && msg.id) {
-        console.log('📤 UserClosetChat: Marking message seen:', msg.id);
         markClosetChatMessageSeen(currentUserId, msg.id);
         markClosetChatMessageSeenApi(msg.id).catch(err => {
           console.warn('❌ API markClosetChatMessageSeen error:', err);
@@ -437,12 +430,6 @@ export default function UserClosetChat({ route, navigation }) {
 
   // 1. closetChatMessages (fetch success)
   useSocket('closetChatMessages', (data) => {
-    console.log('📥 Received closetChatMessages:', {
-      threadId: data?.threadId,
-      page: data?.page,
-      messagesCount: data?.messages?.length,
-      total: data?.total
-    });
 
     if (String(data?.threadId) !== String(threadId)) return;
 
@@ -482,7 +469,6 @@ export default function UserClosetChat({ route, navigation }) {
 
   // 3. closetChatMessageSent (ack for sender)
   useSocket('closetChatMessageSent', (serverMsg) => {
-    console.log('📥 closetChatMessageSent acknowledgment:', serverMsg);
 
     if (String(serverMsg?.threadId) !== String(threadId)) return;
 
@@ -512,7 +498,6 @@ export default function UserClosetChat({ route, navigation }) {
 
   // 4. closetChatNewMessage (real-time push for receiver/sender)
   useSocket('closetChatNewMessage', (newMsg) => {
-    console.log('📥 closetChatNewMessage real-time push:', newMsg);
 
     if (String(newMsg?.threadId) !== String(threadId)) return;
 
@@ -534,7 +519,6 @@ export default function UserClosetChat({ route, navigation }) {
 
   // 5. closetChatMessageSeen (seen status update)
   useSocket('closetChatMessageSeen', (data) => {
-    console.log('📥 closetChatMessageSeen event:', data);
 
     if (String(data?.threadId) !== String(threadId)) return;
 
@@ -597,7 +581,6 @@ export default function UserClosetChat({ route, navigation }) {
     // Call REST API
     try {
       const response = await sendClosetChatMessageApi(threadId, trimmed);
-      console.log('📥 API sendClosetChatMessage response:', response);
       if (response && response.success) {
         const serverMsg = response.data || {};
         setMessages(prev =>
@@ -632,7 +615,6 @@ export default function UserClosetChat({ route, navigation }) {
 
     setIsRefreshing(true);
     const nextPage = page + 1;
-    console.log(`🔄 UserClosetChat: Fetching older messages, page ${nextPage}`);
     getClosetChatMessages(currentUserId, threadId, nextPage, limit);
     loadMessagesViaApi(nextPage);
     setPage(nextPage);

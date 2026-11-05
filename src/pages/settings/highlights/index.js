@@ -285,7 +285,6 @@ const HighlightsScreen = ({ navigation, route }) => {
         Promise.allSettled(
           userHighlights.map(async hl => {
             const res = await getHighlight({ highlightId: hl.id });
-            console.log(res, 'getHighlightgetHighlightgetHighlightgetHighlightgetHighlight')
             const detail = normalizeHighlightsResponse(res?.data)[0];
             return detail ? { ...hl, ...detail } : hl;
           }),
@@ -608,12 +607,7 @@ const HighlightsScreen = ({ navigation, route }) => {
     setReactionSending(true);
     try {
       const reactionPayload = { storyId, reaction, highlightId };
-      console.log('[Highlight reaction] request:', reactionPayload, {
-        viewerStoryId: currentStory?.id,
-        normalizedStoryId: currentStory?.storyId,
-      });
       const response = await reactToStory(reactionPayload);
-      console.log('[Highlight reaction] response:', response?.data ?? response);
 
       if (toggleLike) {
         const key = `${highlightId}:${storyId}`;
@@ -623,10 +617,6 @@ const HighlightsScreen = ({ navigation, route }) => {
         });
       }
     } catch (error) {
-      console.log(
-        '[Highlight reaction] error:',
-        error?.response?.data ?? error?.message ?? error,
-      );
       showToastMessage(
         toast,
         'danger',
@@ -647,12 +637,7 @@ const HighlightsScreen = ({ navigation, route }) => {
       setReplySending(true);
       try {
         const reactionPayload = { storyId, reaction: cleanText, highlightId };
-        console.log('[Highlight reply] request:', reactionPayload, {
-          viewerStoryId: currentStory?.id,
-          normalizedStoryId: currentStory?.storyId,
-        });
         const response = await reactToStory(reactionPayload);
-        console.log('[Highlight reply] response:', response?.data ?? response);
 
         setReplyText('');
         showToastMessage(
@@ -661,10 +646,6 @@ const HighlightsScreen = ({ navigation, route }) => {
           response?.data?.message || t('highlights.replySent'),
         );
       } catch (error) {
-        console.log(
-          '[Highlight reply] error:',
-          error?.response?.data ?? error?.message ?? error,
-        );
         showToastMessage(
           toast,
           'danger',

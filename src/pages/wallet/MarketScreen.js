@@ -34,7 +34,6 @@ export const MarketScreen = ({ navigation }) => {
             dispatch(showLoader());
             const response = await getTopCreators();
             if (response?.statusCode === 200) {
-                console.log('response in fetch top creators--------------', response);
 
                 const formattedCreators = response.data.map((creator, index) => ({
                     id: index + 1,

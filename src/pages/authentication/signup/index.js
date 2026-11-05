@@ -149,7 +149,6 @@ export default function SignupScreen() {
 
     try {
       const resp = await checkUsername({ userName: trimmed, username: trimmed });
-      console.log('Username check response:', resp);
 
       if (lastCheckedUsernameRef.current !== trimmed) {
         return;
@@ -257,7 +256,6 @@ export default function SignupScreen() {
   useEffect(() => {
     const loadDeviceId = async () => {
       const DeviceId = await DeviceInfo.getDeviceName();
-      console.log('Saved Device ID:', DeviceId);
     };
     loadDeviceId();
   }, []);

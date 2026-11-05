@@ -283,7 +283,6 @@ const ShareModal = forwardRef(({ post, postId, reel, reelId, story, onClose, onS
     try {
       await Share.open({ message, social: Share.Social.WHATSAPP });
     } catch (err) {
-      console.log('WhatsApp share error:', err);
     }
   };
 
@@ -300,7 +299,6 @@ const ShareModal = forwardRef(({ post, postId, reel, reelId, story, onClose, onS
     try {
       await Share.open({ message });
     } catch (err) {
-      console.log('System share error:', err);
     }
   };
 

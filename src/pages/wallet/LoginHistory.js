@@ -131,7 +131,6 @@ const LoginHistoryScreen = () => {
             dispatch(showLoader());
             const id = await AsyncStorage.getItem('userId');
             const response = await authSesionHistory(id ? { userId: id } : {});
-            console.log(response, 'data in this api fro deive logins infos ');
 
             if (response?.statusCode === 200) {
                 const sessionsPayload =

@@ -18,7 +18,6 @@ export const handleLoginSuccess = async (token, dispatch, navigation, getProfile
     if (token) {
         await AsyncStorage.setItem('token', token);
         fetchAndApplyUserLanguage().catch(e => {
-            console.log('fetchAndApplyUserLanguage on handleLoginSuccess error:', e?.message || e);
         });
         getProfileData(dispatch, navigation, toast, accessToken, refreshToken, t);
         // navigation.reset({ index: 0, routes: [{ name: 'MainTabNavigator' }] });
@@ -71,7 +70,6 @@ const requestLocationPermission = async () => {
             const status = await Geolocation.requestAuthorization('whenInUse');
             return status === 'granted';
         } catch (error) {
-            console.log(error, 'error requesting ios location permission');
             return false;
         }
     }
@@ -128,7 +126,6 @@ const getCurrentLocationString = async () => {
 
         return `${latitude},${longitude}`;
     } catch (error) {
-        console.log(error, 'error getting login location');
         return undefined;
     }
 };
@@ -162,32 +159,21 @@ export const login = async (data) => {
 
         const payload = { ...(data || {}), ...devicePayload };
 
-        console.log('Login API Request:', payload);
 
         const response = await axiosinstance.post('/auth/login', payload);
 
-        console.log('Login API Response:', response.data);
-        console.log('Login API Status:', response.status);
 
         return response;
     } catch (error) {
-        console.log('Login API Error:', error.response?.data || error.message);
-        console.log('Login API Error Status:', error.response?.status);
 
         // Fallback to normal login if device info or location fails
         if (!error.response) {
             try {
                 const response = await axiosinstance.post('/auth/login', data);
 
-                console.log('Login API Fallback Response:', response.data);
-                console.log('Login API Fallback Status:', response.status);
 
                 return response;
             } catch (fallbackError) {
-                console.log(
-                    'Login API Fallback Error:',
-                    fallbackError.response?.data || fallbackError.message
-                );
                 throw fallbackError;
             }
         }
@@ -240,7 +226,6 @@ export const logout = async (token) => {
             const res = await removeDeviceAccountRequest({ userId });
             const ok = res?.statusCode === 200 || res?.statusCode === 201;
             if (ok) {
-                console.log('Device account removed on logout');
             }
         }
     } catch (error) {

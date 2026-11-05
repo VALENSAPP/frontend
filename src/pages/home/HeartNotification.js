@@ -586,7 +586,6 @@ export default function Notifications() {
     try {
       if (showLoader && !notifications.length) setIsLoading(true);
       const response = await getAllNotifactions();
-      console.log("raw----------------------------", response);
       const rawPayload =
         (Array.isArray(response?.notifications) ? response.notifications : null) ??
         (Array.isArray(response?.data?.notifications) ? response.data.notifications : null) ??
@@ -628,7 +627,6 @@ export default function Notifications() {
 
       setNotifications(mapped);
     } catch (err) {
-      console.log(err, 'error getting notifications');
     } finally {
       setIsLoading(false);
     }
@@ -649,7 +647,6 @@ export default function Notifications() {
 
       setBattleNotifications(raw.map(item => normalizeBattleNotification(item, t)));
     } catch (err) {
-      console.log(err, 'error getting battle notifications');
     } finally {
       setBattleLoading(false);
     }
@@ -680,7 +677,6 @@ export default function Notifications() {
         DeviceEventEmitter.emit('NOTIFICATION_BADGE_REFRESH');
       }
     } catch (err) {
-      console.log(err, 'error marking notifications as read');
     }
   };
 
@@ -702,12 +698,10 @@ export default function Notifications() {
       await read(unreadIds);
       DeviceEventEmitter.emit('NOTIFICATION_BADGE_REFRESH');
     } catch (err) {
-      console.log(err, 'error marking all as read');
     }
   };
 
   const popupOpen = item => {
-    console.log(item, 'selected notification');
     const selected = notifications.find(n => n.id === item.id);
     setSelectedNotification(selected);
     setPopupVisible(true);
@@ -986,7 +980,6 @@ export default function Notifications() {
         action === 'accept'
           ? await acceptBattle(payload)
           : await declinetBattle(payload);
-      console.log(response, 'notifcation repossneneneneenneen')
 
       const success =
         (typeof response?.status === 'number' &&
@@ -1383,7 +1376,6 @@ export default function Notifications() {
       // In renderItem's handlePress:
       const handlePress = async () => {
         markAsRead(item.id);
-        console.log(item, 'pressed notification');
 
         const normType = normalizeNotificationType(item.type);
 
@@ -1404,7 +1396,6 @@ export default function Notifications() {
               const resolved = await resolveOrderIdFromPaymentId(paymentId, viewType);
               if (resolved) orderId = resolved;
             } catch (err) {
-              console.log('Error resolving orderId from paymentId on click:', err);
             }
           }
 
@@ -1713,12 +1704,10 @@ export default function Notifications() {
           if (postCreatorId) {
             try {
               const response = await getPvtCircleMembers(postCreatorId);
-              console.log('PrivateCircle membership API response:', response);
 
               const isMember = isPrivateCircleApiSuccess(response)
                 ? (() => {
                   const { members } = parsePrivateCircleSetup(response);
-                  console.log('PrivateCircle members:', members);
                   return Array.isArray(members)
                     ? members.some(
                       m =>
@@ -1729,7 +1718,6 @@ export default function Notifications() {
                 })()
                 : false;
 
-              console.log('Is circle member:', isMember);
 
               if (isMember) {
                 navigateToPost(item);
@@ -1737,7 +1725,6 @@ export default function Notifications() {
                 setCircleAccessModalVisible(true);
               }
             } catch (err) {
-              console.log('PrivateCircle membership check error:', err);
               setCircleAccessModalVisible(true);
             }
           } else {
@@ -1763,10 +1750,10 @@ export default function Notifications() {
 
         if (isPostTagType(item.type)) {
           const data = item?.raw?.data || {};
-          console.log('POST TAG DATA:', JSON.stringify(data)); // 👈 add this
+ // 👈 add this
           const isPrivatePost = String(data.post_type || '').toLowerCase() === 'private';
-          console.log('IS PRIVATE:', isPrivatePost); // 👈 add this
-          console.log('loggedInUserId:', loggedInUserId); // 👈 add this
+ // 👈 add this
+ // 👈 add this
 
           if (isPrivatePost && data.visibleTo == "") {
             const postCreatorId = data.taggerId || data.userId || item?.raw?.userId;
@@ -1786,7 +1773,6 @@ export default function Notifications() {
                     d?.isSubscribed === true ||
                     (Array.isArray(d?.subscriptions) && d.subscriptions.some(s => String(s?.status || '').toUpperCase() === 'ACTIVE')) ||
                     (Array.isArray(d) && d.some(s => String(s?.status || '').toUpperCase() === 'ACTIVE'));
-                  console.log('IS ACTIVE:', isActive);
                   if (isActive) {
                     // Subscribed → open the post normally
                     navigateToPost(item);
@@ -1805,7 +1791,7 @@ export default function Notifications() {
             }
           }
           else if (isPrivatePost && data.visibleTo == "PRIVATE_CIRCLE") {
-            console.log('Handling private circle exclusive post notification'); // 👈 add this
+ // 👈 add this
             const postCreatorId =
               data.taggerId ||
               data.ownerId ||
@@ -1813,7 +1799,7 @@ export default function Notifications() {
               data.creatorId ||
               data.fromUserId ||
               item?.raw?.userId;
-            console.log('Handling private circle exclusive post notification', postCreatorId); // 👈 add this
+ // 👈 add this
 
             // // Own post → open directly, no membership check needed
             // if (String(loggedInUserId || '') === String(postCreatorId || '')) {
@@ -1824,12 +1810,10 @@ export default function Notifications() {
             if (postCreatorId) {
               try {
                 const response = await getPvtCircleMembers(postCreatorId);
-                console.log('PrivateCircle membership API response:', response);
 
                 const isMember = isPrivateCircleApiSuccess(response)
                   ? (() => {
                     const { members } = parsePrivateCircleSetup(response);
-                    console.log('PrivateCircle members:', members);
                     return Array.isArray(members)
                       ? members.some(
                         m =>
@@ -1840,7 +1824,6 @@ export default function Notifications() {
                   })()
                   : false;
 
-                console.log('Is circle member:', isMember);
 
                 if (isMember) {
                   navigateToPost(item);
@@ -1848,7 +1831,6 @@ export default function Notifications() {
                   setCircleAccessModalVisible(true);
                 }
               } catch (err) {
-                console.log('PrivateCircle membership check error:', err);
                 setCircleAccessModalVisible(true);
               }
             } else {

@@ -53,16 +53,11 @@ const openMetaMaskPayment = async (recipientWalletAddress, chainId) => {
   const normalizedChainId = normalizeChainId(chainId);
 
   // ADD THIS - check your logs
-  console.log('--- MetaMask Debug ---');
-  console.log('recipientWalletAddress:', recipientWalletAddress);
-  console.log('chainId (raw):', chainId);
-  console.log('chainId (normalized):', normalizedChainId);
 
   const deepLink = normalizedChainId
     ? `https://metamask.app.link/send/${recipientWalletAddress}@${normalizedChainId}`
     : `https://metamask.app.link/send/${recipientWalletAddress}`;
 
-  console.log('deepLink:', deepLink);
 
   const storeUrl =
     Platform.OS === 'ios'

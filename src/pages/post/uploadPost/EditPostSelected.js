@@ -664,7 +664,7 @@ const InstagramPostCreator = () => {
     try {
       const value = await AsyncStorage.getItem('profile');
       setProfile(value);
-    } catch (e) { console.log(e); }
+    } catch (e) {  }
   };
 
   useEffect(() => { getProfile(); }, []);
@@ -1240,7 +1240,7 @@ const InstagramPostCreator = () => {
         const currentEdits = getCurrentImageEdits();
         updateCurrentImageEdits({ overlayImages: [...currentEdits.overlayImages, ...overlays] });
       })
-      .catch(error => console.log('Overlay image pick error:', error));
+      .catch(error => {});
   };
 
   // ─── PanResponder factories (unchanged logic, omitted for brevity — same as original) ───
@@ -1627,7 +1627,7 @@ const InstagramPostCreator = () => {
         validItems.forEach((_, index) => { initialEdits[index] = createEmptyImageEdits(); initialVideoPaused[index] = true; });
         setImageEdits(initialEdits); setVideoPaused(initialVideoPaused);
       })
-      .catch(error => console.log('Image picker error:', error));
+      .catch(error => {});
   };
 
   const addMoreClips = () => {
@@ -1754,7 +1754,6 @@ const InstagramPostCreator = () => {
                 processedUri = uri;
               }
             } catch (captureError) {
-              console.log('Error capturing image with overlays:', captureError);
             }
           }
           const captureLayout = getContentLayoutForMedia(image);
@@ -1764,7 +1763,6 @@ const InstagramPostCreator = () => {
         })
       );
 
-      console.log('Successfully processed images/videos with overlays', processedImages);
 
       navigation.navigate('PostEditor', {
         images: processedImages,
@@ -1795,7 +1793,6 @@ const InstagramPostCreator = () => {
       });
 
     } catch (error) {
-      console.log('Error processing images:', error);
       Alert.alert(
         t('selectedPost.processingErrorTitle'),
         t('selectedPost.processingErrorMessage'),
@@ -1963,7 +1960,7 @@ const InstagramPostCreator = () => {
                       >
                         {isMediaVideo(image) ? (
                           <View style={styles.videoContainer}>
-                            <Video ref={ref => { if (ref) videoRefs.current[index] = ref; }} source={{ uri: getMediaDisplayUri(image) }} style={styles.mainImage} resizeMode='cover' paused={videoPaused[index] !== false} muted={isVideoEffectivelyMuted} volume={isFlipPost ? (flipVolumeByIndex[index] ?? 1) : 1} repeat={true} ignoreSilentSwitch="ignore" playWhenInactive={false} onError={(error) => console.log('Video error:', error)} poster={image.thumbnail || undefined} />
+                            <Video ref={ref => { if (ref) videoRefs.current[index] = ref; }} source={{ uri: getMediaDisplayUri(image) }} style={styles.mainImage} resizeMode='cover' paused={videoPaused[index] !== false} muted={isVideoEffectivelyMuted} volume={isFlipPost ? (flipVolumeByIndex[index] ?? 1) : 1} repeat={true} ignoreSilentSwitch="ignore" playWhenInactive={false} onError={(error) => {}} poster={image.thumbnail || undefined} />
                             <TouchableOpacity style={styles.videoPlayButton} onPress={() => handleVideoPress(index)} activeOpacity={0.8}>
                               <View style={styles.playButtonBackground}><Icon name={videoPaused[index] !== false ? 'play' : 'pause'} size={40} color="white" /></View>
                             </TouchableOpacity>

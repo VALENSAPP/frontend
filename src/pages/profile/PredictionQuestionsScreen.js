@@ -99,7 +99,6 @@ export default function PredictionQuestionsScreen({
             : [];
 
         setQuestions(prev => (nextPage === 1 ? list : [...prev, ...list]));
-        console.log('Fetched questions:', list, 'Next page:', nextPage);
         setHasMore(list.length >= 20);
         setPage(nextPage);
       } catch (error) {

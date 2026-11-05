@@ -40,9 +40,7 @@ export default function ViewMissioPost({ navigation, route }) {
             else setLoading(true);
             setError(null);
             const params = filter !== 'all' ? { status: filter } : {};
-            console.log('[ViewMissioPost] getAllMissionPost request:', params);
             const response = await getAllMissionPost(params);
-            console.log('[ViewMissioPost] getAllMissionPost response:', response);
 
             if (response?.statusCode === 200) {
                 const raw = response.data?.data || response.data || [];

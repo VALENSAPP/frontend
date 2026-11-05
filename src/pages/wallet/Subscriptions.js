@@ -202,7 +202,6 @@ const SubventionSetupScreen = () => {
             }
             return null;
         } catch (error) {
-            console.log('GetInbordingstatus error:', error?.message);
             return null;
         }
     };
@@ -287,7 +286,6 @@ const SubventionSetupScreen = () => {
 
             showToastMessage(toast, 'warning', t('subventionSetup.stripeIncomplete'));
         } catch (error) {
-            console.log('Activation flow error:', error);
             showToastMessage(toast, 'danger', error?.message || stripeErrorMessages.ONBOARDING_FAILED);
         } finally {
             activationInFlightRef.current = false;
@@ -350,7 +348,6 @@ const SubventionSetupScreen = () => {
             navigateToWalletDashboard();
             showToastMessage(toast, 'warning', t('subventionSetup.stripeIncomplete'));
         } catch (error) {
-            console.log('Business activation flow error:', error);
             showToastMessage(toast, 'danger', error?.message || stripeErrorMessages.ONBOARDING_FAILED);
         } finally {
             activationInFlightRef.current = false;
@@ -403,7 +400,6 @@ const SubventionSetupScreen = () => {
                 setIsChecked(false);
             }
         } catch (error) {
-            console.log('Get credential error:', error?.message);
         }
     }, []);
 
@@ -411,14 +407,12 @@ const SubventionSetupScreen = () => {
         try {
             const resp = await getMyMessagesPrivate();
             const data = getPrivateMessagesPayload(resp);
-            console.log(resp, 'message rrpoenssneenenen')
             if (data) {
                 setPhotoMessage(data.messageForPhotos || '');
                 setVideoMessage(data.messageForVideos || '');
                 setEbookMessage(data.messageForEbooks || '');
             }
         } catch (error) {
-            console.log('Error loading custom messages from server', error);
         }
     };
 
@@ -466,12 +460,10 @@ const SubventionSetupScreen = () => {
                 if (type === 'ebooks') setEbookMessage(text || '');
                 return true;
             } catch (err) {
-                console.log('saveCustomMessage server error', err?.response || err?.message || err);
                 showToastMessage(toast, 'danger', t('subventionSetup.messageSaveFail'));
                 return false;
             }
         } catch (error) {
-            console.log('Error saving custom message', error);
             return false;
         }
     };
@@ -488,7 +480,6 @@ const SubventionSetupScreen = () => {
                     : (data?.messageForEbooks || ebookMessage || '');
             setEditingMessageText(nextText);
         } catch (error) {
-            console.log('Error fetching my private message for edit modal', error);
             const currentText = type === 'photos' ? photoMessage : type === 'videos' ? videoMessage : ebookMessage;
             setEditingMessageText(currentText || '');
         }
@@ -602,7 +593,6 @@ const SubventionSetupScreen = () => {
                 return { response, cancelled: false };
             }
         } catch (error) {
-            console.log('Subscription error:', error);
             if (response?.data?.url) await Linking.openURL(response.data.url);
             throw error;
         }
@@ -808,9 +798,6 @@ const SubventionSetupScreen = () => {
     const canSaveSubscription = shouldShowAgreedButton || isChecked;
 
 
-    console.log('Subscription Setup Render:', {
-        subscriptionStatus
-    });
 
     return (
         <>

@@ -100,10 +100,8 @@ export default function CreatorCoin() {
   }, [withdrawHistory]);
 
   useEffect(() => {
-    console.log('🎧 CreatorCoin: Setting up PAYMENT_COMPLETED listener');
 
     const subscription = DeviceEventEmitter.addListener('PAYMENT_COMPLETED', (data) => {
-      console.log('🔔 CreatorCoin: PAYMENT_COMPLETED event received!', data);
       fetchAllData();
     });
 
@@ -132,7 +130,6 @@ export default function CreatorCoin() {
       ]);
 
       if (profileResponse?.statusCode === 200) {
-        console.log('User profile:', profileResponse);
         let userDataToSet;
         if (profileResponse.data && profileResponse.data.user) {
           userDataToSet = profileResponse.data.user;

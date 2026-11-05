@@ -39,7 +39,6 @@ const PaymentScreen = ({ onPaymentSuccess, onRetryCheck }) => {
 
   useEffect(() => {
     const handleDeepLink = (event) => {
-      console.log(event, 'checkEvent Exist');
       if (event?.url) {
         handlePaymentResult(event.url);
       }

@@ -211,7 +211,6 @@ export default function TransactionActivityScreen() {
         [];
       setActivity(await mapTransactionsToActivity(raw));
 
-      console.log('TransactionActivityScreen: fetched', raw, 'transactions');
     } catch (e) {
       showToastMessage(toast, 'danger', e?.response?.data?.message || e?.message || t('transactions.loadFailed'));
     } finally {

@@ -639,12 +639,6 @@ function PostItem({
   useEffect(() => {
     const snapshot = `${item?.id}:${String(liked)}:${String(likesCount)}`;
     if (likeSnapshotRef.current !== snapshot) {
-      console.log('[PostItem] like/dislike value for count', {
-        postId: item?.id,
-        liked,
-        likesCount,
-        previous: likeSnapshotRef.current,
-      });
       likeSnapshotRef.current = snapshot;
     }
     setLocalLiked(!!liked);
@@ -1485,10 +1479,8 @@ function PostItem({
     setTrustScoreLoading(true);
     try {
       const response = await getTrustScrore({ postId: item.id });
-      console.log(response, 'getTrustScroregetTrustScroregetTrustScroregetTrustScroregetTrustScrore')
       setTrustScore(unwrapTrustPayload(response));
     } catch (error) {
-      console.log('Failed to fetch trust score:', error);
       showToastMessage(toast, 'danger', t('postItem.trustLoadError'));
     } finally {
       setTrustScoreLoading(false);
@@ -1508,7 +1500,6 @@ function PostItem({
         setTrustCommentModalVisible(false);
       }
     } catch (error) {
-      console.log('Failed to fetch trust vote detail:', error);
     } finally {
       setTrustVoteStatusLoading(false);
     }
@@ -1557,7 +1548,7 @@ function PostItem({
         comment: comment || '',
       });
 
-      console.log('voteTrust response:', response);  // check this
+  // check this
 
       // ✅ Only unwrap after confirming response shape
       const payload = response?.data?.data ?? response?.data ?? response;
@@ -1569,7 +1560,7 @@ function PostItem({
         setLocalCommentsCount(prev => prev + 1);
       }
     } catch (error) {
-      console.log('voteTrust error:', error?.response?.data);  // add this
+  // add this
       showToastMessage(toast, 'danger', t('postItem.trustSubmitError'));
     } finally {
       setTrustLoading(false);
@@ -1588,7 +1579,6 @@ function PostItem({
       setTrustVote(null);
       await refreshTrustScore();
     } catch (error) {
-      console.log('Failed to remove trust vote:', error);
       showToastMessage(toast, 'danger', t('postItem.trustUndoError'));
     } finally {
       setTrustLoading(false);
@@ -1802,7 +1792,7 @@ function PostItem({
                     onVideoRef={ref => { if (ref) videoRefsMap.current[index] = ref; }}
                     onLoadStart={() => setVideoLoaded(prev => ({ ...prev, [index]: false }))}
                     onLoad={() => setVideoLoaded(prev => ({ ...prev, [index]: true }))}
-                    onError={error => console.log('Video error:', error)}
+                    onError={error => {}}
                     bufferConfig={{
                       minBufferMs: 2000,
                       maxBufferMs: 10000,

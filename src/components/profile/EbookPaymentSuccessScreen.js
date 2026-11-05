@@ -81,7 +81,6 @@ const EbookPaymentSuccessScreen = () => {
         Alert.alert('Error', t('ebookPaymentSuccess.browserNotAvailable', 'InAppBrowser is not available on this device'));
       }
     } catch (err) {
-      console.log('InAppBrowser opening failed:', err);
       Alert.alert('Error', t('ebookPaymentSuccess.unableToOpen', 'Unable to open ebook. Invalid or unreachable PDF link.'));
     }
   };

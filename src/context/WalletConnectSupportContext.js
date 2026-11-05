@@ -154,7 +154,6 @@ function WalletConnectSupportInner({ children }) {
   // 🦊 Listen for MetaMask return from deep link handler in index.js
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('METAMASK_RETURN', async () => {
-      console.log(LOG, '🦊 METAMASK_RETURN received — attempting to resume session');
 
       const intent = supportConnectIntentRef.current;
       if (!intent?.recipientAddress) {
@@ -167,7 +166,6 @@ function WalletConnectSupportInner({ children }) {
         requestModalVisibleRef.current ||
         connectRevealInProgressRef.current
       ) {
-        console.log(LOG, 'METAMASK_RETURN: modal already showing, skipping');
         return;
       }
 
@@ -207,7 +205,6 @@ function WalletConnectSupportInner({ children }) {
   }, [persistConnectedWallet, revealConnectedSuccessUi]);
 
   const openWalletConnectModal = useCallback(async () => {
-    console.log(LOG, 'open() invoked → AppKit modal should open');
     if (Platform.OS === 'ios') {
       await new Promise((resolve) => requestAnimationFrame(() => resolve()));
     }
@@ -220,7 +217,6 @@ function WalletConnectSupportInner({ children }) {
   }, [open]);
 
   const waitForSessionAddressAndProvider = useCallback(async (timeoutMs = 90000) => {
-    console.log(LOG, 'waitForSessionAddressAndProvider: polling AppKit provider + eth_accounts…');
     const start = Date.now();
     let lastLog = 0;
 
@@ -235,11 +231,6 @@ function WalletConnectSupportInner({ children }) {
             addr = accounts?.[0];
           }
           if (addr) {
-            console.log(LOG, 'waitForSessionAddressAndProvider: success', {
-              address: addr,
-              preview: `${String(addr).slice(0, 8)}…${String(addr).slice(-4)}`,
-              elapsedMs: Date.now() - start,
-            });
             return { provider: wc, address: addr };
           }
         } catch (e) {
@@ -249,21 +240,12 @@ function WalletConnectSupportInner({ children }) {
 
       const snap = modalSnapshotRef.current;
       if (snap?.address && wc?.request) {
-        console.log(LOG, 'waitForSessionAddressAndProvider: success via hook address', {
-          address: snap.address,
-          elapsedMs: Date.now() - start,
-        });
         return { provider: wc, address: snap.address };
       }
 
       const now = Date.now();
       if (now - lastLog > 3000) {
         lastLog = now;
-        console.log(LOG, 'waitForSessionAddressAndProvider: still waiting…', {
-          hasProvider: !!wc?.request,
-          hookConnected: !!snap?.address,
-          appKitHookIsConnected: snap?.isConnected,
-        });
       }
 
       await new Promise((r) => setTimeout(r, 300));
@@ -274,21 +256,14 @@ function WalletConnectSupportInner({ children }) {
   }, [t]);
 
   const waitForProvider = useCallback(async (timeoutMs = 15000) => {
-    console.log(LOG, 'waitForProvider: polling…');
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       const fromKit = getProviderFromAppKit();
       if (fromKit?.request) {
-        console.log(LOG, 'waitForProvider: ready via AppKit', {
-          elapsedMs: Date.now() - start,
-        });
         return fromKit;
       }
       const hookProv = modalSnapshotRef.current.provider;
       if (hookProv?.request) {
-        console.log(LOG, 'waitForProvider: ready via hook', {
-          elapsedMs: Date.now() - start,
-        });
         return hookProv;
       }
       await new Promise((r) => setTimeout(r, 100));
@@ -331,9 +306,6 @@ function WalletConnectSupportInner({ children }) {
       await AsyncStorage.setItem('walletAddress', walletAddress);
       await AsyncStorage.setItem('walletChainId', SUPPORT_CHAIN_ID);
       await AsyncStorage.setItem('walletType', 'walletconnect');
-      console.log(LOG, 'persisted wallet', {
-        preview: `${String(walletAddress).slice(0, 8)}…`,
-      });
     } catch (e) {
       console.warn('WalletConnectSupport: AsyncStorage persist failed', e);
     }
@@ -349,7 +321,6 @@ function WalletConnectSupportInner({ children }) {
         throw new Error(t('walletConnect.walletNotConnected'));
       }
 
-      console.log(LOG, 'ensurePolygon…');
       await ensurePolygon(wcProvider);
 
       const chainId = await wcProvider.request({ method: 'eth_chainId' });
@@ -366,7 +337,6 @@ function WalletConnectSupportInner({ children }) {
         throw new Error(t('walletConnect.noAccountAvailable'));
       }
 
-      console.log(LOG, 'sender', userAddress);
 
       await persistConnectedWallet(userAddress);
 
@@ -378,7 +348,6 @@ function WalletConnectSupportInner({ children }) {
         data: '0x',
       };
 
-      console.log(LOG, 'eth_sendTransaction…');
       const txHash = await wcProvider.request({
         method: 'eth_sendTransaction',
         params: [transaction],
@@ -395,11 +364,6 @@ function WalletConnectSupportInner({ children }) {
       await verifyUsdtTransaction(
         buildSupportPaymentVerificationPayload(txHash, options),
       ).then((verificationResponse) => {
-        console.log(
-          LOG,
-          'verifyUsdtTransaction response',
-          verificationResponse?.data ?? verificationResponse,
-        );
         return verificationResponse;
       }).catch((verificationError) => {
         console.warn(
@@ -420,7 +384,6 @@ function WalletConnectSupportInner({ children }) {
   const revealConnectedSuccessUi = useCallback(
     async (userAddress, recipientAddress, options) => {
       if (connectRevealInProgressRef.current) {
-        console.log(LOG, 'revealConnectedSuccessUi: skip (already in progress)');
         return;
       }
       supportConnectIntentRef.current = null;
@@ -431,7 +394,6 @@ function WalletConnectSupportInner({ children }) {
         setConnectedSuccessAddress(userAddress);
 
         try {
-          console.log(LOG, 'closing AppKit modal so success UI can show…');
           await closeWalletModal();
         } catch (e) {
           console.warn(LOG, 'closeWalletModal after connect (non-fatal)', e);
@@ -443,9 +405,6 @@ function WalletConnectSupportInner({ children }) {
         const delayMs = Platform.OS === 'ios' ? 500 : 450;
         await new Promise((r) => setTimeout(r, delayMs));
 
-        console.log(LOG, 'setting WalletConnectedSuccessModal visible=true', {
-          address: userAddress,
-        });
         setShowWalletConnectedModal(true);
         showToastMessage(
           toast,
@@ -499,9 +458,6 @@ function WalletConnectSupportInner({ children }) {
       }
 
       const { recipientAddress, options } = supportConnectIntentRef.current;
-      console.log(LOG, 'AppState active: recovering post-wallet session', {
-        preview: `${String(addr).slice(0, 8)}…`,
-      });
 
       try {
         await persistConnectedWallet(addr);
@@ -530,11 +486,6 @@ function WalletConnectSupportInner({ children }) {
 
   const startSupportPayment = useCallback(
     async (recipientAddress, options = {}) => {
-      console.log(LOG, 'startSupportPayment called', {
-        recipientPreview: recipientAddress
-          ? `${String(recipientAddress).slice(0, 10)}…`
-          : null,
-      });
 
       if (!recipientAddress) {
         console.warn(LOG, 'startSupportPayment: abort — no recipientAddress');
@@ -560,7 +511,6 @@ function WalletConnectSupportInner({ children }) {
           showToastMessage(toast, 'danger', message);
         } finally {
           setLoading(false);
-          console.log(LOG, 'startSupportPayment finished (loading cleared)');
         }
         return;
       }
@@ -568,7 +518,6 @@ function WalletConnectSupportInner({ children }) {
       try {
         setRpcResponse(null);
         supportConnectIntentRef.current = { recipientAddress, options };
-        console.log(LOG, 'connect path: opening AppKit…');
         await openWalletConnectModal();
 
         const { address: userAddress } = await waitForSessionAddressAndProvider(15000);
@@ -617,7 +566,6 @@ function WalletConnectSupportInner({ children }) {
       InteractionManager.runAfterInteractions(() => resolve());
     });
 
-    console.log(LOG, 'openPendingPaymentRequest: opening payment modal');
     setRequestModalVisible(true);
     setLoading(true);
     setRpcResponse(null);
@@ -633,7 +581,6 @@ function WalletConnectSupportInner({ children }) {
     } finally {
       setLoading(false);
       pendingPaymentRef.current = null;
-      console.log(LOG, 'openPendingPaymentRequest finished');
     }
   }, [runPaymentSteps, toast, t]);
 
@@ -645,7 +592,6 @@ function WalletConnectSupportInner({ children }) {
       return;
     }
 
-    console.log(LOG, 'continueToPayAfterConnect: waiting for success modal to hide');
     continueToPayAfterHideRef.current = true;
     setShowWalletConnectedModal(false);
   }, []);
@@ -662,7 +608,6 @@ function WalletConnectSupportInner({ children }) {
   }, [openPendingPaymentRequest]);
 
   const dismissWalletConnectedSuccess = useCallback(() => {
-    console.log(LOG, 'WalletConnectedSuccessModal dismissed');
     continueToPayAfterHideRef.current = false;
     setShowWalletConnectedModal(false);
     pendingPaymentRef.current = null;

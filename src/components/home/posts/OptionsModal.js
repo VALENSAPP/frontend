@@ -116,7 +116,6 @@ export default function OptionsModal({
         return;
       }
 
-      console.log(resp, 'response in hide post');
       showToastMessage(
         toast,
         'success',

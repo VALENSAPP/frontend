@@ -81,7 +81,6 @@ const resolveSettledCard = settledItem => {
       error: false,
     };
   } catch (error) {
-    console.log('parseEarningsGraphResponse error:', error);
     return failedCardState();
   }
 };
@@ -179,7 +178,6 @@ const TotalEarningsScreen = () => {
         shopEarningGraph(),
       ]);
     } catch (error) {
-      console.log('loadGraphs Promise.allSettled failed:', error);
       settledList = [];
     }
 

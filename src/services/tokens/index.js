@@ -1,4 +1,5 @@
 import axiosInstance from "..";
+import { dedupeRequest } from "../../utils/apiDeduplicator";
 
 /** token Api's**/
 export const createToken = async (body) => {
@@ -26,7 +27,11 @@ export const getTokenHistory = async (tokenAddress, period) => {
 }
 
 export const getTopCreators = async () => {
-  return axiosInstance.get(`token-purchase/top-creators`);
+  return dedupeRequest(
+    'token-purchase/top-creators',
+    () => axiosInstance.get(`token-purchase/top-creators`),
+    { ttlMs: 10000 }
+  );
 }
 
 export const getRecentActivities = async (type) => {
@@ -51,7 +56,11 @@ export const tokenPurchaseHistory = async () => {
 }
 
 export const getTotalTokenPurchase = async () => {
-  return axiosInstance.get(`token-purchase/getTotaltoken`);
+  return dedupeRequest(
+    'token-purchase/getTotaltoken',
+    () => axiosInstance.get(`token-purchase/getTotaltoken`),
+    { ttlMs: 5000 }
+  );
 }
 
 export const tokenPurchaseAmtByVendor = async (userId) => {
@@ -59,7 +68,15 @@ export const tokenPurchaseAmtByVendor = async (userId) => {
 }
 
 export const getTotalDonationAmount = async (data) => {
-  return axiosInstance.post('token-purchase/post-donation-total', data)
+  const postId = data?.postId;
+  if (!postId) {
+    return axiosInstance.post('token-purchase/post-donation-total', data);
+  }
+  return dedupeRequest(
+    `token-purchase/post-donation-total:${postId}`,
+    () => axiosInstance.post('token-purchase/post-donation-total', data),
+    { ttlMs: 8000 }
+  );
 }
 
 export const addMissionDonation = async (data) => {

@@ -243,7 +243,6 @@ const ManageSubscribersScreen = () => {
       else if (item.status === STATUS.canceled) statsCounts.canceled++;
       else if (item.status === STATUS.expired) statsCounts.expired++;
     });
-    console.log('Stats counts:', statsCounts, 'Total items:', subscribersList);
     const total = list.length || 1;
     return {
       active: { count: statsCounts.active, pct: total ? ((statsCounts.active / total) * 100).toFixed(1) : 0 },

@@ -177,7 +177,7 @@ export default function KYCVerification({ route }) {
                 return;
             }
             const snsMobileSDK = SNSMobileSDK.init(accessToken, () => accessToken)
-                .withHandlers({ onStatusChanged: event => console.log('Sumsub status:', event) })
+                .withHandlers({ onStatusChanged: event => {} })
                 .withDebug(true)
                 .build();
             await snsMobileSDK.launch();
@@ -211,7 +211,6 @@ export default function KYCVerification({ route }) {
             const code = response.statusCode;
 
             if (code === 200) {
-                console.log('profile edit response ---------------', response)
                 // showToastMessage(toast, 'success', 'Profile de.');
             } else if (code === 500) {
                 showToastMessage(toast, 'danger', 'Something went wrong. Please try again.');
@@ -420,7 +419,6 @@ export default function KYCVerification({ route }) {
                 showToastMessage(toast, 'danger', response.data.message);
             }
         } catch (err) {
-            console.log(err, 'error in kyc');
         }
     };
 

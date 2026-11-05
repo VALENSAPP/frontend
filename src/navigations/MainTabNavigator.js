@@ -240,7 +240,6 @@ const MyClosetScreen = props => {
             }
           }
         } catch (error) {
-          console.log('Error loading My Closet state:', error);
         }
       };
 
@@ -317,7 +316,6 @@ const ShopScreenWrapper = props => {
             }
           }
         } catch (error) {
-          console.log('Error loading Shop state:', error);
         }
       };
 

@@ -93,7 +93,6 @@ const BuyMissionPackageScreen = () => {
         }
       }
     } catch (error) {
-      console.log('BuyMissionPackage refreshBalances error:', error);
     }
   }, []);
 

@@ -109,7 +109,6 @@ const ReelsScreen = memo(({ postCheck, userData, isOwnProfile = false, onPostPin
   const navigation = useNavigation();
   const { bgStyle, textStyle, text } = useAppTheme(userData?.profile);
   const { t } = useLanguage();
-  console.log("postCheck------------------>>>>>>>>>>>>>", postCheck)
   useEffect(() => {
     setPosts(sortPostsByPinned(getVideoPosts(postCheck)));
   }, [postCheck]);

@@ -166,7 +166,6 @@ export default function BattleExplore({ onClose, profile }) {
     if (!isSilent) setLoading(true);
     try {
       const response = await exploretBattle();
-      console.log(response,'explore bataatateeeleleeleleelelelel')
       if (response?.statusCode === 200 || response?.status === 200) {
         const rawBattles = response?.data?.battles || response?.data?.data || response?.data || [];
         const normalized = [];
@@ -278,7 +277,6 @@ export default function BattleExplore({ onClose, profile }) {
       const product = bwp?.product || bwp || {};
       const closet = bwp?.closet || {};
       const seller = bwp?.seller || {};
-      console.log("seller------------------------------",seller)
       const cleanProduct = {
         ...product,
         id: product?.id || product?._id || bwp?.id,
@@ -310,8 +308,6 @@ export default function BattleExplore({ onClose, profile }) {
         battleTitle: raw?.title || 'Battle Winner',
       };
       const isOwnProfile = await isOwnProfileForCloset(seller);
-      console.log("isOwnProfile------------------",isOwnProfile)
-      console.log("isOwnProfile------------------",typeof(isOwnProfile))
       navigation?.navigate?.('ProfileMain', {
         screen: 'MyClosetBuyerItemDetail',
         params: withClosetNavParams(

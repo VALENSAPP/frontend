@@ -133,9 +133,7 @@ const acquireProtection = async () => {
       record: true,
       appSwitcher: true,
     });
-    console.log(`${LOG_TAG} Restricted screenshot — protection enabled`);
   } else {
-    console.log(`${LOG_TAG} Restricted screenshot — refCount: ${protectionRefCount}`);
   }
 };
 
@@ -143,9 +141,7 @@ const releaseProtection = async () => {
   protectionRefCount = Math.max(0, protectionRefCount - 1);
   if (protectionRefCount === 0) {
     await CaptureProtection.allow();
-    console.log(`${LOG_TAG} Screenshot allowed — protection disabled`);
   } else {
-    console.log(`${LOG_TAG} Screenshot still restricted — refCount: ${protectionRefCount}`);
   }
 };
 
@@ -192,7 +188,6 @@ export default function useScreenshotProtection({
       await acquireProtection();
       isActiveRef.current = true;
       const status = await CaptureProtection.protectionStatus();
-      console.log(`${LOG_TAG} Protection status:`, status);
     } catch (error) {
       isActiveRef.current = false;
       console.warn(`${LOG_TAG} Failed to enable protection:`, error);
@@ -235,9 +230,6 @@ export default function useScreenshotProtection({
       if (!isActiveRef.current) return;
 
       if (eventType < CaptureEventType.ALLOW) {
-        console.log(
-          `${LOG_TAG} Capture detected: ${captureEventLabel(eventType)}`,
-        );
       }
 
       if (

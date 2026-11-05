@@ -207,7 +207,6 @@ export default function WalletComponent() {
         try {
             dispatch(showLoader());
             const response = await getCreditsLeft();
-            console.log('Credits Left Response:', response);
             if (response?.statusCode === 200) {
                 const toCount = (value, fallback = 0) => {
                     const parsed = Number(value);

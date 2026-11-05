@@ -148,7 +148,6 @@ export default function Main({ onSplashFinish }) {
         await requestUserPermission();
         await requestAppLocationPermission();
       } catch (error) {
-        console.log('Post splash permission request failed:', error);
       }
     }, 500);
   }, []);
@@ -279,7 +278,6 @@ export default function Main({ onSplashFinish }) {
       setlockModal(!kycApproved)
       setVerificationProfileType(profile)
     } catch (error) {
-      console.log('KYC polling check failed:', error?.message || error);
     }
   }, [isLoggedIn]);
 
@@ -321,10 +319,6 @@ export default function Main({ onSplashFinish }) {
       // Re-fetch user data immediately
       checkKycAndShowWelcomeModal();
     } catch (error) {
-      console.log(
-        'Failed to update first login after KYC:',
-        error?.message || error,
-      );
     } finally {
       welcomeModalCloseInFlight.current = false;
     }
@@ -335,7 +329,6 @@ export default function Main({ onSplashFinish }) {
       if (lockLogoutInFlight.current) return;
 
       const response = await lockProfile();
-      console.log(response, 'lock prolfe have ')
       const rawPayload = response?.data ?? response;
       const isLock =
         String(rawPayload?.profileLock ?? rawPayload?.isLock ?? rawPayload?.data?.profileLock ?? rawPayload?.data?.isLock ?? '').toLowerCase() === 'true';
@@ -365,7 +358,6 @@ export default function Main({ onSplashFinish }) {
       dispatch(loggedOut());
     } catch (err) {
       lockLogoutInFlight.current = false;
-      console.log(err)
     }
   }, [dispatch, verificationProfileType])
 
@@ -422,7 +414,6 @@ export default function Main({ onSplashFinish }) {
       try {
         const response = await refreshToken({ refreshToken: oldToken });
         if (response?.statusCode === 200) {
-          console.log('response in refreshtoken:', response);
           await AsyncStorage.setItem('token', response.data.access_token);
           await AsyncStorage.setItem('refreshToken', response.data.refresh_token);
         }
@@ -469,7 +460,6 @@ export default function Main({ onSplashFinish }) {
           try {
             deviceId = await getAuthDeviceId();
           } catch (e) {
-            console.log('checkLogin: could not resolve device_id', e?.message || e);
           }
         }
 
@@ -481,10 +471,6 @@ export default function Main({ onSplashFinish }) {
 
         // Transient / auth API failure: never wipe a locally valid login
         if (!statusOk || response?.error === true) {
-          console.log(
-            'checkLogin: session API inconclusive, keeping local session',
-            response?.statusCode ?? response?.message,
-          );
           if (token) {
             await restoreLocalSession();
           } else {
@@ -516,13 +502,11 @@ export default function Main({ onSplashFinish }) {
 
         // No sessions returned yet (common right after login / backend lag) — keep local login
         if (sessions.length === 0 && token) {
-          console.log('checkLogin: empty sessions list, keeping local session');
           await restoreLocalSession();
           return;
         }
 
         // Sessions exist but none match this device — treat as logged out elsewhere
-        console.log('Session not found, logging out');
         const keys = await AsyncStorage.getAllKeys();
         const keysToRemove = keys.filter(
           key => key !== 'hasLaunchedBefore' && key !== 'darkMode',
@@ -530,7 +514,6 @@ export default function Main({ onSplashFinish }) {
         await AsyncStorage.multiRemove(keysToRemove);
         dispatch(loggedOut());
       } catch (error) {
-        console.log('Error in checkLogin:', error);
         // Network / unexpected errors must not force logout when local session exists
         try {
           const [loggedI, token] = await Promise.all([
@@ -559,7 +542,6 @@ export default function Main({ onSplashFinish }) {
 
     // ── AppState ───────────────────────────────────────────────────────────
     const appStateSubscription = AppState.addEventListener('change', nextState => {
-      console.log('AppState changed:', appState.current, '->', nextState);
       if (nextState === 'active') {
         checkKycAndShowWelcomeModalRef.current?.();
       }
@@ -599,7 +581,6 @@ export default function Main({ onSplashFinish }) {
         const user = exactMatch || users[0];
         return user?.id || user?._id || user?.userId || null;
       } catch (error) {
-        console.log('Username resolution failed:', error?.message || error);
         return null;
       }
     };
@@ -623,7 +604,6 @@ export default function Main({ onSplashFinish }) {
     const handleDeepLink = async (event) => {
       const url = String(event?.url || '').trim();
       if (!url) return;
-      console.log('Deep link received:', url);
 
       // MetaMask return
       const isMetaMaskReturn = url === 'com.valens.app://' || url === 'com.valens.app';
@@ -631,7 +611,6 @@ export default function Main({ onSplashFinish }) {
         const pending = await AsyncStorage.getItem('pending_metamask_connect');
         if (pending === 'true') {
           await AsyncStorage.removeItem('pending_metamask_connect');
-          console.log('🦊 Returned from MetaMask');
           DeviceEventEmitter.emit('METAMASK_RETURN', { timestamp: Date.now() });
         }
         return;
@@ -650,11 +629,9 @@ export default function Main({ onSplashFinish }) {
 
       // Callback / payment
       if (normalizedPath === '/callback') {
-        console.log('🔔 Callback URL detected — closing InAppBrowser');
         try {
           if (await InAppBrowser.isAvailable()) await InAppBrowser.close();
         } catch (error) {
-          console.log('❌ Error closing InAppBrowser:', error);
         }
 
         let status = 'success';
@@ -662,7 +639,6 @@ export default function Main({ onSplashFinish }) {
           status = new URL(normalizeDeepLinkUrl(url)).searchParams.get('status') || 'success';
         } catch { /* ignore */ }
 
-        console.log('📢 Emitting PAYMENT_COMPLETED with status:', status);
         DeviceEventEmitter.emit('PAYMENT_COMPLETED', { status, timestamp: Date.now() });
         setTimeout(() => dispatch(hideLoader()), 500);
         return;
@@ -826,7 +802,6 @@ export default function Main({ onSplashFinish }) {
       _initialUrlConsumed = true;
       Linking.getInitialURL().then(url => {
         if (url) {
-          console.log('Initial URL:', url);
           handleDeepLink({ url });
         }
       });
@@ -859,7 +834,6 @@ export default function Main({ onSplashFinish }) {
         ref={navigationRef}
         linking={linking}
         onReady={() => {
-          console.log('Navigation is ready');
           isNavigationReadyRef.current = true;
           setIsNavigationReady(true);
         }}

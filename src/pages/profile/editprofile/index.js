@@ -208,7 +208,6 @@ const ProfileEditScreen = () => {
 
     try {
       const resp = await checkDisplayName({ displayName: displayName.trim() });
-      console.log('Display name check response:', resp);
 
       if (resp && resp.statusCode === 200 && resp.success) {
         const { status, suggestions = [] } = resp.data;
@@ -401,7 +400,6 @@ const ProfileEditScreen = () => {
   const hasConnectedWallet = Boolean(wallet && String(wallet).trim().length > 0);
 
   const handleGenderSelect = value => {
-    console.log(value, 'check value');
     setGender(value);
   };
 
@@ -469,7 +467,6 @@ const ProfileEditScreen = () => {
         });
       }
       const res = await EditProfile(formData);
-      console.log(res, 'checkresponse');
       if (res.statusCode === 200) {
         dispatch(setProfileImg(profileImage));
         showToastMessage(toast, 'success', res.data.message);

@@ -56,7 +56,6 @@ const VerificationStatusScreen = () => {
             const sdk = SNSMobileSDK.init(accessToken, () => accessToken)
                 .withHandlers({
                     onStatusChanged: (event) => {
-                        console.log('Sumsub status:', event);
                     },
                 })
                 .withDebug(true)
@@ -70,7 +69,6 @@ const VerificationStatusScreen = () => {
             } else {
                 showToastMessage(toast, 'danger', t('verification.sumsubLaunchFailed'));
             }
-            console.log(error, 'Sumsub launch error');
         } finally {
             sumsubLaunchLockRef.current = false;
             setIsLaunchingSumsub(false);

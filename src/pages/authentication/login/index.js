@@ -86,7 +86,6 @@ export default function LoginScreen() {
     if (!response) return false;
 
     const subData = response?.data?.subscription || response?.subscription || response?.data || response;
-    console.log('📢 Subscription data:', subData);
     const isCanceled = Boolean(
       response?.data?.isCancel === 'No' ||
       response?.data?.isCancel === true ||
@@ -132,7 +131,6 @@ export default function LoginScreen() {
       const id = type === 'fromlogin' ? userid : storedId;
       if (id) {
         const response = await getProfile(id);
-        console.log('in profile response ----->>>>>>>>> ', response)
         if (response?.statusCode === 200) {
           try {
             const onboardingStatusResponse = await getOnboardingStatus();
@@ -143,7 +141,6 @@ export default function LoginScreen() {
               );
             }
           } catch (onboardingError) {
-            console.log('getOnboardingStatus on login error:', onboardingError?.message);
           }
         }
 
@@ -203,7 +200,6 @@ export default function LoginScreen() {
         }
       }
     } catch (err) {
-      console.log(err);
       // Alert.alert('Error', err.message /*|| 'Failed to fetch profile status'*/);
     } finally {
       dispatch(hideLoader());
@@ -214,7 +210,6 @@ export default function LoginScreen() {
     const loadDeviceId = async () => {
       const DeviceId = await DeviceInfo.getUniqueId();
       await AsyncStorage.setItem("device_id", DeviceId);
-      console.log("Saved Device ID:", DeviceId);
     };
 
     loadDeviceId();
@@ -298,7 +293,6 @@ export default function LoginScreen() {
         registrationType: 'NORMAL',
       });
       if (response && response.statusCode == 200) {
-        console.log(response, "response===>>>>>>>>>>>>22222222222222222222222")
         await AsyncStorage.setItem('userId', response.data.user.id);
         await AsyncStorage.setItem('token', response.data.user.access_token);
         await AsyncStorage.setItem(
@@ -359,7 +353,6 @@ export default function LoginScreen() {
             return;
           }
         } catch (lockError) {
-          console.log('Profile lock check failed after login:', lockError?.message || lockError);
         }
         await persistStripeCustomerId(response.data.user.stripeCustomerId ?? null, dispatch);
         if (
@@ -385,13 +378,11 @@ export default function LoginScreen() {
         if (normalizedProfileType !== 'company') {
           try {
             const subResponse = await checkSubscription();
-            console.log('📢 checkSubscription response on login:', subResponse);
             const hasActiveSubscription = hasValidSubscriptionAccess(subResponse);
             if (!hasActiveSubscription) {
               showRegularSubscriptionPrompt = true;
             }
           } catch (subErr) {
-            console.log('❌ Error in checkSubscription on login:', subErr);
             showRegularSubscriptionPrompt = true;
           }
         }
