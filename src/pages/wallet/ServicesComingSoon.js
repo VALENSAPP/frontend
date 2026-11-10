@@ -159,9 +159,6 @@ export default function ServicesComingSoon() {
               <Text style={[styles.heroTitle, { color: colors.title }]}>
                 {t('servicesComingSoon.headline')}
               </Text>
-              <Text style={[styles.heroBody, { color: colors.body }]}>
-                {t('servicesComingSoon.body')}
-              </Text>
             </View>
 
             <View style={styles.heroArt}>
@@ -207,6 +204,10 @@ export default function ServicesComingSoon() {
               <Sparkle style={styles.artSparkle} size={14} color="#C4B5FD" />
             </View>
           </View>
+
+          <Text style={[styles.heroBody, { color: colors.body }]}>
+            {t('servicesComingSoon.body')}
+          </Text>
 
           <View style={[styles.launchCard, { backgroundColor: colors.launch }]}>
             <View style={styles.launchLeft}>
@@ -388,9 +389,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   heroBody: {
+    marginTop: 12,
     fontSize: 14,
     lineHeight: 21,
     fontWeight: '500',
+    paddingRight: 100,
+    bottom: 50
   },
   heroArt: {
     width: 168,
@@ -469,7 +473,6 @@ const styles = StyleSheet.create({
     bottom: 54,
   },
   launchCard: {
-    marginTop: 22,
     borderRadius: 24,
     padding: 16,
     flexDirection: 'row',
@@ -480,6 +483,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
+    bottom: 20
   },
   launchLeft: {
     flex: 1,
@@ -535,7 +539,7 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   sectionTitle: {
-    marginTop: 26,
+    marginTop: 10,
     marginBottom: 16,
     textAlign: 'center',
     fontSize: 16,

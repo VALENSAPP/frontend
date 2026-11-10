@@ -9,6 +9,7 @@ import { formSurfaces, themedCard } from '../../utils/closetTheme';
 import { useLanguage } from '../../i18n';
 import HexAvatar from '../home/story.js/HexAvatar';
 import { navigateToUserProfile } from '../../utils/navigateToUserProfile';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
 
 const getCoverImage = (item) => {
   if (!item) return null;
@@ -189,7 +190,14 @@ const EbookBuyDetailsScreen = () => {
   const priceLabel = currentEbook?.amount != null ? `$${parseFloat(currentEbook.amount).toFixed(2)}` : t('ebookBuyDetails.free', 'Free');
   const chapterCount = currentEbook?.tableContent?.length || 4;
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
+    const isKycApproved = await ensureKycApprovedForPayment({
+      navigation,
+      t,
+    });
+    if (!isKycApproved) {
+      return;
+    }
     navigation.navigate('EbookCheckout', {
       ebook: currentEbook,
       userData,

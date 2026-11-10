@@ -29,6 +29,11 @@ import {
   parseEarningsGraphResponse,
   parseTotalAmountParam,
 } from '../../utils/earningsGraph';
+import {
+  getCachedTotalEarningsHidden,
+  loadTotalEarningsHidden,
+  persistTotalEarningsHidden,
+} from '../../utils/earningsPrivacy';
 
 const H_PADDING = 16;
 const CARD_GAP = 12;
@@ -94,7 +99,7 @@ const TotalEarningsScreen = () => {
 
   const paramTotal = parseTotalAmountParam(route?.params?.totalAmount);
   const [heroTotal, setHeroTotal] = useState(paramTotal);
-  const [amountHidden, setAmountHidden] = useState(false);
+  const [amountHidden, setAmountHidden] = useState(getCachedTotalEarningsHidden);
   const [refreshing, setRefreshing] = useState(false);
   const [sources, setSources] = useState({
     mission: emptyCardState(),
@@ -225,10 +230,21 @@ const TotalEarningsScreen = () => {
 
   useFocusEffect(
     useCallback(() => {
+      loadTotalEarningsHidden().then(hidden => {
+        setAmountHidden(hidden);
+      });
       ensureHeroTotal();
       loadGraphs();
     }, [ensureHeroTotal, loadGraphs]),
   );
+
+  const handleToggleAmountHidden = useCallback(() => {
+    setAmountHidden(prev => {
+      const next = !prev;
+      persistTotalEarningsHidden(next);
+      return next;
+    });
+  }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -294,8 +310,10 @@ const TotalEarningsScreen = () => {
                 {t('totalEarnings.totalEarnings') || 'Total Earnings'}
               </Text>
               <TouchableOpacity
-                onPress={() => setAmountHidden(prev => !prev)}
+                onPress={handleToggleAmountHidden}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={amountHidden ? 'Show earnings' : 'Hide earnings'}
               >
                 <Ionicons
                   name={amountHidden ? 'eye-off-outline' : 'eye-outline'}

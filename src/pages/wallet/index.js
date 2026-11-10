@@ -54,7 +54,7 @@ import {
 import Svg, { Polygon, Path, Text as SvgText, Defs, LinearGradient as SvgLinearGradient, Stop, Circle, Rect } from 'react-native-svg';
 import { useLanguage } from '../../i18n';
 import { formatDisplayCurrency, formatDisplayNumber, formatDisplayTime } from '../../utils/displayLocale';
-import { hydratePaymentProvider, isPagbankProvider, persistPaymentProvider, readPaymentProvider } from '../../utils/paymentCurrency';
+import { hydratePaymentProvider, isPagbankProvider, persistPaymentProvider, persistUserCountry, readPaymentProvider, readUserCountry } from '../../utils/paymentCurrency';
 const { width, height } = Dimensions.get('window');
 const KPI_GRID_GAP = 8;
 const AVATAR_PREVIEW_SIZE = Math.min(width * 0.9, 340);
@@ -964,6 +964,11 @@ export const WalletDashboardScreen = ({ navigation }) => {
         const savedProvider = await persistPaymentProvider(profileProvider);
         setPaymentProvider(savedProvider);
       }
+      const profileCountry = readUserCountry(response?.data?.user || response?.data);
+      if (profileCountry !== undefined) {
+        await persistUserCountry(profileCountry);
+      }
+      console.log(response, 'data in this apiaia for resposne ')
       // 🔥 Adjust keys based on your API response
       const stripeCustomerId =
         response?.data?.stripeAccountId ||

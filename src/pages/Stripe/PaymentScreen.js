@@ -23,6 +23,7 @@ import { loggedOut } from '../../redux/actions/LoginAction';
 import { useToast } from 'react-native-toast-notifications';
 import { showToastMessage } from '../../components/displaytoastmessage';
 import { createCheckoutSession } from '../../services/stirpe';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
 import { getPaymentSessionUrl, getStripeErrorMessages } from '../../utils/stripeOnboarding';
 import { useStripeCustomer } from '../../hooks/useStripeCustomer';
 import StripePaymentMethodModal from '../../components/modals/StripePaymentMethodModal';
@@ -39,6 +40,7 @@ const PaymentScreen = ({ onPaymentSuccess, onRetryCheck }) => {
 
   useEffect(() => {
     const handleDeepLink = (event) => {
+      console.log(event, 'checkEvent Exist');
       if (event?.url) {
         handlePaymentResult(event.url);
       }
@@ -126,6 +128,15 @@ const PaymentScreen = ({ onPaymentSuccess, onRetryCheck }) => {
 
       if (!token) {
         showToastMessage(toast, 'danger', t('payment.authError'));
+        return;
+      }
+
+      const isKycApproved = await ensureKycApprovedForPayment({
+        navigation,
+        toast,
+        t,
+      });
+      if (!isKycApproved) {
         return;
       }
 

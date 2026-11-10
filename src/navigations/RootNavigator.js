@@ -1,6 +1,6 @@
 // src/navigations/MainStack.js
-import React, { useEffect, useLayoutEffect, useRef } from 'react';
-import { View, ActivityIndicator, Alert, StyleSheet, Animated, Dimensions, TouchableWithoutFeedback, TouchableOpacity, Switch, DeviceEventEmitter, Image } from 'react-native';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { View, ActivityIndicator, Alert, StyleSheet, Animated, Dimensions, TouchableWithoutFeedback, TouchableOpacity, Switch, LayoutAnimation, Platform, UIManager, DeviceEventEmitter, Image } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
 import { useDispatch, useSelector } from 'react-redux';
@@ -57,7 +57,7 @@ import WhiteScreen from '../pages/authentication/WhiteScreen';
 import { useThemeContext } from '../theme/ThemeContext';
 import { normalizeProfileType } from '../utils/closetNavigation';
 
-
+import DralensAiModal from '../components/dralens/DralensAiModal';
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -97,8 +97,10 @@ const CustomDrawerContent = (props) => {
   const [unviewedCount, setUnviewedCount] = React.useState(0);
 
   const checkUnviewedOrders = React.useCallback(async () => {
+    console.log('API CALL: getUnviewedOrderIds started');
     try {
       const res = await getUnviewedOrderIds();
+      console.log('API CALL: getUnviewedOrderIds success response:', res?.data ?? res);
       const data = res?.data?.data ?? res?.data ?? res;
       const countVal = Number(
         data?.count ??
@@ -110,6 +112,7 @@ const CustomDrawerContent = (props) => {
       );
       setUnviewedCount(countVal);
     } catch (err) {
+      console.log('API CALL: getUnviewedOrderIds error:', err?.response?.data ?? err?.message ?? err);
     }
   }, []);
 
@@ -127,6 +130,24 @@ const CustomDrawerContent = (props) => {
   const isCompanyProfile = resolvedProfile === 'company';
   const { bgStyle, border, accent, text } = useAppTheme(isCompanyProfile ? 'company' : undefined);
   const drawerColors = getDrawerItemColors(isDarkMode, accent);
+  const [isClosetExpanded, setIsClosetExpanded] = useState(false);
+  const [isSubscriptionsExpanded, setIsSubscriptionsExpanded] = useState(false);
+
+  const toggleClosetDropdown = () => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsClosetExpanded(prev => !prev);
+  };
+
+  const toggleSubscriptionsDropdown = () => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsSubscriptionsExpanded(prev => !prev);
+  };
   const drawerItems = props.state.routes.map((route, index) => ({
     route,
     index,
@@ -141,6 +162,7 @@ const CustomDrawerContent = (props) => {
 
       // Handle success here
     } catch (err) {
+      console.log(err, 'blockProfile error');
     }
   }, []);
   useEffect(() => {
@@ -266,60 +288,92 @@ const CustomDrawerContent = (props) => {
         );
       })}
 
-      <TouchableOpacity
-        onPress={() => navigateToWalletScreen(isCompanyProfile ? 'Shop' : 'MyCloset')}
-        activeOpacity={0.75}
-        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 18 }}
-      >
-        {isCompanyProfile ? (
-          <Feather name="briefcase" size={20} color={drawerColors.inactive} style={{ marginRight: 16 }} />
-        ) : (
-          <MaterialCommunityIcons name="hanger" size={20} color={drawerColors.inactive} style={{ marginRight: 16 }} />
-        )}
-        <View style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
-          <Text
-            style={{
-              fontSize: 15,
-              color: drawerColors.inactive,
-              fontWeight: '600',
-              flexShrink: 1,
-              flexWrap: 'wrap',
-            }}
-          >
-            {isCompanyProfile ? (
-              t('drawerNav.shop')
-            ) : (
-              <>
-                {t('drawerNav.myCloset')}
-                {unviewedCount > 0 && (
-                  <Text style={{ color: accent }}>
-                    {' | '}{t('myClosetDashboard.newOrder')} [{unviewedCount}]
-                  </Text>
-                )}
-              </>
-            )}
-          </Text>
-        </View>
-        {/* {unviewedCount > 0 && (
-          <View style={{ marginLeft: 8, backgroundColor: '#E0E7FF', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
-            <Text style={{ fontSize: 10, color: '#4F46E5', fontWeight: 'bold' }}>{unviewedCount} NEW</Text>
+      {/* My Closet / Shop (Collapsible with Ebook) */}
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <TouchableOpacity
+          onPress={() => navigateToWalletScreen(isCompanyProfile ? 'Shop' : 'MyCloset')}
+          activeOpacity={0.75}
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingLeft: 20,
+            paddingVertical: 18,
+          }}
+        >
+          {isCompanyProfile ? (
+            <Feather name="briefcase" size={20} color={drawerColors.inactive} style={{ marginRight: 16 }} />
+          ) : (
+            <MaterialCommunityIcons name="hanger" size={20} color={drawerColors.inactive} style={{ marginRight: 16 }} />
+          )}
+          <View style={{ flex: 1, minWidth: 0, paddingRight: 6 }}>
+            <Text
+              style={{
+                fontSize: 15,
+                color: drawerColors.inactive,
+                fontWeight: '600',
+                flexShrink: 1,
+                flexWrap: 'wrap',
+              }}
+            >
+              {isCompanyProfile ? (
+                t('drawerNav.shop')
+              ) : (
+                <>
+                  {t('drawerNav.myCloset')}
+                  {unviewedCount > 0 && (
+                    <Text style={{ color: accent }}>
+                      {' | '}{t('myClosetDashboard.newOrder')} [{unviewedCount}]
+                    </Text>
+                  )}
+                </>
+              )}
+            </Text>
           </View>
-        )} */}
-      </TouchableOpacity>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        onPress={navigateToEbookPublisher}
-        activeOpacity={0.75}
-        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, paddingLeft: 44 }}
-      >
-        <Ionicons name="book-outline" size={20} color={drawerColors.inactive} style={{ marginRight: 16 }} />
-        <Text style={{ fontSize: 15, color: drawerColors.inactive, fontWeight: '600' }}>
-          {t('drawerNav.ebook', 'Ebook')}
-        </Text>
-        <View style={{ marginLeft: 8, backgroundColor: '#E6D5F7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
-          <Text style={{ fontSize: 10, color: '#5a2d82', fontWeight: 'bold' }}>NEW</Text>
-        </View>
-      </TouchableOpacity>
+        <TouchableOpacity
+          onPress={toggleClosetDropdown}
+          activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel="Toggle Ebook sub menu"
+          style={{
+            paddingVertical: 18,
+            paddingHorizontal: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Feather
+            name={isClosetExpanded ? 'chevron-up' : 'chevron-down'}
+            size={18}
+            color={drawerColors.inactive}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {isClosetExpanded && (
+        <TouchableOpacity
+          onPress={navigateToEbookPublisher}
+          activeOpacity={0.75}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+            paddingVertical: 12,
+            paddingLeft: 52,
+          }}
+        >
+          <Ionicons name="book-outline" size={18} color={drawerColors.inactive} style={{ marginRight: 14 }} />
+          <Text style={{ fontSize: 14, color: drawerColors.inactive, fontWeight: '500' }}>
+            {t('drawerNav.ebook', 'Ebook')}
+          </Text>
+          <View style={{ marginLeft: 8, backgroundColor: '#E6D5F7', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10 }}>
+            <Text style={{ fontSize: 9, color: '#5a2d82', fontWeight: 'bold' }}>NEW</Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
         onPress={() => navigateToWalletScreen('ServicesComingSoon')}
@@ -337,27 +391,64 @@ const CustomDrawerContent = (props) => {
         </View>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        onPress={() => navigateToWalletScreen('SubscriptionSetup')}
-        activeOpacity={0.75}
-        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 18 }}
-      >
-        <Ionicons name="sync-outline" size={20} color={drawerColors.inactive} style={{ marginRight: 16 }} />
-        <Text style={{ fontSize: 15, color: drawerColors.inactive, fontWeight: '600' }}>
-          {t('drawerNav.subscriptions')}
-        </Text>
-      </TouchableOpacity>
+      {/* Subscriptions (Collapsible with Manage my subscribers) */}
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <TouchableOpacity
+          onPress={() => navigateToWalletScreen('SubscriptionSetup')}
+          activeOpacity={0.75}
+          style={{
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingLeft: 20,
+            paddingVertical: 18,
+          }}
+        >
+          <Ionicons name="sync-outline" size={20} color={drawerColors.inactive} style={{ marginRight: 16 }} />
+          <Text style={{ fontSize: 15, color: drawerColors.inactive, fontWeight: '600' }}>
+            {t('drawerNav.subscriptions')}
+          </Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        onPress={() => navigateToWalletScreen('ManageSubscribers')}
-        activeOpacity={0.75}
-        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, paddingLeft: 44 }}
-      >
-        <Ionicons name="people-outline" size={20} color={drawerColors.inactive} style={{ marginRight: 16 }} />
-        <Text style={{ fontSize: 15, color: drawerColors.inactive, fontWeight: '600' }}>
-          {t('drawerNav.manageSubscribers')}
-        </Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          onPress={toggleSubscriptionsDropdown}
+          activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel="Toggle Manage Subscribers sub menu"
+          style={{
+            paddingVertical: 18,
+            paddingHorizontal: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Feather
+            name={isSubscriptionsExpanded ? 'chevron-up' : 'chevron-down'}
+            size={18}
+            color={drawerColors.inactive}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {isSubscriptionsExpanded && (
+        <TouchableOpacity
+          onPress={() => navigateToWalletScreen('ManageSubscribers')}
+          activeOpacity={0.75}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+            paddingVertical: 12,
+            paddingLeft: 52,
+          }}
+        >
+          <Ionicons name="people-outline" size={18} color={drawerColors.inactive} style={{ marginRight: 14 }} />
+          <Text style={{ fontSize: 14, color: drawerColors.inactive, fontWeight: '500' }}>
+            {t('drawerNav.manageSubscribers')}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
         onPress={() => navigateToWalletScreen('Privatecircle', { skipPrivateCircleApi: true })}
@@ -787,12 +878,15 @@ export default function MainStack({ isFirstLaunch }) {
   }
 
   return (
-    <Stack.Navigator key="appStack" screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="AppDrawer" component={GlobalDrawerNavigator} />
-      <Stack.Screen name="BusinessSetup" component={BusinessSetup} />
-      <Stack.Screen name="kycverify" component={KYCVerification} />
-      <Stack.Screen name="CallbackScreen" component={CallbackScreen} />
-    </Stack.Navigator>
+    <>
+      <Stack.Navigator key="appStack" screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="AppDrawer" component={GlobalDrawerNavigator} />
+        <Stack.Screen name="BusinessSetup" component={BusinessSetup} />
+        <Stack.Screen name="kycverify" component={KYCVerification} />
+        <Stack.Screen name="CallbackScreen" component={CallbackScreen} />
+      </Stack.Navigator>
+      <DralensAiModal />
+    </>
   );
 }
 

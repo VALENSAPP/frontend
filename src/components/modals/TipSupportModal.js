@@ -16,8 +16,11 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { useDispatch } from 'react-redux';
+import { useNavigation } from '@react-navigation/native';
+import { navigate as rootNavigate } from '../../navigations/RootNavigation';
 import { hideLoader, showLoader } from '../../redux/actions/LoaderAction';
 import { sendTip } from '../../services/stirpe';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
 import { showToastMessage } from '../displaytoastmessage';
 import { useToast } from 'react-native-toast-notifications';
 import {
@@ -55,7 +58,10 @@ export default function TipSupportModal({
   creatorName = 'Creator',
   vendorId,
   onTipSuccess,
+  navigation: propNavigation,
 }) {
+  const hookNavigation = useNavigation();
+  const navigation = propNavigation || hookNavigation;
   const toast = useToast();
   const dispatch = useDispatch();
   const { t } = useLanguage();
@@ -134,6 +140,23 @@ export default function TipSupportModal({
 
     if (!isAmountValid) {
       showToastMessage(toast, 'danger', t('tipSupportScreen.minAmountError'));
+      return;
+    }
+
+    const isKycApproved = await ensureKycApprovedForPayment({
+      toast,
+      t,
+      onNavigateKyc: () => {
+        onClose?.();
+        if (navigation?.navigate) {
+          navigation.navigate('kycverify');
+        } else {
+          rootNavigate('kycverify');
+        }
+      },
+      navigation,
+    });
+    if (!isKycApproved) {
       return;
     }
 

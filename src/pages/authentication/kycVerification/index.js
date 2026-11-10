@@ -322,8 +322,16 @@ export default function KYCVerification({ route }) {
             if (!effectiveUserId) return;
 
             const response = await kycStatus(effectiveUserId);
-            if (response?.statusCode === 200) {
-                const status = String(response?.data?.status || '').toUpperCase();
+            const status = String(
+                response?.data?.status ||
+                response?.data?.kycStatus ||
+                response?.data?.data?.status ||
+                response?.status ||
+                response?.kycStatus ||
+                ''
+            ).toUpperCase();
+            const isSuccess = response?.statusCode === 200 || response?.status === 200 || Boolean(status);
+            if (isSuccess) {
                 if (status === 'APPROVED') {
                     setShowProgressModal(false);
                     if (profileData) {

@@ -10,11 +10,12 @@ import {
   Text,
   TouchableOpacity,
   View,
+  BackHandler,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useFocusEffect } from '@react-navigation/native';
 import { getUserCredentials } from '../../services/post';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useThemeContext } from '../../theme/ThemeContext';
@@ -392,6 +393,59 @@ export default function BattleResults({ navigation }) {
     return () => { active = false; };
   }, [t, winnerUserId]);
 
+  const handleBackPress = useCallback(() => {
+    const returnTo = route?.params?.returnTo;
+    const entryPoint = route?.params?.entryPoint;
+
+    if (
+      entryPoint === 'search' ||
+      entryPoint === 'battleExplore' ||
+      returnTo === 'Search' ||
+      returnTo === 'SearchHome' ||
+      returnTo?.tab === 'Search' ||
+      returnTo?.screen === 'SearchHome'
+    ) {
+      navigation.navigate('Search', {
+        screen: 'SearchHome',
+        params: (typeof returnTo === 'object' ? returnTo?.params : route?.params?.returnParams) || {},
+      });
+      return;
+    }
+
+    if (entryPoint === 'notifications') {
+      navigation.navigate('HomeMain', { screen: 'HeartNotification' });
+      return;
+    }
+
+    if (typeof returnTo === 'object' && returnTo?.tab) {
+      navigation.navigate(returnTo.tab, returnTo.screen ? { screen: returnTo.screen, params: returnTo.params } : undefined);
+      return;
+    }
+
+    if (typeof returnTo === 'string' && returnTo) {
+      navigation.navigate(returnTo, route?.params?.returnParams);
+      return;
+    }
+
+    if (navigation?.canGoBack?.()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation.navigate('HomeMain', { screen: 'HeartNotification' });
+  }, [navigation, route?.params?.returnTo, route?.params?.entryPoint, route?.params?.returnParams]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        handleBackPress();
+        return true;
+      };
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [handleBackPress])
+  );
+
   return (
     <SafeAreaView style={[styles.safeArea, bgStyle]}>
       <ScrollView
@@ -402,7 +456,7 @@ export default function BattleResults({ navigation }) {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => navigation.goBack()}
+            onPress={handleBackPress}
             style={styles.headerIconBtn}
           >
             <Icon name="arrow-back-ios-new" size={20} color={accent} />

@@ -344,8 +344,8 @@ const BattleCard = memo(({ item, selectedOption, onCardPress, onOptionSelect, on
             suppressCardPressRef.current.timer = null;
             return;
         }
-        onCardPress(item);
-    }, [item, onCardPress]);
+        onCardPress?.(item, selectedOption);
+    }, [item, onCardPress, selectedOption]);
 
     const handleUserPress = useCallback((user, event) => {
         event?.stopPropagation?.();
@@ -360,8 +360,13 @@ const BattleCard = memo(({ item, selectedOption, onCardPress, onOptionSelect, on
     const optionImages = Array.isArray(item?.optionImages) ? item.optionImages : [];
 
     const handleOption = useCallback(
-        label => { if (!ended) onOptionSelect(item.id, label); },
-        [ended, item.id, onOptionSelect],
+        label => {
+            if (!ended) {
+                onOptionSelect?.(item.id, label);
+            }
+            onCardPress?.(item, label);
+        },
+        [ended, item, onOptionSelect, onCardPress],
     );
 
     const optionLabels = useMemo(
@@ -708,7 +713,7 @@ const AndroidBattleRow = ({ children, style, cardWidth = CARD_WIDTH, cardGap = C
         onStartShouldSetPanResponderCapture: () => false,
         onMoveShouldSetPanResponder: (_, gestureState) => {
             const { dx, dy } = gestureState;
-            return Math.abs(dx) > 4 && Math.abs(dx) > Math.abs(dy) * 1.5; // slightly more responsive
+            return Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.5;
         },
         onMoveShouldSetPanResponderCapture: () => false,
         onPanResponderTerminationRequest: () => false,
@@ -814,6 +819,7 @@ const AndroidBattleRow = ({ children, style, cardWidth = CARD_WIDTH, cardGap = C
             collapsable={false}
             onTouchStart={() => {
                 animRef.current?.stop();
+                translateX.stopAnimation();
                 if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
             }}
             onTouchEnd={() => {

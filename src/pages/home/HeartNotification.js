@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Platform,
   RefreshControl,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
@@ -440,6 +441,36 @@ export default function Notifications() {
   const routes = useRoute();
   const fromSubscriptionPriceChangedRef = useRef(false);
   const lastFetchedFromSubPriceChangedAtRef = useRef(0);
+
+  const handleBack = useCallback(() => {
+    const state = navigation.getState?.();
+    if (state?.routes && typeof state?.index === 'number' && state.index > 0) {
+      const prevRoute = state.routes[state.index - 1];
+      const isBattleRoute = prevRoute?.name && /battle/i.test(prevRoute.name);
+      if (isBattleRoute) {
+        navigation.navigate('HomeMain', { screen: 'Home' });
+        return;
+      }
+      navigation.goBack();
+      return;
+    }
+    if (navigation.canGoBack?.()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate('HomeMain', { screen: 'Home' });
+  }, [navigation]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        handleBack();
+        return true;
+      };
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [handleBack])
+  );
 
   const tabs = useMemo(
     () => [
@@ -1951,7 +1982,7 @@ export default function Notifications() {
       <View style={[styles.header, bgStyle, { shadowColor: text, borderBottomColor: border }]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity
-            onPress={() => navigation.goBack()}
+            onPress={handleBack}
             style={styles.backButton}
           >
             <Icon name="arrow-back" size={24} color={icon} />

@@ -24,6 +24,7 @@ import {
   TouchableWithoutFeedback,
   View,
   DeviceEventEmitter,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -61,6 +62,7 @@ import { Vsbanner } from '../../assets/icons';
 import { useLanguage } from '../../i18n';
 import { moderateBattleComment } from '../../utils/battleModeration';
 import ReportFlowScreen from '../../components/modals/Report';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { BASE_URL } from '../../config/urls';
 
 const isMeaningfulValue = value => {
@@ -725,6 +727,7 @@ export default function BattleInProgress() {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const replyInputRef = useRef(null);
   const reportSheetRef = useRef(null);
+  const [reportTarget, setReportTarget] = useState(null);
   const scrollRef = useRef(null);
   const commentSelectionFrameRef = useRef(null);
   const pendingCommentSelectionRef = useRef({});
@@ -1970,12 +1973,23 @@ export default function BattleInProgress() {
     }
   }, [battleId, fetchBattle, resolvedBattleId, submittingCommentEdit]);
 
-  const confirmCommentOwnActions = useCallback((comment) => {
+  const handleCommentActions = useCallback((comment) => {
     if (!comment) return;
-    Alert.alert(
-      'Comment Actions',
-      'Select an option (available within 3 minutes of posting):',
-      [
+    const isOwn = isOwnComment(comment.userId);
+    const canEditOrDelete = isOwn && isWithin3Minutes(comment.createdAt);
+
+    const buttons = [
+      {
+        text: 'Copy',
+        onPress: () => {
+          Clipboard.setString(comment.message || '');
+          Alert.alert('', t('commentSheet.successCommentCopied', 'Comment copied'));
+        },
+      },
+    ];
+
+    if (canEditOrDelete) {
+      buttons.push(
         {
           text: 'Edit Comment',
           onPress: () => {
@@ -1988,13 +2002,39 @@ export default function BattleInProgress() {
           style: 'destructive',
           onPress: () => handleDeleteComment(comment.id),
         },
-        {
-          text: 'Cancel',
-          style: 'cancel',
+      );
+    }
+
+    if (!isOwn) {
+      buttons.push({
+        text: 'Report Comment',
+        style: 'destructive',
+        onPress: () => {
+          setReportTarget({
+            id: comment.id,
+            userId: comment.userId,
+            type: 'comment',
+          });
+          setTimeout(() => {
+            reportSheetRef.current?.open();
+          }, 200);
         },
-      ],
+      });
+    }
+
+    buttons.push({
+      text: 'Cancel',
+      style: 'cancel',
+    });
+
+    Alert.alert(
+      'Comment Actions',
+      canEditOrDelete ? 'Select an option (available within 3 minutes of posting):' : '',
+      buttons,
     );
-  }, [handleDeleteComment]);
+  }, [handleDeleteComment, isOwnComment, isWithin3Minutes, t]);
+
+  const confirmCommentOwnActions = handleCommentActions;
 
   const applyCommentHighlightForComment = useCallback(async (comment, selection) => {
     const finalBattleId = resolvedBattleId || battleId;
@@ -2326,10 +2366,33 @@ export default function BattleInProgress() {
     participantUserData,
   ]);
 
-  const handleBackPress = () => {
+  const handleBackPress = useCallback(() => {
     const backTarget = route.params?.returnTo;
     const returnParams = route.params?.returnParams;
     const entryPoint = route.params?.entryPoint;
+
+    // If navigated from search/explore, return directly to SearchHome
+    if (
+      entryPoint === 'search' ||
+      entryPoint === 'battleExplore' ||
+      backTarget === 'Search' ||
+      backTarget === 'SearchHome' ||
+      backTarget?.tab === 'Search' ||
+      backTarget?.screen === 'SearchHome'
+    ) {
+      navigation.navigate('Search', {
+        screen: 'SearchHome',
+        params: (typeof backTarget === 'object' ? backTarget?.params : returnParams) || {},
+      });
+      return;
+    }
+
+    if (entryPoint === 'notifications') {
+      navigation.navigate('HomeMain', {
+        screen: 'HeartNotification',
+      });
+      return;
+    }
 
     if (backTarget) {
       if (typeof backTarget === 'object' && backTarget?.tab) {
@@ -2337,28 +2400,28 @@ export default function BattleInProgress() {
         return;
       }
 
-      if (backTarget === 'Search' || backTarget === 'SearchHome') {
-        navigation.navigate('Search', {
-          screen: 'SearchHome',
-          params: returnParams,
-        });
-        return;
-      }
-
       navigation.navigate(backTarget, returnParams);
       return;
     }
 
-    if (entryPoint === 'notifications') {
-      navigation.dispatch(StackActions.pop(1));
-      navigation.getParent()?.navigate('HomeMain', {
-        screen: 'HeartNotification',
-      });
+    if (navigation?.canGoBack?.()) {
+      navigation.goBack();
       return;
     }
 
     navigation.goBack();
-  };
+  }, [navigation, route?.params?.returnTo, route?.params?.returnParams, route?.params?.entryPoint]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        handleBackPress();
+        return true;
+      };
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [handleBackPress])
+  );
 
   if (loading) {
     return (
@@ -2403,19 +2466,17 @@ export default function BattleInProgress() {
                   <TouchableOpacity style={styles.replyTrigger} onPress={() => handleOpenReply(reply)}>
                     <Text style={[styles.replyTriggerText, { color: palette.primary }]}>{t('battleInProgress.replyTrigger')}</Text>
                   </TouchableOpacity>
-                  {canEditOrDeleteReply && (
-                    <TouchableOpacity
-                      style={styles.commentMenuButton}
-                      onPress={() => confirmCommentOwnActions(reply)}
-                      disabled={deletingCommentId === reply.id}
-                    >
-                      {deletingCommentId === reply.id ? (
-                        <ActivityIndicator size="small" color={palette.primary} />
-                      ) : (
-                        <Ionicons name="ellipsis-vertical" size={18} color={palette.primary} />
-                      )}
-                    </TouchableOpacity>
-                  )}
+                  <TouchableOpacity
+                    style={styles.commentMenuButton}
+                    onPress={() => handleCommentActions(reply)}
+                    disabled={deletingCommentId === reply.id}
+                  >
+                    {deletingCommentId === reply.id ? (
+                      <ActivityIndicator size="small" color={palette.primary} />
+                    ) : (
+                      <Ionicons name="ellipsis-vertical" size={18} color={palette.primary} />
+                    )}
+                  </TouchableOpacity>
                   {!isOwnComment(reply.userId) && (
                     <TouchableOpacity style={styles.commentLikeButton} onPress={() => handleCommentLike(reply.id)} disabled={likingCommentId === reply.id}>
                       {likingCommentId === reply.id ? (
@@ -2584,19 +2645,17 @@ export default function BattleInProgress() {
                   <TouchableOpacity style={styles.replyTrigger} onPress={() => handleOpenReply(comment)}>
                     <Text style={[styles.replyTriggerText, { color: palette.primary }]}>{t('battleInProgress.replyTrigger')}</Text>
                   </TouchableOpacity>
-                  {canEditOrDelete && (
-                    <TouchableOpacity
-                      style={styles.commentMenuButton}
-                      onPress={() => confirmCommentOwnActions(comment)}
-                      disabled={deletingCommentId === comment.id}
-                    >
-                      {deletingCommentId === comment.id ? (
-                        <ActivityIndicator size="small" color={palette.primary} />
-                      ) : (
-                        <Ionicons name="ellipsis-vertical" size={18} color={palette.primary} />
-                      )}
-                    </TouchableOpacity>
-                  )}
+                  <TouchableOpacity
+                    style={styles.commentMenuButton}
+                    onPress={() => handleCommentActions(comment)}
+                    disabled={deletingCommentId === comment.id}
+                  >
+                    {deletingCommentId === comment.id ? (
+                      <ActivityIndicator size="small" color={palette.primary} />
+                    ) : (
+                      <Ionicons name="ellipsis-vertical" size={18} color={palette.primary} />
+                    )}
+                  </TouchableOpacity>
                   {!isOwnComment(comment.userId) && (
                     <TouchableOpacity style={styles.commentLikeButton} onPress={() => handleCommentLike(comment.id)} disabled={likingCommentId === comment.id}>
                       {likingCommentId === comment.id ? (
@@ -3339,7 +3398,7 @@ export default function BattleInProgress() {
             <View style={styles.headerActions}>
             {!isBattleCreator ? (
               <TouchableOpacity
-                onPress={() => reportSheetRef.current?.open()}
+                onPress={() => { setReportTarget(null); reportSheetRef.current?.open(); }}
                 style={styles.headerIconBtn}
               >
                 <Ionicons name="flag-outline" size={20} color={accent} />
@@ -3673,6 +3732,8 @@ export default function BattleInProgress() {
                   winnerUserId: battle?.winnerUserId || '',
                   winningSide: battle?.winningSide || '',
                   entryPoint: route?.params?.entryPoint || 'battle_progress',
+                  returnTo: route?.params?.returnTo,
+                  returnParams: route?.params?.returnParams,
                   profile,
                 })}
               >
@@ -3728,10 +3789,13 @@ export default function BattleInProgress() {
       </Modal>
       <ReportFlowScreen
         ref={reportSheetRef}
-        postId={resolvedBattleId}
-        reportedUserId={String(battle?.creatorId || '')}
-        contentType="battle"
+        postId={reportTarget?.id || resolvedBattleId}
+        reportedUserId={String(reportTarget?.userId || battle?.creatorId || '')}
+        contentType={reportTarget?.type || "battle"}
         feature="battle"
+        onReported={() => {
+          setReportTarget(null);
+        }}
       />
     </SafeAreaView>
     </View>

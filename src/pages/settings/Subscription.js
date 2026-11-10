@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { cancelSubscription, checkSubscription, createCheckoutSession } from '../../services/stirpe';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
 import { ScrollView } from 'react-native-gesture-handler';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -219,6 +220,15 @@ const Subscription = () => {
   const handleActivationConfirm = async () => {
     try {
       setActivating(true);
+      const isKycApproved = await ensureKycApprovedForPayment({
+        navigation,
+        t,
+      });
+      if (!isKycApproved) {
+        setActivating(false);
+        setShowActivationPopup(false);
+        return;
+      }
 
       // 1. Check onboarding status first
       const onboardingStatus = await getOnboardingStatus();

@@ -45,6 +45,7 @@ import {
     getStripeErrorMessages,
 } from '../../utils/stripeOnboarding';
 import { createCheckoutSession } from '../../services/stirpe';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { getUserCredentials } from '../../services/post';
 import {
@@ -52,7 +53,9 @@ import {
     getActivePaymentProvider,
     hydratePaymentProvider,
     persistPaymentProvider,
+    persistUserCountry,
     readPaymentProvider,
+    readUserCountry,
 } from '../../utils/paymentCurrency';
 import { useLanguage } from '../../i18n';
 import { formatLocalizedDate } from '../../utils/dateTimeFormatter';
@@ -258,6 +261,20 @@ const SubventionSetupScreen = () => {
 
     const handleActivationConfirm = async () => {
         if (activationInFlightRef.current) return;
+        const isKycApproved = await ensureKycApprovedForPayment({
+            navigation,
+            toast,
+            t,
+            onNavigateKyc: () => {
+                setShowActivationPopup(false);
+                setShowBusinessReminderPopup(false);
+                navigation.navigate('kycverify');
+            },
+        });
+        if (!isKycApproved) {
+            return;
+        }
+
         activationInFlightRef.current = true;
         credentialRequestRef.current += 1;
         try {
@@ -310,6 +327,20 @@ const SubventionSetupScreen = () => {
 
     const handleBusinessActivationConfirm = async () => {
         if (activationInFlightRef.current) return;
+        const isKycApproved = await ensureKycApprovedForPayment({
+            navigation,
+            toast,
+            t,
+            onNavigateKyc: () => {
+                setShowActivationPopup(false);
+                setShowBusinessReminderPopup(false);
+                navigation.navigate('kycverify');
+            },
+        });
+        if (!isKycApproved) {
+            return;
+        }
+
         activationInFlightRef.current = true;
         try {
             dispatch(showLoader());
@@ -386,6 +417,10 @@ const SubventionSetupScreen = () => {
             if (profileProvider !== undefined) {
                 const savedProvider = await persistPaymentProvider(profileProvider);
                 if (requestId === credentialRequestRef.current) setPaymentProvider(savedProvider);
+            }
+            const profileCountry = readUserCountry(data?.user || data);
+            if (profileCountry !== undefined) {
+                await persistUserCountry(profileCountry);
             }
             const hasActiveAccess = hasActiveSubscriptionAccess(data);
             if (hasActiveAccess) {
@@ -557,6 +592,20 @@ const SubventionSetupScreen = () => {
     };
 
     const getUserSubscription = async () => {
+        const isKycApproved = await ensureKycApprovedForPayment({
+            navigation,
+            toast,
+            t,
+            onNavigateKyc: () => {
+                setShowActivationPopup(false);
+                navigation.navigate('kycverify');
+            },
+        });
+        if (!isKycApproved) {
+            setShowActivationPopup(false);
+            return;
+        }
+
         let response;
         try {
             response = await createCheckoutSession();

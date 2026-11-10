@@ -32,17 +32,28 @@ export default StyleSheet.create({
   },
 
   searchHistoryPanel: {
+    flex: 1,
+    minHeight: 0,
     borderWidth: 1,
     borderRadius: 16,
     marginBottom: 14,
-    paddingVertical: 8,
+    paddingTop: 12,
     paddingHorizontal: 12,
+    overflow: 'hidden',
+  },
+  searchHistoryList: {
+    flex: 1,
+    minHeight: 0,
+  },
+  searchHistoryListContent: {
+    flexGrow: 1,
   },
   searchHistoryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 8,
+    flexShrink: 0,
   },
   searchHistoryTitle: {
     fontSize: 13,

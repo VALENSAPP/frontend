@@ -25,6 +25,7 @@ import { parseTotalPlatformPointsPayload } from '../../utils/platformPoints';
 import { primaryCtaColors } from '../../utils/ctaContrast';
 import { showToastMessage } from '../../components/displaytoastmessage';
 import { hideLoader, showLoader } from '../../redux/actions/LoaderAction';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
 
 const H_PADDING = 16;
 const TOTAL_STEPS = 4;
@@ -114,6 +115,15 @@ const BuyMissionPackageScreen = () => {
           available: availablePoints.toLocaleString('en-US'),
         }),
       );
+      return;
+    }
+
+    const isKycApproved = await ensureKycApprovedForPayment({
+      navigation,
+      toast,
+      t,
+    });
+    if (!isKycApproved) {
       return;
     }
 

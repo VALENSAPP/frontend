@@ -5,6 +5,8 @@ import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { useToast } from 'react-native-toast-notifications';
 import { showToastMessage } from '../displaytoastmessage';
 import { createCheckoutSession } from '../../services/stirpe';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
+import { navigate as rootNavigate } from '../../navigations/RootNavigation';
 import { useAppTheme } from '../../theme/useApptheme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -78,6 +80,19 @@ const BusinessSubscriptionPrompt = ({
 
   const handleActivateNow = async () => {
     if (activationInFlightRef.current) return;
+
+    const isKycApproved = await ensureKycApprovedForPayment({
+      toast,
+      t,
+      onNavigateKyc: () => {
+        onClose();
+        rootNavigate('kycverify');
+      },
+    });
+    if (!isKycApproved) {
+      return;
+    }
+
     activationInFlightRef.current = true;
     try {
       setIsActivating(true);

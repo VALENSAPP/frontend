@@ -98,6 +98,7 @@ const ReportFlowScreen = forwardRef(({
         feature,
         reported_user_id: String(reportedUserId || '').trim(),
         reason_code: selectedReason.code,
+        notes: selectedReason.title || selectedReason.code || '',
       });
 
 

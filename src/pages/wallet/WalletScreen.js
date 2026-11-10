@@ -33,6 +33,7 @@ import TokenPurchaseModal from "../../components/modals/TokenPurchaseModal";
 import { getCreditsLeft } from "../../services/wallet";
 import TokenSellModal from "../../components/modals/TokenSellModal";
 import CreditPurchaseModal from "../../components/modals/PurchaseCreditsModal";
+import { ensureKycApprovedForPayment } from "../../utils/kycPaymentGuard";
 import { useBusinessProfileTheme } from "../../theme/useBusinessProfileTheme";
 import { useThemeContext } from "../../theme/ThemeContext";
 import HexAvatar from "../../components/home/story.js/HexAvatar";
@@ -45,7 +46,9 @@ import {
     getActivePaymentProvider,
     hydratePaymentProvider,
     persistPaymentProvider,
+    persistUserCountry,
     readPaymentProvider,
+    readUserCountry,
 } from "../../utils/paymentCurrency";
 import { formatProviderAmount } from "../../utils/paymentCurrency";
 
@@ -171,6 +174,10 @@ export default function WalletComponent() {
                 if (profileProvider !== undefined) {
                     const savedProvider = await persistPaymentProvider(profileProvider);
                     setPaymentProvider(savedProvider);
+                }
+                const profileCountry = readUserCountry(userDataToSet);
+                if (profileCountry !== undefined) {
+                    await persistUserCountry(profileCountry);
                 }
             } else {
                 showToastMessage(toast, 'danger', response.data.message);
@@ -298,9 +305,17 @@ export default function WalletComponent() {
         fetchTopCreators();
     }, [fetchCreditsLeft, fetchDashboardData, fetchTopCreators, fetchUserCreds, toast]);
 
-    const handleBuyCredits = () => {
+    const handleBuyCredits = async () => {
         if (!canBuyHits || purchasedHitsLeft >= maxPurchasedHits) {
             showToastMessage(toast, 'danger', t('walletScreen.maxCreditsReached'));
+            return;
+        }
+        const isKycApproved = await ensureKycApprovedForPayment({
+            navigation,
+            toast,
+            t,
+        });
+        if (!isKycApproved) {
             return;
         }
         setShowCreditModal(true);
@@ -713,6 +728,7 @@ export default function WalletComponent() {
 
             <CreditPurchaseModal
                 visible={showCreditModal}
+                navigation={navigation}
                 onClose={() => setShowCreditModal(false)}
                 onPurchaseComplete={() => {
                     fetchCreditsLeft();

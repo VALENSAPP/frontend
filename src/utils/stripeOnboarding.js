@@ -123,7 +123,15 @@ export function getOnboardingUrl(response) {
  * @returns {Promise<void>}
  */
 export async function openStripeOnboarding(options = {}) {
-  const { onComplete, t } = options;
+  const { onComplete, t, navigation } = options;
+  const { ensureKycApprovedForPayment } = require('./kycPaymentGuard');
+  const isKycApproved = await ensureKycApprovedForPayment({
+    navigation,
+    t,
+  });
+  if (!isKycApproved) {
+    return;
+  }
   const stripeErrorMessages = getStripeErrorMessages(t);
   const response = await createOnboardingLink();
   const url = getOnboardingUrl(response);
