@@ -12,7 +12,6 @@ const MIN_SCALE = 0.45;
 const MAX_SCALE = 4;
 
 const clamp = (value, min, max) => {
-  'worklet';
   return Math.min(max, Math.max(min, value));
 };
 

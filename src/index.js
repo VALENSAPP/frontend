@@ -26,6 +26,7 @@ import { getAllUser } from './services/users';
 import useNotificationSetup from './utils/useNotificationSetup';
 import { requestUserPermission } from './services/NotificationService';
 import ProfileVerificationReminderModal from './components/modals/ProfileVerificationReminderModal';
+import DralensAiModal from './components/dralens/DralensAiModal';
 import { BASE_URL } from './config/urls';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -850,6 +851,7 @@ export default function Main({ onSplashFinish }) {
         onDoNow={handleVerificationDoNow}
         onLater={handleVerificationLater}
       />
+      <DralensAiModal />
     </ThemeProvider>
   );
 }

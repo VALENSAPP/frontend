@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import RNFS from 'react-native-fs';
 import axiosInstance from '..';
+import { AI_API_URL } from '../../config/urls';
 import { dedupeRequest } from '../../utils/apiDeduplicator';
 import { appendStoryAudioFiles } from '../../utils/storyAudioUpload';
 
@@ -439,7 +440,7 @@ export async function postDralensReply({
   try {
 
     const response = await axiosInstance.post(
-      'http://192.168.29.203:8081/api/v1/ai-comment-reply',
+      `${AI_API_URL}/ai-comment-reply`,
       formData,
       {
         timeout: 60000,

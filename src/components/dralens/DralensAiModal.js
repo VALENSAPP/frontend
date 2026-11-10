@@ -49,6 +49,13 @@ const QUICK_PROMPTS = [
   },
 ];
 
+function getCurrentTime() {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
 export default function DralensAiModal() {
   const [visible, setVisible] = useState(false);
   const [mode, setMode] = useState('welcome'); // 'welcome' | 'chat'
@@ -69,10 +76,7 @@ export default function DralensAiModal() {
   ]);
 
   useEffect(() => {
-    const sub = DeviceEventEmitter.addListener('OPEN_DRALENS_AI', () => {
-      setVisible(true);
-
-      // Fetch live welcome & suggestions from backend: GET /api/v1/dralens-chat/welcome
+    const fetchWelcome = () => {
       getDralensWelcome().then((data) => {
         if (!data) return;
         if (data.message) {
@@ -103,16 +107,17 @@ export default function DralensAiModal() {
           setQuickPromptsList(formatted);
         }
       });
+    };
+
+
+    const sub = DeviceEventEmitter.addListener('OPEN_DRALENS_AI', () => {
+      setVisible(true);
+      fetchWelcome();
     });
     return () => sub.remove();
   }, []);
 
-  function getCurrentTime() {
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
-  }
+
 
   const handleClose = () => {
     setVisible(false);

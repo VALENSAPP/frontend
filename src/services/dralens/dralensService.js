@@ -1,10 +1,25 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BASE_URL } from '../../config/urls';
+import { BASE_URL, AI_API_URL } from '../../config/urls';
 import { findKnowledgeBaseMatch } from './valensKnowledgeBase';
 
-// Primary backend endpoint provided by backend team
-export const DRALENS_BACKEND_BASE = 'http://192.168.1.15:8081/api/v1';
+/**
+ * Backend endpoints provided for Dralens AI chat:
+ * 1. GET  /api/v1/dralens-chat/welcome
+ * 2. POST /api/v1/dralens-chat
+ */
+export const DRALENS_BACKEND_BASE = AI_API_URL;
+
+// Candidate endpoints in priority order
+const BACKEND_CANDIDATES = [
+  AI_API_URL,
+  'http://192.168.1.15:8081/api/v1',
+  'http://192.168.29.203:8081/api/v1',
+  `${BASE_URL}/api/v1`,
+  `${BASE_URL}`,
+];
+
+let activeBaseUrl = BACKEND_CANDIDATES[0];
 
 /**
  * Helper to build auth headers with current token
@@ -20,13 +35,13 @@ async function getHeaders() {
       headers['Authorization'] = `Bearer ${token}`;
     }
   } catch (e) {
-    // Ignore storage error
+    // Ignore storage read error
   }
   return headers;
 }
 
 /**
- * Normalizes backend responses whether structured or markdown/plain text
+ * Normalizes backend responses whether structured JSON or markdown/plain text
  */
 function parseAiResponse(data) {
   if (!data) return null;
@@ -46,11 +61,14 @@ function parseAiResponse(data) {
     payload.message ||
     payload.reply ||
     payload.response ||
+    payload.answer ||
+    payload.result ||
+    payload.content ||
     (typeof payload === 'string' ? payload : '');
 
   if (!rawText) return null;
 
-  // Case 2: Parse numbered steps from markdown / plain text
+  // Case 2: Parse numbered steps from markdown / plain text (e.g. "1. Step one\n2. Step two")
   const stepRegex = /^\s*(\d+)[\.\)]\s*(.+)$/gm;
   const matches = [...rawText.matchAll(stepRegex)];
 
@@ -79,14 +97,16 @@ function parseAiResponse(data) {
  * @returns {Promise<{ message?: string, suggestions?: Array<string|object> } | null>}
  */
 export async function getDralensWelcome() {
-  const endpoints = [
-    `${DRALENS_BACKEND_BASE}/dralens-chat/welcome`,
-    `${BASE_URL}/api/v1/dralens-chat/welcome`,
-  ];
-
   const headers = await getHeaders();
 
-  for (const url of endpoints) {
+  // Try active base URL first, then other candidates
+  const urlsToTry = [
+    activeBaseUrl,
+    ...BACKEND_CANDIDATES.filter((u) => u !== activeBaseUrl),
+  ];
+
+  for (const base of urlsToTry) {
+    const url = `${base.replace(/\/+$/, '')}/dralens-chat/welcome`;
     try {
       const response = await axios.get(url, {
         headers,
@@ -94,22 +114,27 @@ export async function getDralensWelcome() {
       });
 
       if (response?.data) {
+        activeBaseUrl = base;
         const payload = response.data.data || response.data;
         return {
           message:
             payload.message ||
+            payload.welcome ||
             payload.welcomeMessage ||
             payload.intro ||
-            payload.greeting,
+            payload.greeting ||
+            payload.text,
           suggestions:
             payload.suggestions ||
             payload.quickPrompts ||
+            payload.quickQuestions ||
             payload.questions ||
-            payload.prompts,
+            payload.prompts ||
+            (Array.isArray(payload) ? payload : undefined),
         };
       }
     } catch (err) {
-      // Try next endpoint or fallback
+      // Try next candidate
     }
   }
 
@@ -117,7 +142,7 @@ export async function getDralensWelcome() {
 }
 
 /**
- * Sends a message and history to Dralens AI backend.
+ * Sends a message and conversation history to Dralens AI backend.
  * POST /api/v1/dralens-chat
  *
  * @param {string} userMessage - User query
@@ -132,24 +157,32 @@ export async function askDralensAi(userMessage, history = []) {
     };
   }
 
-  // Format history matching backend schema: [{ role: 'user'|'assistant', content: string }]
+  // Format history matching backend schema:
+  // [{ role: 'user' | 'assistant', content: string }]
   const formattedHistory = (history || [])
     .slice(-6)
     .filter((m) => m && (m.text || m.intro || m.content))
-    .map((m) => ({
-      role: m.role === 'user' ? 'user' : 'assistant',
-      content: m.text || m.intro || m.content || '',
-    }));
+    .map((m) => {
+      let content = m.content || m.text || m.intro || '';
+      if (Array.isArray(m.steps) && m.steps.length > 0) {
+        content += '\n' + m.steps.map((s, idx) => `${idx + 1}. ${s}`).join('\n');
+      }
+      return {
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content,
+      };
+    });
 
   const headers = await getHeaders();
 
-  const endpoints = [
-    `${DRALENS_BACKEND_BASE}/dralens-chat`,
-    `${BASE_URL}/api/v1/dralens-chat`,
+  const urlsToTry = [
+    activeBaseUrl,
+    ...BACKEND_CANDIDATES.filter((u) => u !== activeBaseUrl),
   ];
 
   // 1. Try Backend POST endpoints
-  for (const url of endpoints) {
+  for (const base of urlsToTry) {
+    const url = `${base.replace(/\/+$/, '')}/dralens-chat`;
     try {
       const response = await axios.post(
         url,
@@ -165,10 +198,11 @@ export async function askDralensAi(userMessage, history = []) {
 
       const parsed = parseAiResponse(response?.data);
       if (parsed && (parsed.intro || parsed.steps)) {
+        activeBaseUrl = base;
         return parsed;
       }
     } catch (err) {
-      // Endpoint error / network down — try next or fallback
+      // Try next candidate endpoint
     }
   }
 
