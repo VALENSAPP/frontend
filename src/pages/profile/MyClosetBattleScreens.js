@@ -457,8 +457,17 @@ const useBattleBackHandler = (navigation, route) =>
     if (navigateBackToProfile(navigation, route?.params?.returnToProfile)) {
       return;
     }
+    const returnTo = route?.params?.returnTo;
+    if (typeof returnTo === 'object' && returnTo?.tab) {
+      navigation.navigate(returnTo.tab, returnTo.screen ? { screen: returnTo.screen, params: returnTo.params } : undefined);
+      return;
+    }
+    if (returnTo?.screen === 'HeartNotification' || returnTo === 'HeartNotification') {
+      navigation.navigate('HomeMain', { screen: 'HeartNotification' });
+      return;
+    }
     navigation.goBack();
-  }, [navigation, route?.params?.returnToProfile]);
+  }, [navigation, route?.params?.returnToProfile, route?.params?.returnTo]);
 
 export const PhoneFrame = ({ children }) => {
   const { card, border } = useAppTheme();
@@ -1813,7 +1822,11 @@ export function BattleLiveScreen({ navigation, route }) {
       });
       return;
     }
-    else if (returnTo?.screen === "HeartNotification") {
+    else if (returnTo?.screen === "HeartNotification" || returnTo === "HeartNotification") {
+      if (navigation.canGoBack?.()) {
+        navigation.goBack();
+        return;
+      }
       navigation.navigate('HomeMain', {
         screen: 'HeartNotification'
       });
@@ -3268,7 +3281,13 @@ export function BattleResultsScreen({ navigation, route }) {
   useFocusEffect(
     useCallback(() => {
       loadBattle();
-    }, [loadBattle])
+      const onBackPress = () => {
+        handleBack();
+        return true;
+      };
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [loadBattle, handleBack])
   );
 
   if (loading) {
@@ -3741,7 +3760,13 @@ export function ChallengeReceivedScreen({ navigation, route }) {
   const accent = themeAccent || PURPLE;
   const primaryText = text || TEXT;
   const subtleMuted = mutedText || surfaces.mutedColor;
-  const handleBack = () => navigation.navigate('HomeMain', { screen: 'HeartNotification' });
+  const handleBack = () => {
+    if (navigation?.canGoBack?.()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate('HomeMain', { screen: 'HeartNotification' });
+  };
 
   const { battleId } = route?.params || {};
 
@@ -3970,7 +3995,13 @@ export function ChallengeAcceptedScreen({ navigation, route }) {
     <View style={[styles.screen, bgStyle, { backgroundColor: bg || '#FBF8FF' }]}>
       <Header
         title={isExpired ? t('battle.challengeExpiredTitle', 'Challenge Expired') : isDeclined ? t('battle.challengeDeclinedTitle', 'Challenge Declined') : t('battle.challengeAccepted', 'Challenge Accepted')}
-        onBack={() => navigation.navigate('HomeMain', { screen: 'HeartNotification' })}
+        onBack={() => {
+          if (navigation?.canGoBack?.()) {
+            navigation.goBack();
+            return;
+          }
+          navigation.navigate('HomeMain', { screen: 'HeartNotification' });
+        }}
         titleColor={text}
       />
       <ScrollView contentContainerStyle={[styles.scrollContent, { alignItems: 'center', paddingTop: 20 }]} showsVerticalScrollIndicator={false}>

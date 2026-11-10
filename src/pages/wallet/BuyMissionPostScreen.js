@@ -19,6 +19,7 @@ import { showToastMessage } from '../../components/displaytoastmessage';
 import { totalPoints as fetchTotalPoints } from '../../services/wallet';
 import { parseTotalPlatformPointsPayload } from '../../utils/platformPoints';
 import { primaryCtaColors } from '../../utils/ctaContrast';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
 
 const H_PADDING = 16;
 const MISSION_COST = 1000;
@@ -84,7 +85,7 @@ const BuyMissionPostScreen = () => {
     [t],
   );
 
-  const openPackageStep = () => {
+  const openPackageStep = async () => {
     if (!canAfford) {
       showToastMessage(
         toast,
@@ -94,6 +95,14 @@ const BuyMissionPostScreen = () => {
           available: totalPoints.toLocaleString('en-US'),
         }),
       );
+      return;
+    }
+    const isKycApproved = await ensureKycApprovedForPayment({
+      navigation,
+      toast,
+      t,
+    });
+    if (!isKycApproved) {
       return;
     }
     navigation.navigate('BuyMissionPackage', {

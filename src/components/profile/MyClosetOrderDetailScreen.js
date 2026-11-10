@@ -968,6 +968,7 @@ const MyClosetOrderDetailScreen = ({ navigation, route }) => {
     ) {
       if (navigation?.canGoBack?.()) {
         navigation.goBack();
+        return;
       }
       navigation.navigate('HomeMain', {
         screen: 'HeartNotification',

@@ -266,11 +266,12 @@ export default function BattleExplore({ onClose, profile }) {
     selectedBattleOptionsRef.current = selectedBattleOptions;
   }, [selectedBattleOptions]);
 
-  const handleBattleCardPress = useCallback(async(battleItem) => {
+  const handleBattleCardPress = useCallback(async(battleItem, optionLabel) => {
     const raw = battleItem?.raw || battleItem;
     const battleProfileType = battleItem?.profileType || raw?.profileType || battleItem?.raw?.profileType || battleItem?.profile || raw?.profile;
     const fmt = String(raw?.format || battleItem?.format || '').toLowerCase();
     const tbb = String(raw?.typeByBattle || battleItem?.typeByBattle || '').toLowerCase();
+    const chosenOption = optionLabel || selectedBattleOptionsRef.current[battleItem?.id] || '';
 
     if (fmt === 'boosted' || tbb === 'boosted_product') {
       const bwp = raw?.battleWinnerProduct || {};
@@ -356,7 +357,7 @@ export default function BattleExplore({ onClose, profile }) {
         battleId: battleItem?.id,
         battle: battleItem,
         entryPoint: 'battleExplore',
-        selectedOption: selectedBattleOptionsRef.current[battleItem?.id] || '',
+        selectedOption: chosenOption,
         returnTo: 'Search',
         profile,
         profileType: battleProfileType,

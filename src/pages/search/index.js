@@ -1599,11 +1599,12 @@ const SearchScreen = () => {
   }, [selectedBattleOptions]);
 
   const handleBattleCardPressRef = useRef(null);
-  handleBattleCardPressRef.current = (battleItem) => {
+  handleBattleCardPressRef.current = (battleItem, optionLabel) => {
     const raw = battleItem?.raw || battleItem;
     const battleProfileType = battleItem?.profileType || raw?.profileType || battleItem?.raw?.profileType || battleItem?.profile || raw?.profile;
     const fmt = String(raw?.format || battleItem?.format || '').toLowerCase();
     const tbb = String(raw?.typeByBattle || battleItem?.typeByBattle || '').toLowerCase();
+    const chosenOption = optionLabel || selectedBattleOptionsRef.current[battleItem?.id] || '';
 
     // Boosted product — open the winner product detail
     if (fmt === 'boosted' || tbb === 'boosted_product') {
@@ -1691,8 +1692,8 @@ const SearchScreen = () => {
         battleId: battleItem?.id,
         battle: battleItem,
         entryPoint: 'search',
-        selectedOption: selectedBattleOptionsRef.current[battleItem?.id] || '',
-        returnTo: route.name,
+        selectedOption: chosenOption,
+        returnTo: { tab: 'Search', screen: 'SearchHome', params: route.params || {} },
         returnParams: route.params,
         profile,
         profileType: battleProfileType,
@@ -1700,8 +1701,8 @@ const SearchScreen = () => {
     });
   };
 
-  const handleBattleCardPress = useCallback((battleItem) => {
-    handleBattleCardPressRef.current?.(battleItem);
+  const handleBattleCardPress = useCallback((battleItem, optionLabel) => {
+    handleBattleCardPressRef.current?.(battleItem, optionLabel);
   }, []);
 
   const loadMorePosts = useCallback(() => {
@@ -2136,7 +2137,6 @@ const SearchScreen = () => {
                                   selectedOption={selectedBattleOptions[item.id]}
                                   onCardPress={handleBattleCardPress}
                                   onOptionSelect={updateSelectedBattleOption}
-                                  onUserPress={handleUserProfile}
                                   fullWidth
                                 />
                               </View>

@@ -15,14 +15,30 @@ export const PENDING_KYC_STATUSES = new Set([
 
 export const extractKycStatusString = (response) => {
   if (!response) return '';
-  const raw =
-    response?.data?.status ??
-    response?.data?.kycStatus ??
-    response?.status ??
-    response?.kycStatus ??
-    response?.data?.data?.status ??
-    '';
-  return String(raw).trim().toUpperCase();
+  if (typeof response === 'string') return response.trim().toUpperCase();
+
+  const candidates = [
+    response?.data?.status,
+    response?.data?.kycStatus,
+    response?.data?.kyc_status,
+    response?.data?.data?.status,
+    response?.data?.data?.kycStatus,
+    response?.data?.data?.kyc_status,
+    response?.kycStatus,
+    response?.kyc_status,
+    response?.status,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim() !== '') {
+      const clean = candidate.trim().toUpperCase();
+      if (!/^\d+$/.test(clean)) {
+        return clean;
+      }
+    }
+  }
+
+  return '';
 };
 
 /**
@@ -34,19 +50,35 @@ export const checkKycStatus = async (providedUserId) => {
   try {
     const userId = providedUserId || (await AsyncStorage.getItem('userId'));
     if (!userId) {
+      console.log('[KYC] No userId available to check KYC status');
       return { status: '', isApproved: false, isPending: false, isRejected: true };
     }
 
+    console.log('[KYC] Checking KYC status for userId:', userId);
     const response = await kycStatus(userId);
+    console.log('[KYC] Status API raw response:', response?.data ?? response);
+
     const status = extractKycStatusString(response);
     const isApproved = status === 'APPROVED';
     const isPending = PENDING_KYC_STATUSES.has(status);
     const isRejected = !isApproved && !isPending;
 
+    console.log('[KYC] Evaluated status:', {
+      status,
+      isApproved,
+      isPending,
+      isRejected,
+    });
+
     return { status, isApproved, isPending, isRejected };
   } catch (error) {
     const status = extractKycStatusString(error?.response);
     const isPending = PENDING_KYC_STATUSES.has(status);
+    console.warn('[KYC] Status API error:', {
+      error: error?.response?.data || error?.message || error,
+      fallbackStatus: status || 'ERROR',
+      isPending,
+    });
     return {
       status: status || 'ERROR',
       isApproved: false,
@@ -79,6 +111,12 @@ export const ensureKycApprovedForPayment = async ({
   onNavigateKyc,
 } = {}) => {
   const { status, isApproved, isPending } = await checkKycStatus(userId);
+  console.log('[KYC] ensureKycApprovedForPayment decision:', {
+    status,
+    isApproved,
+    isPending,
+    action: isApproved ? 'ALLOW_PAYMENT' : isPending ? 'SHOW_WAIT_MESSAGE' : 'SHOW_GO_TO_KYC_BUTTON',
+  });
 
   if (isApproved) {
     return true;
@@ -95,19 +133,26 @@ export const ensureKycApprovedForPayment = async ({
 
     if (toast) {
       showToastMessage(toast, 'warning', message);
-    } else {
-      Alert.alert(title, message, [{ text: translate('common.ok', 'OK') }]);
     }
+    Alert.alert(title, message, [{ text: translate('common.ok', 'OK') }]);
     return false;
   }
 
-  // Rejected / Not completed
-  const title = translate('verification.kycTitle', 'KYC Verification Required');
-  const isExplicitlyRejected = status === 'REJECTED' || status === 'DECLINED' || status === 'FAILED';
+  // Rejected / Declined / Not completed
+  const isExplicitlyRejected =
+    status === 'REJECTED' ||
+    status === 'REJECT' ||
+    status === 'DECLINED' ||
+    status === 'DECLINE' ||
+    status === 'FAILED' ||
+    status === 'FAIL';
+  const title = isExplicitlyRejected
+    ? translate('kyc.kycRejectedTitle', 'KYC Verification Declined')
+    : translate('verification.kycTitle', 'KYC Verification Required');
   const message = isExplicitlyRejected
     ? translate(
         'kyc.kycRejectedMessage',
-        'Your KYC was rejected. Please complete your KYC verification to proceed with payments.',
+        'Your KYC was declined. Please complete your KYC verification to proceed with payments.',
       )
     : translate(
         'kyc.requiredForPayment',

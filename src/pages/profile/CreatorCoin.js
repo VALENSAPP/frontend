@@ -30,6 +30,7 @@ import WithdrawalModal from '../../components/modals/WithdrawModal';
 import RBSheet from 'react-native-raw-bottom-sheet';
 import { getOnboardingStatus, getWithdrawalHistory } from '../../services/profile';
 import { openStripeOnboarding, getStripeErrorMessages } from '../../utils/stripeOnboarding';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
 import ConnectStripeModal from '../../components/modals/ConnectStripeModal';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { useLanguage } from '../../i18n';
@@ -208,6 +209,15 @@ export default function CreatorCoin() {
   };
 
   const handleOnboardingClick = async () => {
+    const isKycApproved = await ensureKycApprovedForPayment({
+      navigation,
+      toast,
+      t,
+    });
+    if (!isKycApproved) {
+      return;
+    }
+
     try {
       dispatch(showLoader());
       await openStripeOnboarding({ onComplete: fetchAllData, t });

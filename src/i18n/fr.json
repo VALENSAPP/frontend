@@ -2652,6 +2652,8 @@
     "deleteComment": "Supprimer le commentaire",
     "editComment": "Modifier le commentaire",
     "copyComment": "Copier",
+    "reportComment": "Signaler",
+    "successCommentReported": "Commentaire signalé avec succès",
     "deleting": "Suppression...",
     "justNow": "ì l'instant",
     "editedJustNow": "Modifié à l'instant",

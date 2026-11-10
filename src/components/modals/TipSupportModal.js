@@ -16,6 +16,8 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { useDispatch } from 'react-redux';
+import { useNavigation } from '@react-navigation/native';
+import { navigate as rootNavigate } from '../../navigations/RootNavigation';
 import { hideLoader, showLoader } from '../../redux/actions/LoaderAction';
 import { sendTip } from '../../services/stirpe';
 import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
@@ -56,7 +58,10 @@ export default function TipSupportModal({
   creatorName = 'Creator',
   vendorId,
   onTipSuccess,
+  navigation: propNavigation,
 }) {
+  const hookNavigation = useNavigation();
+  const navigation = propNavigation || hookNavigation;
   const toast = useToast();
   const dispatch = useDispatch();
   const { t } = useLanguage();
@@ -142,8 +147,12 @@ export default function TipSupportModal({
       toast,
       t,
       onNavigateKyc: () => {
-        onClose();
-        navigation.navigate('kycverify');
+        onClose?.();
+        if (navigation?.navigate) {
+          navigation.navigate('kycverify');
+        } else {
+          rootNavigate('kycverify');
+        }
       },
       navigation,
     });

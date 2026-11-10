@@ -261,6 +261,20 @@ const SubventionSetupScreen = () => {
 
     const handleActivationConfirm = async () => {
         if (activationInFlightRef.current) return;
+        const isKycApproved = await ensureKycApprovedForPayment({
+            navigation,
+            toast,
+            t,
+            onNavigateKyc: () => {
+                setShowActivationPopup(false);
+                setShowBusinessReminderPopup(false);
+                navigation.navigate('kycverify');
+            },
+        });
+        if (!isKycApproved) {
+            return;
+        }
+
         activationInFlightRef.current = true;
         credentialRequestRef.current += 1;
         try {
@@ -313,6 +327,20 @@ const SubventionSetupScreen = () => {
 
     const handleBusinessActivationConfirm = async () => {
         if (activationInFlightRef.current) return;
+        const isKycApproved = await ensureKycApprovedForPayment({
+            navigation,
+            toast,
+            t,
+            onNavigateKyc: () => {
+                setShowActivationPopup(false);
+                setShowBusinessReminderPopup(false);
+                navigation.navigate('kycverify');
+            },
+        });
+        if (!isKycApproved) {
+            return;
+        }
+
         activationInFlightRef.current = true;
         try {
             dispatch(showLoader());

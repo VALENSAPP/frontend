@@ -3448,6 +3448,14 @@ const MyClosetBuyerCheckoutScreen = ({ navigation, route }) => {
   const handleEditCart = () => navigation.navigate('MyClosetBuyerCart', withClosetNavParams(route));
 
   const handleContinue = async () => {
+    const isKycApproved = await ensureKycApprovedForPayment({
+      navigation,
+      t,
+    });
+    if (!isKycApproved) {
+      return;
+    }
+
     const cartId = route?.params?.cartId;
     if (!cartId) {
       navigation.navigate('MyClosetBuyerShipping', withClosetNavParams(route));

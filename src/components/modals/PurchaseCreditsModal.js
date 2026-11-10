@@ -23,7 +23,7 @@ import { useLanguage } from '../../i18n';
 
 const MAX_CREDITS = 5;
 
-const CreditPurchaseModal = ({ visible, onClose, onPurchaseComplete, currentCredits = 0, isBusinessProfile = false }) => {
+const CreditPurchaseModal = ({ visible, onClose, onPurchaseComplete, currentCredits = 0, isBusinessProfile = false, navigation }) => {
   const [creditsToBuy, setCreditsToBuy] = useState('');
   const sheetRef = useRef(null);
   const dispatch = useDispatch();
@@ -113,15 +113,22 @@ const CreditPurchaseModal = ({ visible, onClose, onPurchaseComplete, currentCred
       ? t('creditPurchaseModal.maxPurchasableError_one', { count: maxPurchasable })
       : t('creditPurchaseModal.maxPurchasableError_other', { count: maxPurchasable });
 
+  const navigateToKyc = () => {
+    sheetRef.current?.close();
+    if (onClose) onClose();
+    if (navigation?.navigate) {
+      navigation.navigate('kycverify');
+    } else {
+      rootNavigate('kycverify');
+    }
+  };
+
   const runPaymentSession = async (dataToSend) => {
     const isKycApproved = await ensureKycApprovedForPayment({
+      navigation,
       toast,
       t,
-      onNavigateKyc: () => {
-        sheetRef.current?.close();
-        if (onClose) onClose();
-        rootNavigate('kycverify');
-      },
+      onNavigateKyc: navigateToKyc,
     });
     if (!isKycApproved) {
       return false;
@@ -154,6 +161,16 @@ const CreditPurchaseModal = ({ visible, onClose, onPurchaseComplete, currentCred
     }
     if (creditsToBuy < 1 || creditsToBuy > maxPurchasable) {
       showToastMessage(toast, 'danger', maxPurchasableErrorMsg());
+      return;
+    }
+
+    const isKycApproved = await ensureKycApprovedForPayment({
+      navigation,
+      toast,
+      t,
+      onNavigateKyc: navigateToKyc,
+    });
+    if (!isKycApproved) {
       return;
     }
 
@@ -196,7 +213,7 @@ const CreditPurchaseModal = ({ visible, onClose, onPurchaseComplete, currentCred
     }
   };
 
-  const handleConfirmPurchase = () => {
+  const handleConfirmPurchase = async () => {
     if (maxPurchasable <= 0) {
       showToastMessage(toast, 'danger', t('creditPurchaseModal.maxCreditsError'));
       sheetRef.current?.close();
@@ -204,6 +221,18 @@ const CreditPurchaseModal = ({ visible, onClose, onPurchaseComplete, currentCred
     }
     if (creditsToBuy < 1 || creditsToBuy > maxPurchasable) {
       showToastMessage(toast, 'danger', maxPurchasableErrorMsg());
+      return;
+    }
+
+    const isKycApproved = await ensureKycApprovedForPayment({
+      navigation,
+      toast,
+      t,
+      onNavigateKyc: navigateToKyc,
+    });
+    if (!isKycApproved) {
+      sheetRef.current?.close();
+      if (onClose) onClose();
       return;
     }
 

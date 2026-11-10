@@ -21,6 +21,7 @@ import { useLanguage } from '../../i18n';
 import { saveTipPayoutSetup, maskAccountNumber } from '../../utils/tipPayoutStorage';
 import { getActivePaymentProvider, hydratePaymentProvider, isPagbankProvider } from '../../utils/paymentCurrency';
 import { createOnboardingLink } from '../../services/profile';
+import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
 import {
   STRIPE_BROWSER_OPTIONS,
   describeRequestFailure,
@@ -176,6 +177,13 @@ const TipPayoutSetup = ({ navigation, route }) => {
 
   const handleConnectPayout = async () => {
     if (connecting) return;
+    const isKycApproved = await ensureKycApprovedForPayment({
+      navigation,
+      t,
+    });
+    if (!isKycApproved) {
+      return;
+    }
     setConnecting(true);
     try {
       const response = await createOnboardingLink();

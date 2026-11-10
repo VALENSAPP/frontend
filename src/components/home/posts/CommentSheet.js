@@ -33,6 +33,7 @@ import { useThemeContext } from '../../../theme/ThemeContext';
 import HexAvatar from '../story.js/HexAvatar';
 import { LavenderDragonfly } from '../../../assets/icons';
 import { useLanguage } from '../../../i18n';
+import ReportFlowScreen from '../../modals/Report';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { searchUsers, getAllUser } from '../../../services/users';
@@ -451,14 +452,12 @@ const CommentItem = memo(
             ) : null}
           </View>
 
-          {canModerate && (
-            <TouchableOpacity
-              style={styles.starIcon}
-              onPress={() => onMorePress?.(item)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Icon name="ellipsis-vertical" size={18} color={labelColor} />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={styles.starIcon}
+            onPress={() => onMorePress?.(item)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Icon name="ellipsis-vertical" size={18} color={labelColor} />
+          </TouchableOpacity>
         </View>
         )}
 
@@ -577,18 +576,16 @@ const CommentItem = memo(
                           )}
                         </TouchableOpacity>
                       </View>
-                      {canModerateReply && (
-                        <TouchableOpacity
-                          style={styles.starIcon}
-                          onPress={() => onMorePress?.(reply)}
-                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                          <Icon
-                            name="ellipsis-vertical"
-                            size={18}
-                            color={labelColor}
-                          />
-                        </TouchableOpacity>
-                      )}
+                      <TouchableOpacity
+                        style={styles.starIcon}
+                        onPress={() => onMorePress?.(reply)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                        <Icon
+                          name="ellipsis-vertical"
+                          size={18}
+                          color={labelColor}
+                        />
+                      </TouchableOpacity>
                     </View>
                   </View>
                 </View>
@@ -617,6 +614,8 @@ export default function CommentSheet({
   const [commentText, setCommentText] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedComment, setSelectedComment] = useState(null);
+  const reportRef = useRef(null);
+  const [reportingComment, setReportingComment] = useState(null);
   const [isPosting, setIsPosting] = useState(false);
   const [userId, setUserId] = useState(null);
   const [isDeleting, setIsDeleting] = useState(new Set());
@@ -1775,6 +1774,17 @@ export default function CommentSheet({
     setSelectedComment(null);
   }, [selectedComment, toast, t]);
 
+  const handleReportComment = useCallback(() => {
+    const commentToReport = selectedComment;
+    setIsModalVisible(false);
+    setSelectedComment(null);
+    if (!commentToReport) return;
+    setReportingComment(commentToReport);
+    setTimeout(() => {
+      reportRef.current?.open();
+    }, 250);
+  }, [selectedComment]);
+
   // ─── reactions ───────────────────────────────────────────────────────────────
 
   const handleThumbsUpPress = useCallback(
@@ -2173,16 +2183,19 @@ export default function CommentSheet({
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.modalButton, { borderBottomColor: border, borderBottomWidth: 1 }]}
-              onPress={handleDeleteComment}
-              disabled={selectedComment && isDeleting.has(selectedComment.id)}>
-              <Text style={[styles.modalButtonText, { color: '#EF4444' }]}>
-                {selectedComment && isDeleting.has(selectedComment.id)
-                  ? t('commentSheet.deleting')
-                  : t('commentSheet.deleteComment')}
-              </Text>
-            </TouchableOpacity>
+            {(selectedComment?.userId === String(currentUser?.id ?? userId) ||
+              postOwnerId === String(currentUser?.id ?? userId)) && (
+              <TouchableOpacity
+                style={[styles.modalButton, { borderBottomColor: border, borderBottomWidth: 1 }]}
+                onPress={handleDeleteComment}
+                disabled={selectedComment && isDeleting.has(selectedComment.id)}>
+                <Text style={[styles.modalButtonText, { color: '#EF4444' }]}>
+                  {selectedComment && isDeleting.has(selectedComment.id)
+                    ? t('commentSheet.deleting')
+                    : t('commentSheet.deleteComment')}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {selectedComment?.userId === String(currentUser?.id ?? userId) && (
               <TouchableOpacity
@@ -2190,6 +2203,16 @@ export default function CommentSheet({
                 onPress={handleEditComment}>
                 <Text style={[styles.modalButtonText, { color: labelColor }]}>
                   {t('commentSheet.editComment')}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {selectedComment?.userId !== String(currentUser?.id ?? userId) && (
+              <TouchableOpacity
+                style={[styles.modalButton, { borderBottomColor: border, borderBottomWidth: 1 }]}
+                onPress={handleReportComment}>
+                <Text style={[styles.modalButtonText, { color: '#EF4444' }]}>
+                  {t('commentSheet.reportComment', 'Report Comment')}
                 </Text>
               </TouchableOpacity>
             )}
@@ -2207,6 +2230,18 @@ export default function CommentSheet({
           </View>
         </View>
       </Modal>
+
+      <ReportFlowScreen
+        ref={reportRef}
+        postId={reportingComment?.id || ''}
+        reportedUserId={String(reportingComment?.userId || '').trim()}
+        contentType="comment"
+        feature={postText ? 'post' : 'comment'}
+        onReported={() => {
+          showToastMessage(toast, 'success', t('commentSheet.successCommentReported', 'Comment reported successfully'));
+          setReportingComment(null);
+        }}
+      />
     </View>
   );
 }

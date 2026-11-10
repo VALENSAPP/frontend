@@ -33,6 +33,7 @@ import TokenPurchaseModal from "../../components/modals/TokenPurchaseModal";
 import { getCreditsLeft } from "../../services/wallet";
 import TokenSellModal from "../../components/modals/TokenSellModal";
 import CreditPurchaseModal from "../../components/modals/PurchaseCreditsModal";
+import { ensureKycApprovedForPayment } from "../../utils/kycPaymentGuard";
 import { useBusinessProfileTheme } from "../../theme/useBusinessProfileTheme";
 import { useThemeContext } from "../../theme/ThemeContext";
 import HexAvatar from "../../components/home/story.js/HexAvatar";
@@ -304,9 +305,17 @@ export default function WalletComponent() {
         fetchTopCreators();
     }, [fetchCreditsLeft, fetchDashboardData, fetchTopCreators, fetchUserCreds, toast]);
 
-    const handleBuyCredits = () => {
+    const handleBuyCredits = async () => {
         if (!canBuyHits || purchasedHitsLeft >= maxPurchasedHits) {
             showToastMessage(toast, 'danger', t('walletScreen.maxCreditsReached'));
+            return;
+        }
+        const isKycApproved = await ensureKycApprovedForPayment({
+            navigation,
+            toast,
+            t,
+        });
+        if (!isKycApproved) {
             return;
         }
         setShowCreditModal(true);
@@ -719,6 +728,7 @@ export default function WalletComponent() {
 
             <CreditPurchaseModal
                 visible={showCreditModal}
+                navigation={navigation}
                 onClose={() => setShowCreditModal(false)}
                 onPurchaseComplete={() => {
                     fetchCreditsLeft();

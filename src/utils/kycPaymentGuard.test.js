@@ -35,6 +35,16 @@ describe('kycPaymentGuard', () => {
       expect(extractKycStatusString({ data: { status: 'APPROVED' } })).toBe('APPROVED');
       expect(extractKycStatusString({ data: { kycStatus: 'pending' } })).toBe('PENDING');
       expect(extractKycStatusString({ status: 'REJECTED' })).toBe('REJECTED');
+      const veriffPayload = {
+        id: 68,
+        userId: '441f4bff-668d-4c2f-beda-cfc4e0932580',
+        veriffSessionId: '24408486-9d1e-4b38-8f6c-4a1828f139cc',
+        veriffUrl: 'https://eu.veriff.com/v/sample',
+        status: 'PENDING',
+        documentType: 'DRIVERS_LICENSE',
+      };
+      expect(extractKycStatusString({ data: veriffPayload })).toBe('PENDING');
+      expect(extractKycStatusString(veriffPayload)).toBe('PENDING');
       expect(extractKycStatusString(null)).toBe('');
     });
   });
@@ -86,6 +96,28 @@ describe('kycPaymentGuard', () => {
     test('returns false and shows wait message when status is PENDING', async () => {
       AsyncStorage.getItem.mockResolvedValue('user-123');
       kycStatus.mockResolvedValue({ data: { status: 'PENDING' } });
+
+      const allowed = await ensureKycApprovedForPayment();
+      expect(allowed).toBe(false);
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'KYC Verification in Progress',
+        expect.stringContaining('in progress'),
+        expect.any(Array),
+      );
+    });
+
+    test('blocks payment and shows wait message with Veriff PENDING response', async () => {
+      AsyncStorage.getItem.mockResolvedValue('user-123');
+      kycStatus.mockResolvedValue({
+        data: {
+          id: 68,
+          userId: '441f4bff-668d-4c2f-beda-cfc4e0932580',
+          veriffSessionId: '24408486-9d1e-4b38-8f6c-4a1828f139cc',
+          veriffUrl: 'https://eu.veriff.com/v/sample',
+          status: 'PENDING',
+          documentType: 'DRIVERS_LICENSE',
+        },
+      });
 
       const allowed = await ensureKycApprovedForPayment();
       expect(allowed).toBe(false);
