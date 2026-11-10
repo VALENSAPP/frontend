@@ -57,8 +57,6 @@ import WhiteScreen from '../pages/authentication/WhiteScreen';
 import { useThemeContext } from '../theme/ThemeContext';
 import { normalizeProfileType } from '../utils/closetNavigation';
 
-import DralensAiModal from '../components/dralens/DralensAiModal';
-
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
 
@@ -148,6 +146,7 @@ const CustomDrawerContent = (props) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setIsSubscriptionsExpanded(prev => !prev);
   };
+
   const drawerItems = props.state.routes.map((route, index) => ({
     route,
     index,
@@ -878,15 +877,12 @@ export default function MainStack({ isFirstLaunch }) {
   }
 
   return (
-    <>
-      <Stack.Navigator key="appStack" screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="AppDrawer" component={GlobalDrawerNavigator} />
-        <Stack.Screen name="BusinessSetup" component={BusinessSetup} />
-        <Stack.Screen name="kycverify" component={KYCVerification} />
-        <Stack.Screen name="CallbackScreen" component={CallbackScreen} />
-      </Stack.Navigator>
-      <DralensAiModal />
-    </>
+    <Stack.Navigator key="appStack" screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="AppDrawer" component={GlobalDrawerNavigator} />
+      <Stack.Screen name="BusinessSetup" component={BusinessSetup} />
+      <Stack.Screen name="kycverify" component={KYCVerification} />
+      <Stack.Screen name="CallbackScreen" component={CallbackScreen} />
+    </Stack.Navigator>
   );
 }
 
