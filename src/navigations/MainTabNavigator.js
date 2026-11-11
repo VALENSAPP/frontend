@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {
   getFocusedRouteNameFromRoute,
   StackActions,
+  DrawerActions,
   useNavigation,
   useRoute,
   useFocusEffect,
@@ -857,7 +858,7 @@ export default function MainTabNavigator() {
   // Enhanced Wallet Stack Navigator with ALL drawer screens
   const WalletStack = useMemo(() => {
     return ({ route }) => {
-      const initialScreen = 'Dashboard';
+      const initialScreen = route?.params?.screen || 'Dashboard';
 
       return (
         <Stack.Navigator
@@ -877,7 +878,13 @@ export default function MainTabNavigator() {
             headerTintColor: headerMenuColor,
             headerLeft: () => (
               <TouchableOpacity
-                onPress={() => navigation.openDrawer()}
+                onPress={() => {
+                  try {
+                    navigation.dispatch(DrawerActions.openDrawer());
+                  } catch (_e) {
+                    navigation.getParent()?.getParent()?.openDrawer?.();
+                  }
+                }}
                 style={{ marginLeft: 15 }}
               >
                 <Ionicons name="menu" size={28} color={headerMenuColor} />
@@ -896,6 +903,11 @@ export default function MainTabNavigator() {
             headerTitleAlign: 'center',
           })}
         >
+          <Stack.Screen
+            name="SubscriptionSetup"
+            component={SubventionSetupScreen}
+            options={{ headerShown: false }}
+          />
           {/* Original Wallet Screens */}
           <Stack.Screen
             name="WalletMain"
@@ -946,14 +958,12 @@ export default function MainTabNavigator() {
           <Stack.Screen
             name="ValensWallet"
             component={ValensWallet}
-            // ── TRANSLATION CHANGE ───────────────────────────────────────────
-            options={{ headerTitle: t('walletStack.valensWallet') }}
+            options={{ headerShown: false }}
           />
           <Stack.Screen
             name="MyCloset"
             component={MyClosetScreen}
-            // ── TRANSLATION CHANGE ───────────────────────────────────────────
-            options={{ headerTitle: t('walletStack.myCloset') }}
+            options={{ headerShown: false }}
           />
           <Stack.Screen
             name="MyClosetEarnings"
@@ -1125,19 +1135,7 @@ export default function MainTabNavigator() {
             // ── TRANSLATION CHANGE ───────────────────────────────────────────
             options={{ headerTitle: t('walletStack.loginHistory') }}
           />
-          <Stack.Screen
-            name="SubscriptionSetup"
-            component={SubventionSetupScreen}
-            options={{
-              headerTitle: t('walletStack.subscriptionSetup'),
-              headerTitleStyle: {
-                fontSize: 15,
-                fontWeight: '700',
-                marginLeft: -20,
-                marginRight: -40,
-              },
-            }}
-          />
+
           <Stack.Screen
             name="subscription"
             component={SubscriptionDetails}
@@ -1281,7 +1279,7 @@ export default function MainTabNavigator() {
         />
       </Stack.Navigator>
     );
-  }, []);
+  }, [bg, headerTitleColor, headerMenuColor, t, Date.now()]);
 
   // Memoize tab bar styles
   const defaultTabBarStyle = useMemo(

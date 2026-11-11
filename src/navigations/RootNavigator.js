@@ -194,7 +194,11 @@ const CustomDrawerContent = (props) => {
     props.navigation.closeDrawer();
     props.navigation.navigate('MainApp', {
       screen: 'wallet',
-      params: params ? { screen, params } : { screen },
+      params: {
+        screen,
+        params,
+        initial: false,
+      },
     });
   };
 
