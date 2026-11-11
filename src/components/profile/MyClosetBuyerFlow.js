@@ -17,7 +17,9 @@ import {
   TouchableOpacity,
   View,
   Platform,
+  StatusBar,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -2111,6 +2113,7 @@ const MyClosetBattlesScreen = ({ navigation, route }) => {
 
 const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
   const { text, accent, bgStyle, card, border, mutedText } = useClosetTheme(route);
+  const { isDarkMode } = useThemeContext();
   const { t } = useLanguage();
   const item = normalizeItem(route?.params?.item || {}, 0, t);
   const seller = route?.params?.seller || {};
@@ -2256,38 +2259,46 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
         feature="marketplace"
       />
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={styles.detailContent}
         showsVerticalScrollIndicator={false}
-        scrollEnabled={detailScrollEnabled}
+        nestedScrollEnabled={true}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.detailHeaderRow}>
-          <DetailImageCarousel
-            images={item.images}
-            accentColor={text}
-            onZoomChange={zoomed => setDetailScrollEnabled(!zoomed)}
-            imageWidth={Math.round(SCREEN_WIDTH * 0.42)}
-            imageHeight={Math.round(Math.min(SCREEN_HEIGHT * 0.28, SCREEN_WIDTH * 0.42 * 1.35))}
-            showIndicators
-            overlayIndicators
-          />
-          <View style={styles.detailHeaderInfo}>
-            <Text style={[styles.detailName, { color: text }]}>{item.name}</Text>
-            <Text style={[styles.detailPrice, { color: text, marginTop: 6 }]}>{item.price}</Text>
-            <Text style={[styles.sectionLabel, { color: text, marginTop: 14 }]}>{t('myClosetBuyer.description')}</Text>
-            <Text style={[styles.description, { color: mutedText, marginBottom: 12 }]}>{item.description}</Text>
-            <View style={styles.attributeList}>
-              {[
-                { icon: 'shield-checkmark-outline', label: t('myClosetBuyer.condition'), value: item.condition },
-                { icon: 'pricetag-outline', label: t('myClosetBuyer.brand'), value: item.brand },
-                { icon: 'albums-outline', label: t('myClosetBuyer.category'), value: item.category },
-                { icon: 'cube-outline', label: t('myClosetBuyer.quantity'), value: t('myClosetBuyer.onlyAvailable', { count: item.quantityAvailable }) },
-              ].map(attr => (
-                <View key={attr.label} style={styles.attributeRow}>
-                  <Ionicons name={attr.icon} size={15} color={text} />
-                  <Text style={[styles.attributeLabel, { color: mutedText }]}>{attr.label}</Text>
-                  <Text style={[styles.attributeValue, { color: text }]}>{attr.value}</Text>
-                </View>
-              ))}
+        <View style={[styles.detailCard, themedCard(card, border)]}>
+          <View style={styles.detailHeaderRow}>
+            <DetailImageCarousel
+              images={item.images}
+              accentColor={text}
+              onZoomChange={zoomed => setDetailScrollEnabled(!zoomed)}
+              imageWidth={Math.round(SCREEN_WIDTH * 0.38)}
+              imageHeight={Math.round(Math.min(SCREEN_HEIGHT * 0.28, SCREEN_WIDTH * 0.38 * 1.35))}
+              showIndicators
+              overlayIndicators
+            />
+            <View style={styles.detailHeaderInfo}>
+              <Text style={[styles.detailName, { color: text }]}>{item.name}</Text>
+              <Text style={[styles.detailPrice, { color: accent, marginTop: 4 }]}>{item.price}</Text>
+              <Text style={[styles.sectionLabel, { color: text, marginTop: 12 }]}>{t('myClosetBuyer.description')}</Text>
+              <Text style={[styles.description, { color: mutedText, marginBottom: 10 }]} numberOfLines={2}>{item.description}</Text>
+              <View style={styles.attributeList}>
+                {[
+                  { icon: 'shield-checkmark-outline', label: t('myClosetBuyer.condition'), value: item.condition },
+                  { icon: 'pricetag-outline', label: t('myClosetBuyer.brand'), value: item.brand },
+                  { icon: 'albums-outline', label: t('myClosetBuyer.category'), value: item.category },
+                  { icon: 'cube-outline', label: t('myClosetBuyer.quantity'), value: t('myClosetBuyer.onlyAvailable', { count: item.quantityAvailable }) },
+                ].map(attr => (
+                  <View key={attr.label} style={styles.attributeRow}>
+                    <View style={styles.attributeLeftGroup}>
+                      <View style={[styles.attributeIconWrap, { backgroundColor: withAlphaFlow(accent, 0.08) }]}>
+                        <Ionicons name={attr.icon} size={12} color={accent} />
+                      </View>
+                      <Text style={[styles.attributeLabel, { color: mutedText }]}>{attr.label}</Text>
+                    </View>
+                    <Text style={[styles.attributeValue, { color: text }]}>{attr.value}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
           </View>
         </View>
@@ -2367,44 +2378,67 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
         ) : null}
         {route?.params?.battleWinner ? (
           <>
-            <View
-              style={[
-                styles.winnerBanner,
-                { backgroundColor: withAlphaFlow(accent, 0.12), borderColor: withAlphaFlow(accent, 0.3) },
-              ]}
+            <LinearGradient
+              colors={accent?.toLowerCase() === '#c9a15a' ? ['#A16207', '#854D0E', '#422006'] : ['#6B21A8', '#581C87', '#3B0764']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.winnerBanner}
             >
-              <View style={[styles.winnerBannerIcon, { backgroundColor: accent }]}>
-                <Ionicons name="trophy" size={18} color={contrastOn(accent)} />
+              <View style={styles.winnerGlowTop} />
+              <View style={styles.winnerGlowBottom} />
+
+              <View style={styles.winnerBannerTopRow}>
+                <View style={styles.winnerBannerIconWrap}>
+                  <Ionicons name="trophy-outline" size={24} color="#FFD166" />
+                </View>
+                <View style={styles.winnerPillBadge}>
+                  <Text style={styles.winnerPillBadgeText}>🏆 BATTLE WINNER</Text>
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.winnerBannerTitle, { color: accent }]}>
-                  {t('myClosetBuyer.battleWinnerBannerTitle') || 'WOW, this is a winner! 🏆'}
-                </Text>
-                <Text style={[styles.winnerBannerSub, { color: mutedText }]}>
-                  {t('myClosetBuyer.battleWinnerBannerSub', { pct: route.params.battleWinner.pct }) ||
-                    `This item won the battle with ${route.params.battleWinner.pct}% of the votes.`}
-                </Text>
-              </View>
-            </View>
+
+              <Text style={styles.winnerBannerHeadline}>
+                {t('myClosetBuyer.battleWinnerBannerTitle') || 'WOW, this is a winner! 🏆'}
+              </Text>
+              <Text style={styles.winnerBannerSubline}>
+                {t('myClosetBuyer.battleWinnerBannerSub', { pct: route.params.battleWinner.pct }) ||
+                  `This item won the battle with ${route.params.battleWinner.pct}% of the votes.`}
+              </Text>
+            </LinearGradient>
 
             <View style={[styles.battleDetailsCard, themedCard(card, border)]}>
-              <Text style={[styles.sectionLabel, { color: text }]}>
-                {t('myClosetBuyer.battleDetailsTitle') || 'Battle Details'}
-              </Text>
+              <View style={styles.battleDetailsHeaderRow}>
+                <View style={styles.battleDetailsHeaderLeft}>
+                  <View style={[styles.battleIconWrap, { backgroundColor: withAlphaFlow(accent, 0.1) }]}>
+                    <Ionicons name="podium-outline" size={17} color={accent} />
+                  </View>
+                  <Text style={[styles.battleDetailsTitle, { color: text }]}>
+                    {t('myClosetBuyer.battleDetailsTitle') || 'Battle Details'}
+                  </Text>
+                </View>
+                <View style={styles.communityChoicePill}>
+                  <Text style={styles.communityChoiceText}>Community Choice</Text>
+                </View>
+              </View>
 
               <View style={styles.battleDetailRow}>
-                <Ionicons name="trophy-outline" size={15} color={text} />
+                <View style={[styles.battleRowIconWrap, { backgroundColor: withAlphaFlow(accent, 0.08) }]}>
+                  <Ionicons name="trophy-outline" size={14} color={accent} />
+                </View>
                 <Text style={[styles.battleDetailLabel, { color: mutedText }]}>
                   {t('myClosetBuyer.battleWinnerLabel') || 'Winner'}
                 </Text>
-                <Text style={[styles.battleDetailValue, { color: text }]}>
-                  {t('myClosetBuyer.thisItemLabel') || 'This Item'}
-                </Text>
+                <View style={[styles.itemWinnerBadge, { backgroundColor: withAlphaFlow(accent, 0.12) }]}>
+                  <Text style={[styles.itemWinnerText, { color: accent }]}>
+                    {t('myClosetBuyer.thisItemLabel') || 'This Item'}
+                  </Text>
+                </View>
               </View>
 
               {route.params.battleWinner.totalVotes ? (
                 <View style={styles.battleDetailRow}>
-                  <Ionicons name="people-outline" size={15} color={text} />
+                  <View style={[styles.battleRowIconWrap, { backgroundColor: withAlphaFlow(accent, 0.08) }]}>
+                    <Ionicons name="people-outline" size={14} color={accent} />
+                  </View>
                   <Text style={[styles.battleDetailLabel, { color: mutedText }]}>
                     {t('myClosetBuyer.totalVotesLabel') || 'Total Votes'}
                   </Text>
@@ -2415,26 +2449,46 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
               ) : null}
 
               <View style={styles.battleDetailRow}>
-                <Ionicons name="stats-chart-outline" size={15} color={text} />
+                <View style={[styles.battleRowIconWrap, { backgroundColor: withAlphaFlow(accent, 0.08) }]}>
+                  <Ionicons name="stats-chart-outline" size={14} color={accent} />
+                </View>
                 <Text style={[styles.battleDetailLabel, { color: mutedText }]}>
                   {t('myClosetBuyer.winningPercentageLabel') || 'Winning Percentage'}
                 </Text>
-                <Text style={[styles.battleDetailValue, { color: text }]}>
-                  {route.params.battleWinner.pct}%
-                </Text>
+                <View style={styles.percentageRow}>
+                  <View style={[styles.miniProgressTrack, { backgroundColor: withAlphaFlow(accent, 0.12) }]}>
+                    <View
+                      style={[
+                        styles.miniProgressFill,
+                        {
+                          backgroundColor: accent,
+                          width: `${Math.min(Math.max(Number(route.params.battleWinner.pct) || 50, 10), 100)}%`,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={[styles.percentageBadgeText, { color: accent }]}>
+                    {route.params.battleWinner.pct}%
+                  </Text>
+                </View>
               </View>
 
               <View style={styles.battleDetailRow}>
-                <Ionicons name="ribbon-outline" size={15} color={text} />
+                <View style={[styles.battleRowIconWrap, { backgroundColor: withAlphaFlow(accent, 0.08) }]}>
+                  <Ionicons name="ribbon-outline" size={14} color={accent} />
+                </View>
                 <Text style={[styles.battleDetailLabel, { color: mutedText }]}>
                   {t('myClosetBuyer.resultLabel') || 'Result'}
                 </Text>
-                <Text style={[styles.battleDetailValue, { color: accent }]}>
-                  {t('myClosetBuyer.winnerLabel') || 'Winner'}
-                </Text>
+                <View style={styles.resultWinnerBadge}>
+                  <Text style={styles.resultWinnerText}>
+                    🏆 {t('myClosetBuyer.winnerLabel') || 'Winner'}
+                  </Text>
+                </View>
               </View>
 
-              <View style={[styles.battleResultsNote, { borderTopColor: border }]}>
+              <View style={[styles.battleResultsNote, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : '#FAF6FD', borderColor: border }]}>
+                <Ionicons name="sparkles" size={14} color="#F59E0B" style={{ marginRight: 6, marginTop: 1 }} />
                 <Text style={[styles.battleResultsNoteText, { color: mutedText }]}>
                   {t('myClosetBuyer.battleResultsNote', { pct: route.params.battleWinner.pct }) ||
                     `This item was the community favorite and won with ${route.params.battleWinner.pct}% of the votes.`}
@@ -4795,7 +4849,7 @@ export {
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, paddingTop: 40 },
+  safeArea: { flex: 1, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 6 : 40 },
   modalSafe: { flex: 1 },
 
   header: {
@@ -4951,34 +5005,208 @@ const styles = StyleSheet.create({
   gridImageWrap: { position: 'relative' },
   gridImage: { width: '100%', aspectRatio: 1, borderRadius: 18 },
   winnerBanner: {
+    borderRadius: 22,
+    padding: 16,
+    marginTop: 14,
+    marginBottom: 16,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#581C87',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  winnerGlowTop: {
+    position: 'absolute',
+    top: -25,
+    right: -25,
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  winnerGlowBottom: {
+    position: 'absolute',
+    bottom: -30,
+    left: -25,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(124,58,237,0.3)',
+  },
+  winnerBannerTopRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
+    marginBottom: 10,
+  },
+  winnerBannerIconWrap: {
+    width: 44,
+    height: 44,
     borderRadius: 14,
-    padding: 12,
-    marginTop: 24,
-    marginVertical: 18,
-    gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  winnerBannerIcon: {
-    width: 32, height: 32, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center',
+  winnerPillBadge: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  winnerBannerTitle: { fontSize: 13, fontWeight: '900' },
-  winnerBannerSub: { marginTop: 2, fontSize: 12, lineHeight: 16 },
+  winnerPillBadgeText: {
+    color: '#FDE047',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  winnerBannerHeadline: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: -0.2,
+    marginBottom: 4,
+  },
+  winnerBannerSubline: {
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 12.5,
+    lineHeight: 17,
+    fontWeight: '500',
+  },
 
   battleDetailsCard: {
-    borderWidth: 1, borderRadius: 14, padding: 14, marginBottom: 18,
+    borderWidth: 1,
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 18,
+    shadowColor: '#581C87',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  battleDetailsHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  battleDetailsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  battleIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  battleDetailsTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  communityChoicePill: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  communityChoiceText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#B45309',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   battleDetailRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.04)',
   },
-  battleDetailLabel: { flex: 1, fontSize: 12, fontWeight: '700' },
-  battleDetailValue: { fontSize: 13, fontWeight: '900' },
+  battleRowIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  battleDetailLabel: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  battleDetailValue: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  itemWinnerBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  itemWinnerText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  percentageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  miniProgressTrack: {
+    width: 60,
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  miniProgressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  percentageBadgeText: {
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  resultWinnerBadge: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  resultWinnerText: {
+    fontSize: 11.5,
+    fontWeight: '900',
+    color: '#B45309',
+    letterSpacing: 0.2,
+  },
   battleResultsNote: {
-    marginTop: 12, paddingTop: 12, borderTopWidth: 1,
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
-  battleResultsNoteText: { fontSize: 12, lineHeight: 17, fontStyle: 'italic' },
+  battleResultsNoteText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
   newBadge: {
     position: 'absolute',
     top: 10,
@@ -5264,34 +5492,82 @@ const styles = StyleSheet.create({
   ratingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   ratingText: { marginLeft: 4, fontSize: 11, color: '#17072d', fontWeight: '700' },
 
-  sectionLabel: { fontSize: 14, fontWeight: '900', marginBottom: 8 },
-  description: { fontSize: 13, lineHeight: 19, marginBottom: 16 },
-  attributeList: { gap: 8 },
-  attributeRow: { flexDirection: 'row', alignItems: 'center' },
-  attributeLabel: { marginLeft: 8, width: 90, fontSize: 12, color: MUTED, fontWeight: '700' },
-  attributeValue: { flex: 1, fontSize: 12, color: '#17072d', fontWeight: '800' },
+  detailCard: {
+    borderRadius: 22,
+    padding: 14,
+    borderWidth: 1,
+    marginBottom: 14,
+    shadowColor: '#581C87',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  sectionLabel: { fontSize: 14, fontWeight: '800', marginBottom: 6 },
+  description: { fontSize: 13, lineHeight: 18, marginBottom: 14 },
+  attributeList: { gap: 6 },
+  attributeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  attributeLeftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 0,
+    marginRight: 6,
+  },
+  attributeIconWrap: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 5,
+  },
+  attributeLabel: {
+    fontSize: 11.5,
+    color: MUTED,
+    fontWeight: '600',
+  },
+  attributeValue: {
+    flex: 1,
+    fontSize: 11.5,
+    color: '#17072d',
+    fontWeight: '800',
+    textAlign: 'right',
+  },
 
-  fulfilmentCard: { marginTop: 8, padding: 14, borderWidth: 1, borderRadius: 18 },
+  fulfilmentCard: {
+    marginTop: 2,
+    padding: 16,
+    borderWidth: 1,
+    borderRadius: 22,
+    shadowColor: '#581C87',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
   fulfilmentHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
   fulfilmentHeaderCopy: { flex: 1 },
-  fulfilmentIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  fulfilmentTitle: { fontSize: 18, fontWeight: '900' },
-  fulfilmentSubtitle: { marginTop: 3, fontSize: 13, lineHeight: 18 },
+  fulfilmentIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  fulfilmentTitle: { fontSize: 17, fontWeight: '800' },
+  fulfilmentSubtitle: { marginTop: 3, fontSize: 12.5, lineHeight: 17 },
   fulfilmentOptions: { borderWidth: 1, borderRadius: 16, overflow: 'hidden' },
-  fulfilmentOption: { flexDirection: 'row', gap: 12, padding: 14 },
-  fulfilmentIconSmall: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  fulfilmentOption: { flexDirection: 'row', gap: 12, padding: 12 },
+  fulfilmentIconSmall: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   fulfilmentOptionCopy: { flex: 1 },
-  fulfilmentOptionTitle: { fontSize: 16, fontWeight: '900' },
-  fulfilmentOptionSubtitle: { marginTop: 3, fontSize: 13, lineHeight: 18 },
-  fulfilmentMeta: { marginTop: 10, gap: 4 },
-  fulfilmentMetaText: { fontSize: 13, fontWeight: '800' },
-  pickupAddressDetail: { marginTop: 9, fontSize: 13, lineHeight: 19, fontWeight: '700' },
-  pickupTimeCard: { flexDirection: 'row', gap: 12, marginTop: 14, padding: 14, borderWidth: 1, borderRadius: 18 },
-  pickupTimeValue: { marginTop: 9, fontSize: 15, fontWeight: '900' },
+  fulfilmentOptionTitle: { fontSize: 15, fontWeight: '800' },
+  fulfilmentOptionSubtitle: { marginTop: 2, fontSize: 12, lineHeight: 16 },
+  fulfilmentMeta: { marginTop: 8, gap: 4 },
+  fulfilmentMetaText: { fontSize: 12, fontWeight: '800' },
+  pickupAddressDetail: { marginTop: 8, fontSize: 12, lineHeight: 18, fontWeight: '700' },
+  pickupTimeCard: { flexDirection: 'row', gap: 12, marginTop: 12, padding: 14, borderWidth: 1, borderRadius: 18 },
+  pickupTimeValue: { marginTop: 6, fontSize: 14, fontWeight: '800' },
 
   bottomBar: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 22,
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 28 : 16,
     borderTopWidth: 1,
   },
   modalBottomBar: {
@@ -5302,7 +5578,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#f0eaf6',
   },
   bottomButton: {
-    minHeight: 50, borderRadius: 13,
+    minHeight: 52, borderRadius: 16,
     alignItems: 'center', justifyContent: 'center', flexDirection: 'row',
   },
   bottomButtonDisabled: {

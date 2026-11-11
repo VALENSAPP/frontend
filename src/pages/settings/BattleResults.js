@@ -6,6 +6,7 @@ import {
   Platform,
   SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -72,8 +73,8 @@ export default function BattleResults({ navigation }) {
   const { isDarkMode } = useThemeContext();
   const labelColor = isDarkMode ? '#ffffff' : '#111827';
   const { battle = {} } = route.params || {};
-  const [winnerData, setWinnerData] = useState(null);
-  const [winnerLookupComplete, setWinnerLookupComplete] = useState(false);
+  const [winnerData, setWinnerData] = useState(route?.params?.winnerData || null);
+  const [winnerLookupComplete, setWinnerLookupComplete] = useState(Boolean(route?.params?.winnerData));
   const predictionCounts = useMemo(
     () => route?.params?.predictionCounts || battle?.predictionCounts || {},
     [battle?.predictionCounts, route?.params?.predictionCounts],
@@ -288,13 +289,15 @@ export default function BattleResults({ navigation }) {
     return {
       primary,
       secondary,
-      surface: card || (isDarkMode ? '#1E1E1E' : '#FFFFFF'),
+      surface: card || (isDarkMode ? '#1E182A' : '#FFFFFF'),
+      background: isDarkMode ? '#120E1C' : '#FAF7FD',
       muted: mutedText || withAlpha(primary, 'A6'),
-      soft: isDarkMode ? withAlpha(primary, '24') : withAlpha(primary, '10'),
-      softBorder: border || withAlpha(primary, '24'),
-      whiteSoft: 'rgba(255,255,255,0.14)',
-      warm: '#ffd184',
-      track: isDarkMode ? 'rgba(255,255,255,0.08)' : withAlpha(primary, '18'),
+      subtle: isDarkMode ? 'rgba(255,255,255,0.6)' : '#796B94',
+      soft: isDarkMode ? withAlpha(primary, '24') : withAlpha(primary, '0D'),
+      softBorder: border || (isDarkMode ? '#2D263D' : '#EFE8F6'),
+      whiteSoft: 'rgba(255,255,255,0.16)',
+      warm: '#FFD166',
+      track: isDarkMode ? 'rgba(255,255,255,0.08)' : withAlpha(primary, '14'),
     };
   }, [accent, border, card, isDarkMode, mutedText]);
 
@@ -332,7 +335,7 @@ export default function BattleResults({ navigation }) {
 
       if (!battleId) {
         if (active) {
-          setWinnerData(null);
+          setWinnerData(route?.params?.winnerData || null);
           setWinnerLookupComplete(true);
         }
         return;
@@ -447,38 +450,67 @@ export default function BattleResults({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={[styles.safeArea, bgStyle]}>
+    <SafeAreaView style={[styles.safeArea, bgStyle, { backgroundColor: palette.background }]}>
       <ScrollView
-        style={[styles.scrollView, bgStyle]}
+        style={[styles.scrollView, bgStyle, { backgroundColor: palette.background }]}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
+        {/* Modern Top Header */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={handleBackPress}
-            style={styles.headerIconBtn}
+            style={[
+              styles.headerIconBtn,
+              {
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(90,45,130,0.07)',
+                borderColor: palette.softBorder,
+              },
+            ]}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Icon name="arrow-back-ios-new" size={20} color={accent} />
+            <Ionicons name="chevron-back" size={20} color={labelColor} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: labelColor }]}>
             {t('battleResults.headerTitle')}
           </Text>
-          <View style={styles.headerIconBtn} />
+          <View style={styles.headerIconBtnPlaceholder} />
         </View>
 
-        <Text style={[styles.meta, { color: palette.muted }]}>
-          {endedByTime || isFinishedStatus || isResolvedStatus
-            ? t('battleResults.metaEnded')
-            : t('battleResults.metaEnds')}{' '}
-          {endedAt
-            ? new Date(endedAt).toLocaleString()
-            : t('battleResults.metaNotAvailable')}
-        </Text>
+        {/* Status / Ended Pill */}
+        <View style={styles.metaRow}>
+          <View
+            style={[
+              styles.metaBadge,
+              {
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : '#F2ECF9',
+                borderColor: palette.softBorder,
+              },
+            ]}
+          >
+            <Ionicons name="time-outline" size={13} color={palette.muted} style={{ marginRight: 5 }} />
+            <Text style={[styles.metaTextPill, { color: palette.muted }]}>
+              {endedByTime || isFinishedStatus || isResolvedStatus
+                ? t('battleResults.metaEnded')
+                : t('battleResults.metaEnds')}{' '}
+              <Text style={{ fontWeight: '700', color: labelColor }}>
+                {endedAt
+                  ? new Date(endedAt).toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : t('battleResults.metaNotAvailable')}
+              </Text>
+            </Text>
+          </View>
+        </View>
 
         <Text style={[styles.title, { color: labelColor }]}>{title}</Text>
         {!!description && (
-          <Text style={[styles.desc, { color: palette.muted }]}>
+          <Text style={[styles.desc, { color: palette.subtle }]}>
             {description}
           </Text>
         )}
@@ -487,7 +519,13 @@ export default function BattleResults({ navigation }) {
         {!!battle.creator && (
           <TouchableOpacity
             activeOpacity={0.75}
-            style={styles.creatorRow}
+            style={[
+              styles.creatorRow,
+              {
+                backgroundColor: palette.surface,
+                borderColor: palette.softBorder,
+              },
+            ]}
             onPress={() => {
               const creatorId = battle.creatorId || battle.creator?.id || '';
               if (!creatorId) return;
@@ -499,11 +537,11 @@ export default function BattleResults({ navigation }) {
           >
             <HexAvatar
               uri={battle.creator?.avatar || battle.creator?.image || ''}
-              size={28}
+              size={32}
               borderWidth={2}
               borderColor={accent}
             />
-            <View style={{ marginLeft: 8, flexShrink: 1 }}>
+            <View style={{ marginLeft: 10, flex: 1 }}>
               <Text style={[styles.creatorName, { color: labelColor }]} numberOfLines={1}>
                 {battle.creator?.name || battle.creator?.displayName || battle.creator?.userName || ''}
               </Text>
@@ -513,114 +551,116 @@ export default function BattleResults({ navigation }) {
                 </Text>
               )}
             </View>
+            <View style={[styles.creatorPill, { backgroundColor: palette.soft }]}>
+              <Text style={[styles.creatorPillText, { color: palette.primary }]}>Creator</Text>
+            </View>
           </TouchableOpacity>
         )}
 
         {/* Winner Profile Card */}
         {isResolvedStatus && hasDeclaredWinner && (
-            <View
-              style={[
-                styles.winnerProfileCard,
-                {
-                  backgroundColor: palette.surface,
-                  borderColor: palette.softBorder,
-                  shadowColor: palette.primary,
-                },
-              ]}
-            >
-              <View style={styles.winnerProfileRow}>
-                {winnerLoading ? (
-                  <View
-                    style={[
-                      styles.winnerAvatarFallback,
-                      { backgroundColor: palette.soft },
-                    ]}
-                  >
-                    <ActivityIndicator size="small" color={palette.primary} />
-                  </View>
-                ) : (
-                  <HexAvatar
-                    uri={winnerProfile?.image || require('../../assets/icons/pngicons/user.png')}
-                    size={60}
-                    borderWidth={1.5}
-                    borderColor={accent}
-                  />
-                )}
+          <View
+            style={[
+              styles.winnerProfileCard,
+              {
+                backgroundColor: palette.surface,
+                borderColor: '#FBBF24',
+                shadowColor: '#F59E0B',
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={['rgba(251, 191, 36, 0.15)', 'rgba(251, 191, 36, 0.02)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <View style={styles.winnerProfileRow}>
+              {winnerLoading ? (
+                <View
+                  style={[
+                    styles.winnerAvatarFallback,
+                    { backgroundColor: palette.soft },
+                  ]}
+                >
+                  <ActivityIndicator size="small" color={palette.primary} />
+                </View>
+              ) : (
+                <HexAvatar
+                  uri={winnerProfile?.image || require('../../assets/icons/pngicons/user.png')}
+                  size={60}
+                  borderWidth={2}
+                  borderColor="#F59E0B"
+                />
+              )}
 
-                <View style={styles.winnerProfileTextWrap}>
+              <View style={styles.winnerProfileTextWrap}>
+                <View style={styles.winnerChampionBadge}>
+                  <Text style={styles.winnerChampionText}>🏆 {t('battleResults.winningUser')}</Text>
+                </View>
+                <Text style={[styles.winnerProfileName, { color: labelColor }]} numberOfLines={1}>
+                  {winnerProfile?.name || t('battleResults.winningUser')}
+                </Text>
+
+                {!!winningSide && (
                   <Text
-                    style={[styles.winnerProfileLabel, { color: palette.muted }]}
+                    style={[styles.winnerProfileMeta, { color: palette.muted }]}
                   >
-                    {t('battleResults.winningUser')}
+                    {t('battleResults.sideLabel')}: <Text style={{ fontWeight: '700', color: labelColor }}>{winningSide}</Text>
                   </Text>
-                  <Text style={[styles.winnerProfileName, { color: labelColor }]}>
-                    {winnerProfile?.name || t('battleResults.winningUser')}
+                )}
+                <View
+                  style={[
+                    styles.pointsContainer,
+                    {
+                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : '#FFFBEB',
+                      borderColor: '#FDE68A',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.pointsLabel, { color: '#B45309' }]}>
+                    {t('battleResults.pointsEarned')}:
                   </Text>
-
-                  {!!winningSide && (
-                    <Text
-                      style={[styles.winnerProfileMeta, { color: palette.muted }]}
-                    >
-                      {t('battleResults.sideLabel')} {winningSide}
-                    </Text>
-                  )}
-                  <View
-                    style={[
-                      styles.pointsContainer,
-                      {
-                        backgroundColor: palette.soft,
-                        borderColor: palette.softBorder,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.pointsLabel, { color: palette.muted }]}>
-                      {t('battleResults.pointsEarned')}
-                    </Text>
-                    <Text style={[styles.pointsValue, { color: palette.primary }]}>
-                      {winnerData?.points || 0}
-                    </Text>
-                  </View>
+                  <Text style={[styles.pointsValue, { color: '#D97706' }]}>
+                    +{winnerData?.points || 0}
+                  </Text>
                 </View>
               </View>
-              <View style={styles.trophyWrap}>
-                <Image
-                  source={trophyPng}
-                  style={styles.trophyPng}
-                  resizeMode="contain"
-                />
-              </View>
             </View>
-          )}
+            <View style={styles.trophyWrap} pointerEvents="none">
+              <Image
+                source={trophyPng}
+                style={styles.trophyPng}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
+        )}
 
         {/* Hero Banner */}
         <LinearGradient
-          colors={[palette.secondary, palette.primary, palette.secondary]}
+          colors={accent?.toLowerCase() === '#c9a15a' ? ['#A16207', '#854D0E', '#422006'] : ['#6B21A8', '#581C87', '#3B0764']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.hero}
         >
-          <View
-            style={[
-              styles.heroGlow,
-              { backgroundColor: withAlpha('#FFFFFF', '14') },
-            ]}
-          />
+          {/* Ambient Glows */}
+          <View style={styles.heroGlowTop} />
+          <View style={styles.heroGlowBottom} />
 
           <View style={styles.heroTopRow}>
-            <View
-              style={[
-                styles.heroIconWrap,
-                { backgroundColor: palette.whiteSoft },
-              ]}
-            >
-              <Ionicons name="trophy-outline" size={28} color={palette.warm} />
+            <View style={styles.heroIconWrap}>
+              <Ionicons name="trophy-outline" size={26} color="#FFD166" />
             </View>
 
             <View style={styles.metaPillsRow}>
               <View
                 style={[
                   styles.statusPill,
-                  { backgroundColor: withAlpha(heroStatus.badgeTone, '33') },
+                  {
+                    backgroundColor: withAlpha(heroStatus.badgeTone, '2A'),
+                    borderColor: withAlpha(heroStatus.badgeTone, '55'),
+                  },
                 ]}
               >
                 <Animated.View
@@ -638,7 +678,7 @@ export default function BattleResults({ navigation }) {
               </View>
 
               <View style={styles.stakePill}>
-                <Ionicons name="flash" size={11} color={palette.warm} />
+                <Ionicons name="flash" size={12} color="#FFD166" />
                 <Text style={styles.stakeText}>
                   {t('battleResults.stakesLabel')}{' '}
                   <Text style={styles.stakeAmount}>{formatStakeAmount(stake)}</Text>
@@ -648,40 +688,63 @@ export default function BattleResults({ navigation }) {
           </View>
 
           <Text style={styles.heroHeadline}>{heroStatus.headline}</Text>
-          <Text style={styles.heroSubline}>
-            {participants.toLocaleString()} {t('battleResults.participants')}
-            {isPollFormat ? ` · ${t('battleInProgress.formatPoll')}` : ''}
-          </Text>
+          <View style={styles.participantsRow}>
+            <Ionicons name="people-outline" size={14} color="rgba(255,255,255,0.75)" style={{ marginRight: 5 }} />
+            <Text style={styles.heroSubline}>
+              {participants.toLocaleString()} {t('battleResults.participants')}
+              {isPollFormat ? ` · ${t('battleInProgress.formatPoll')}` : ''}
+            </Text>
+          </View>
 
           {isResolvedStatus && hasNoWinnerFromApi && (
-            <Text style={styles.heroSubline}>
-              {t('battleResults.youLostBattle')}
-            </Text>
+            <View style={styles.heroAlertBadge}>
+              <Ionicons name="information-circle-outline" size={14} color="#FECACA" style={{ marginRight: 5 }} />
+              <Text style={styles.heroAlertText}>
+                {t('battleResults.youLostBattle')}
+              </Text>
+            </View>
           )}
 
           {isResolvedStatus && hasDeclaredWinner && !!winningSide && (
-            <Text style={styles.heroSubline}>
-              {t('battleResults.winningSideLabel')} {winningSide}
-            </Text>
+            <View style={styles.heroWinnerSideBadge}>
+              <Ionicons name="ribbon-outline" size={14} color="#FDE047" style={{ marginRight: 5 }} />
+              <Text style={styles.heroWinnerSideText}>
+                {t('battleResults.winningSideLabel')} {winningSide}
+              </Text>
+            </View>
           )}
 
+          {/* Frosted Side-by-side Stats Boxes */}
           <View style={styles.statsRow}>
             <TouchableOpacity
-              activeOpacity={0.86}
+              activeOpacity={0.82}
               onPress={() => openBattleDetails({ mode: 'votes' })}
               style={styles.statBox}
             >
-              <Text style={styles.statLabel}>{t('battleResults.statsVotes')}</Text>
+              <View style={styles.statBoxHeader}>
+                <View style={styles.statBoxLabelRow}>
+                  <Ionicons name="stats-chart-outline" size={12} color="rgba(255,255,255,0.75)" style={{ marginRight: 4 }} />
+                  <Text style={styles.statLabel}>{t('battleResults.statsVotes')}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={13} color="rgba(255,255,255,0.45)" />
+              </View>
               <Text style={styles.statValue}>
                 {resolvedTotalVotes.toLocaleString()}
               </Text>
             </TouchableOpacity>
+
             <TouchableOpacity
-              activeOpacity={0.86}
+              activeOpacity={0.82}
               onPress={() => openBattleDetails({ mode: 'comments' })}
               style={styles.statBox}
             >
-              <Text style={styles.statLabel}>{t('battleResults.statsComments')}</Text>
+              <View style={styles.statBoxHeader}>
+                <View style={styles.statBoxLabelRow}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={12} color="rgba(255,255,255,0.75)" style={{ marginRight: 4 }} />
+                  <Text style={styles.statLabel}>{t('battleResults.statsComments')}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={13} color="rgba(255,255,255,0.45)" />
+              </View>
               <Text style={styles.statValue}>
                 {Number(totalComments).toLocaleString()}
               </Text>
@@ -700,26 +763,68 @@ export default function BattleResults({ navigation }) {
             },
           ]}
         >
-          <Text style={[styles.section, { color: labelColor }]}>
-            {t('battleResults.battleOptions')}
-          </Text>
+          {/* Section Header */}
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionHeaderLeft}>
+              <View style={[styles.sectionIconWrap, { backgroundColor: palette.soft }]}>
+                <Ionicons name="layers-outline" size={18} color={palette.primary} />
+              </View>
+              <Text style={[styles.section, { color: labelColor }]}>
+                {t('battleResults.battleOptions')}
+              </Text>
+            </View>
+            {options.length > 0 && (
+              <View style={[styles.optionCountBadge, { backgroundColor: palette.soft, borderColor: palette.softBorder }]}>
+                <Text style={[styles.optionCountText, { color: palette.primary }]}>
+                  {options.length} {options.length === 1 ? 'Option' : 'Options'}
+                </Text>
+              </View>
+            )}
+          </View>
 
+          {/* Sports Prediction Scoreboard */}
           {isSportsPredictionResult && !!matchResult?.scoreSummary && (
-            <Text style={[styles.matchStatus, { color: palette.muted }]}>
-              {matchResult?.matchStatus || t('battleInProgress.statusFinished')} ·{' '}
-              {matchResult.scoreSummary}
-            </Text>
+            <View
+              style={[
+                styles.scoreboardCard,
+                {
+                  backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : '#F7F3FB',
+                  borderColor: palette.softBorder,
+                },
+              ]}
+            >
+              <View style={styles.scoreboardTopRow}>
+                <View style={styles.matchStatusBadge}>
+                  <Text style={styles.matchStatusBadgeText}>
+                    ⚽ {matchResult?.matchStatus || t('battleInProgress.statusFinished')}
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.scoreboardTitle, { color: labelColor }]}>
+                {matchResult.scoreSummary}
+              </Text>
+            </View>
           )}
 
+          {/* Empty state when no options */}
           {options.length === 0 && (
-            <Text style={[styles.metaText, { color: palette.muted }]}>
-              {t('battleResults.noOptionsAvailable')}
-            </Text>
+            <View style={styles.emptyOptionsWrap}>
+              <View style={[styles.emptyOptionsIconWrap, { backgroundColor: palette.soft }]}>
+                <Ionicons name="pie-chart-outline" size={28} color={palette.primary} />
+              </View>
+              <Text style={[styles.emptyOptionsTitle, { color: labelColor }]}>
+                {t('battleResults.noOptionsAvailable')}
+              </Text>
+              <Text style={[styles.emptyOptionsSubtitle, { color: palette.muted }]}>
+                No additional voting options are recorded for this battle.
+              </Text>
+            </View>
           )}
 
+          {/* Options List */}
           {options.map(item => (
             <TouchableOpacity
-              activeOpacity={0.9}
+              activeOpacity={0.88}
               key={item.id}
               onPress={() =>
                 openBattleDetails({
@@ -731,7 +836,7 @@ export default function BattleResults({ navigation }) {
               style={[
                 styles.option,
                 {
-                  backgroundColor: palette.soft,
+                  backgroundColor: isDarkMode ? '#241D32' : '#F9F7FD',
                   borderColor: palette.softBorder,
                 },
               ]}
@@ -756,9 +861,11 @@ export default function BattleResults({ navigation }) {
                           {item.label}
                         </Text>
                       </View>
-                      <Text style={[styles.optionPercent, { color: accent }]}>
-                        {percent}%
-                      </Text>
+                      <View style={[styles.percentBadge, { backgroundColor: withAlpha(palette.primary, '15') }]}>
+                        <Text style={[styles.optionPercent, { color: palette.primary }]}>
+                          {percent}%
+                        </Text>
+                      </View>
                     </View>
 
                     {matchTeam && (
@@ -766,9 +873,12 @@ export default function BattleResults({ navigation }) {
                         SCORE: {matchTeam.score ?? '-'}
                       </Text>
                     )}
-                    <Text style={[styles.metaText, { color: palette.muted }]}>
-                      {voteTotal} {t('battleResults.votesLabel')}
-                    </Text>
+                    <View style={styles.optionVotesRow}>
+                      <Ionicons name="checkmark-circle-outline" size={13} color={palette.muted} style={{ marginRight: 4 }} />
+                      <Text style={[styles.metaText, { color: palette.muted }]}>
+                        {voteTotal.toLocaleString()} {t('battleResults.votesLabel')}
+                      </Text>
+                    </View>
 
                     <View
                       style={[styles.progressBg, { backgroundColor: palette.track }]}
@@ -800,138 +910,222 @@ export default function BattleResults({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    marginTop: Platform.OS === 'android' ? '10%' : 0,
-    marginBottom: '10%'
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 6 : 0,
   },
   scrollView: {
     flex: 1,
   },
   container: {
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 32,
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 40,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 2,
+  },
+  headerIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  headerIconBtnPlaceholder: {
+    width: 40,
+    height: 40,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    textAlign: 'center',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  metaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 20,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderWidth: 1,
+  },
+  metaTextPill: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '900',
+    lineHeight: 36,
+    letterSpacing: -0.6,
+    marginBottom: 4,
+  },
+  desc: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 6,
+    marginBottom: 10,
   },
   creatorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 4,
+    borderRadius: 16,
+    padding: 10,
+    borderWidth: 1,
+    marginBottom: 14,
   },
   creatorName: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   creatorHandle: {
     fontSize: 11,
     fontWeight: '500',
     marginTop: 1,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 18,
+  creatorPill: {
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
-  headerIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  meta: {
-    fontSize: 12,
+  creatorPillText: {
+    fontSize: 11,
     fontWeight: '700',
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '900',
-    lineHeight: 32,
-  },
-  desc: {
-    fontSize: 14,
-    lineHeight: 21,
-    marginTop: 8,
-    marginBottom: 14,
   },
   winnerProfileCard: {
-    padding: 12,
-    borderRadius: 18,
-    borderWidth: 1,
-    marginBottom: 2,
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    padding: 14,
+    marginBottom: 14,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
   },
   winnerProfileRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  winnerAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
   winnerAvatarFallback: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
   winnerProfileTextWrap: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 12,
+    paddingRight: 60,
   },
-  winnerProfileLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+  winnerChampionBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  winnerChampionText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#B45309',
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
   },
   winnerProfileName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
-    marginTop: 2,
+    marginTop: 1,
   },
   winnerProfileMeta: {
     fontSize: 12,
     fontWeight: '600',
-    marginTop: 2,
+    marginTop: 3,
+  },
+  pointsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 10,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    gap: 4,
+  },
+  pointsLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  pointsValue: {
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  trophyWrap: {
+    position: 'absolute',
+    right: -4,
+    top: 6,
+    elevation: 8,
+  },
+  trophyPng: {
+    width: 95,
+    height: 95,
   },
   hero: {
-    borderRadius: 20,
-    // padding: 16,
-    marginVertical: 12,
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 16,
     overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#581C87',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
   },
-  heroTopRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-    gap: 12,
-    paddingTop: 10,
-    paddingHorizontal: 10
-  },
-  heroGlow: {
+  heroGlowTop: {
     position: 'absolute',
-    top: -24,
-    right: -10,
+    top: -30,
+    right: -30,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  heroGlowBottom: {
+    position: 'absolute',
+    bottom: -40,
+    left: -30,
     width: 120,
     height: 120,
     borderRadius: 60,
+    backgroundColor: 'rgba(124,58,237,0.3)',
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
   },
   heroIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
+    width: 50,
+    height: 50,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -942,21 +1136,21 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     flexWrap: 'wrap',
     gap: 8,
+    marginLeft: 10,
   },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 6,
-    paddingHorizontal: 8,
+    borderRadius: 20,
+    paddingHorizontal: 10,
     paddingVertical: 5,
     gap: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
   },
   statusDot: {
     width: 7,
     height: 7,
-    borderRadius: 2,
+    borderRadius: 4,
   },
   statusPillText: {
     fontSize: 10,
@@ -968,12 +1162,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    borderRadius: 6,
-    paddingHorizontal: 8,
+    borderRadius: 20,
+    paddingHorizontal: 10,
     paddingVertical: 5,
     backgroundColor: 'rgba(255,255,255,0.14)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.22)',
   },
   stakeText: {
     fontSize: 11,
@@ -982,73 +1176,193 @@ const styles = StyleSheet.create({
   },
   stakeAmount: {
     fontWeight: '800',
-    color: '#FFE8B8',
+    color: '#FFF3D0',
   },
   heroHeadline: {
     fontSize: 24,
     lineHeight: 30,
     color: '#FFFFFF',
     fontWeight: '900',
-    letterSpacing: -0.3,
-    paddingHorizontal: 10
+    letterSpacing: -0.4,
+    marginBottom: 4,
+  },
+  participantsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   heroSubline: {
-    color: 'rgba(255,255,255,0.82)',
-    marginTop: 6,
-    marginBottom: 4,
+    color: 'rgba(255,255,255,0.85)',
     fontSize: 13,
     fontWeight: '600',
-    paddingHorizontal: 10
+  },
+  heroAlertBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239,68,68,0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.4)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  heroAlertText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FEE2E2',
+  },
+  heroWinnerSideBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(251,191,36,0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.4)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  heroWinnerSideText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FEF08A',
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
     marginTop: 14,
-    paddingHorizontal: 10,
-    paddingBottom: 12
   },
   statBox: {
     flex: 1,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255,255,255,0.26)',
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.38)',
-    paddingHorizontal: 14,
+    borderColor: 'rgba(255,255,255,0.24)',
     paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  statBoxHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statBoxLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   statLabel: {
-    color: 'rgba(255,255,255,0.88)',
+    color: 'rgba(255,255,255,0.85)',
     fontSize: 11,
-    fontWeight: '700',
-    marginBottom: 6,
+    fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    letterSpacing: 0.6,
   },
   statValue: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '900',
+    marginTop: 6,
   },
   card: {
-    padding: 16,
+    padding: 18,
     borderRadius: 22,
-    marginTop: 12,
+    marginBottom: 16,
     borderWidth: 1,
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sectionIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
   section: {
     fontSize: 18,
     fontWeight: '800',
-    marginBottom: 12,
+  },
+  optionCountBadge: {
+    borderRadius: 12,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderWidth: 1,
+  },
+  optionCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  scoreboardCard: {
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+  },
+  scoreboardTopRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  matchStatusBadge: {
+    backgroundColor: 'rgba(90,45,130,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  matchStatusBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#5a2d82',
+    textTransform: 'uppercase',
+  },
+  scoreboardTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  emptyOptionsWrap: {
+    alignItems: 'center',
+    paddingVertical: 18,
+  },
+  emptyOptionsIconWrap: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  emptyOptionsTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  emptyOptionsSubtitle: {
+    fontSize: 12,
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
   option: {
     marginBottom: 12,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
-    padding: 12,
+    padding: 14,
   },
   optionRow: {
     flexDirection: 'row',
@@ -1062,8 +1376,9 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   teamLogo: {
-    width: 30,
-    height: 30,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     marginRight: 9,
   },
   optionTitle: {
@@ -1071,27 +1386,29 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 15,
   },
+  percentBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  optionPercent: {
+    fontSize: 15,
+    fontWeight: '900',
+  },
   scoreText: {
     fontSize: 12,
     fontWeight: '800',
     marginTop: 8,
     textTransform: 'uppercase',
   },
-  optionPercent: {
-    fontSize: 18,
-    fontWeight: '900',
+  optionVotesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
   },
   metaText: {
     fontSize: 12,
     fontWeight: '600',
-    marginTop: 4,
-  },
-  matchStatus: {
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 18,
-    marginTop: -7,
-    marginBottom: 12,
   },
   progressBg: {
     height: 8,
@@ -1102,56 +1419,5 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 999,
-  },
-  reward: {
-    fontSize: 28,
-    fontWeight: '900',
-  },
-  comment: {
-    marginTop: 12,
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 12,
-  },
-  commentName: {
-    fontSize: 14,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  commentMessage: {
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  pointsContainer: {
-    marginTop: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignSelf: 'flex-start',
-  },
-  pointsLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-
-  pointsValue: {
-    fontSize: 18,
-    fontWeight: '900',
-    marginTop: 2,
-  },
-  trophyWrap: {
-    position: 'absolute',
-    right: 10,
-    marginLeft: 10,
-    top: 20,
-    elevation: 10,
-
-  },
-  trophyPng: {
-    width: 110,
-    height: 110,
   },
 });

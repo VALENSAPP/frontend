@@ -44,6 +44,7 @@ import {
   Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import LinearGradient from 'react-native-linear-gradient';
 import { useDispatch } from 'react-redux';
 import { hideLoader, showLoader } from '../../redux/actions/LoaderAction';
 import { clearSearchHistory, deleteSearchHistoryItem, getAllUser, getSearchHistory, postSearchHistory } from '../../services/users';
@@ -363,49 +364,55 @@ const BoostedTileOverlay = memo(({ post, text }) => {
 
   return (
     <>
-      {/* Winner ribbon, top-left */}
+      {/* Winner badge, top-left */}
       <View
         style={{
           position: 'absolute',
-          top: 6,
-          left: 0,
-          backgroundColor: text,
-          paddingHorizontal: 6,
-          paddingVertical: 3,
-          borderTopRightRadius: 6,
-          borderBottomRightRadius: 6,
+          top: 8,
+          left: 8,
+          backgroundColor: '#5A2D82',
+          paddingHorizontal: 8,
+          paddingVertical: 3.5,
+          borderRadius: 8,
+          borderWidth: 1,
+          borderColor: 'rgba(253, 224, 71, 0.4)',
           flexDirection: 'row',
           alignItems: 'center',
-          gap: 3,
+          gap: 4,
+          shadowColor: '#000',
+          shadowOpacity: 0.25,
+          shadowRadius: 4,
+          elevation: 3,
         }}
       >
         <Text style={{ fontSize: 10 }}>🏆</Text>
-        <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700', letterSpacing: 0.3 }}>
+        <Text style={{ color: '#FDE047', fontSize: 9.5, fontWeight: '900', letterSpacing: 0.4 }}>
           WINNER
         </Text>
       </View>
 
       {/* Name + price bar, bottom */}
-      <View
+      <LinearGradient
+        colors={['transparent', 'rgba(17, 7, 45, 0.65)', 'rgba(17, 7, 45, 0.92)']}
         style={{
           position: 'absolute',
           bottom: 0,
           left: 0,
           right: 0,
-          backgroundColor: 'rgba(0,0,0,0.55)',
-          paddingHorizontal: 8,
-          paddingVertical: 6,
+          paddingHorizontal: 10,
+          paddingTop: 18,
+          paddingBottom: 8,
         }}
       >
-        <Text numberOfLines={1} style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>
+        <Text numberOfLines={1} style={{ color: '#fff', fontSize: 11.5, fontWeight: '800' }}>
           {productName}
         </Text>
         {!!productPrice && (
-          <Text style={{ color: '#F5C518', fontSize: 11, fontWeight: '800', marginTop: 1 }}>
+          <Text style={{ color: '#FFD166', fontSize: 12, fontWeight: '900', marginTop: 1 }}>
             {productPrice}
           </Text>
         )}
-      </View>
+      </LinearGradient>
     </>
   );
 });
