@@ -1,4 +1,4 @@
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { DrawerActions, useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
     View,
@@ -100,6 +100,35 @@ const SubventionSetupScreen = () => {
     }, [navigation]);
     const toast = useToast();
     const dispatch = useDispatch();
+
+    // ── Drawer helper ─────────────────────────────────────────────────────────
+    /**
+     * Pops the SubscriptionSetup screen off the stack first, then opens the
+     * drawer.  This prevents the user from landing back on this screen when
+     * the drawer closes or when they tap the back gesture.
+     */
+    const goBackAndOpenDrawer = React.useCallback(() => {
+        // 1. Pop this screen so it is gone from the stack
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+        }
+        // 2. Open the drawer after a short delay so navigation has settled
+        setTimeout(() => {
+            let nav = navigation;
+            let attempts = 0;
+            while (nav && attempts < 8) {
+                const state = nav.getState?.();
+                if (state?.type === 'drawer') {
+                    nav.dispatch(DrawerActions.openDrawer());
+                    return;
+                }
+                nav = nav.getParent?.();
+                attempts += 1;
+            }
+            // Fallback
+            navigation.dispatch(DrawerActions.openDrawer());
+        }, 300);
+    }, [navigation]);
     const { isBusinessProfile, bgStyle, textStyle, text, cardStyle, accent, mutedText, border, card, icon } = useBusinessProfileTheme();
     const { isDarkMode } = useThemeContext();
     const [credential, setCredential] = useState(null);
@@ -277,6 +306,12 @@ const SubventionSetupScreen = () => {
                 setShowActivationPopup(false);
                 setShowBusinessReminderPopup(false);
                 navigation.navigate('kycverify');
+            },
+            onAfterKycDismiss: () => {
+                // KYC is pending — after user presses OK, pop screen + open drawer
+                setShowActivationPopup(false);
+                setShowBusinessReminderPopup(false);
+                goBackAndOpenDrawer();
             },
         });
         if (!isKycApproved) {
@@ -1226,7 +1261,7 @@ const SubventionSetupScreen = () => {
                             <View>
                                 <Text style={[styles.modalTitleBold, { color: text }]}>{t('subventionSetup.editMessageTitle')}</Text>
                                 <Text style={[styles.modalSubtitle, { color: mutedText }]}>
-                                    {t('subventionSetup.messageForType', { type: t('subventionSetup.messageType' + (editingMessageType === 'photos' ? 'Photos' : editingMessageType === 'videos' ? 'Videos' : 'Ebooks')) })}
+                                    {t('subventionSetup.messageForType', { type: t(`subventionSetup.messageType${editingMessageType === 'photos' ? 'Photos' : editingMessageType === 'videos' ? 'Videos' : 'Ebooks'}`) })}
                                 </Text>
                             </View>
                             <TouchableOpacity onPress={() => setEditingModalVisible(false)} style={styles.modalCloseBtn}>
@@ -1299,7 +1334,16 @@ const SubventionSetupScreen = () => {
             ) : (
                 <SubscriptionActivationPopup
                     visible={showActivationPopup}
-                    onClose={() => { setShowModal(false); setShowActivationPopup(false); }}
+                    onClose={() => {
+                        setShowModal(false);
+                        setShowActivationPopup(false);
+                    }}
+                    onCancel={() => {
+                        // Cancel: hide popup, pop screen off stack, open drawer
+                        setShowModal(false);
+                        setShowActivationPopup(false);
+                        goBackAndOpenDrawer();
+                    }}
                     onConfirm={handleActivationConfirm}
                     amount={9.9}
                     period="month"

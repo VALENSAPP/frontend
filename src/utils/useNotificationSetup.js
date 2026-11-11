@@ -238,6 +238,17 @@ const logTypedNotification = (tag, data = {}, type = '(no type)') => {
             log('image_url    :', data.image_url);
             log('subtitle     :', data.subtitle);
             break;
+
+        case 'chat':
+        case 'message':
+        case 'new_message':
+        case 'dm':
+        case 'direct_message':
+        case 'chat_message':
+            log('senderName   :', data.senderName || data.senderDisplayName || data.fromUserName);
+            log('messagePreview:', data.messagePreview || data.message || data.body);
+            log('senderId     :', data.senderId || data.fromUserId);
+            break;
     }
 };
 

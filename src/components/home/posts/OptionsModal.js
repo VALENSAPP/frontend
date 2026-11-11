@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share } from 'react-native';
 import RBSheet from 'react-native-raw-bottom-sheet';
 import FontAwesomeIcon from 'react-native-vector-icons/FontAwesome';
 import FontAwesome5Icon from 'react-native-vector-icons/FontAwesome5';
@@ -11,6 +11,7 @@ import { HidePost as apiHidePost, unHidePost as apiUnhidePost } from '../../../s
 import { useToast } from 'react-native-toast-notifications';
 import { showToastMessage } from '../../displaytoastmessage';
 import { useLanguage } from '../../../i18n';
+import { BASE_URL } from '../../../config/urls';
 
 export default function OptionsModal({
   visible,
@@ -144,7 +145,7 @@ export default function OptionsModal({
       <RBSheet
         ref={sheetRef}
         draggable
-        height={canEdit ? 300 : 250}
+        height={canEdit ? 350 : 300}
         onClose={onClose}
         customModalProps={{
           statusBarTranslucent: true,
@@ -247,6 +248,24 @@ export default function OptionsModal({
                       {t('optionsModal.muteUser')}
                     </Text>
                   </TouchableOpacity> */}
+
+                  {/* Share it */}
+                  <TouchableOpacity
+                    style={styles.innerRow}
+                    onPress={() => {
+                      sheetRef.current?.close();
+                      setTimeout(async () => {
+                        try {
+                          const deepLink = `${BASE_URL}/postshare/${encodeURIComponent(String(postId))}`;
+                          await Share.share({ message: deepLink, url: deepLink });
+                        } catch (_) {}
+                      }, 300);
+                    }}>
+                    <Ionicons name="share-social-outline" size={20} color={icon} />
+                    <Text style={[styles.innerText, textStyle]}>
+                      {t('optionsModal.sharePost')}
+                    </Text>
+                  </TouchableOpacity>
 
                   {/* Report */}
                   <TouchableOpacity

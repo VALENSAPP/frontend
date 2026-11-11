@@ -1177,6 +1177,11 @@ export default function MainTabNavigator() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
+            name="ServiceSetup"
+            component={ServicesComingSoonScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="TipPayoutSetup"
             component={TipPayoutSetupScreen}
             options={{ headerTitle: t('drawerNav.dashboard') }}

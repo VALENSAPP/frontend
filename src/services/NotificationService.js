@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
 import notifee, { AndroidStyle, AndroidImportance, EventType } from '@notifee/react-native';
 import { PermissionsAndroid, Platform } from 'react-native';
+import { updateFcmToken } from './notifications';
 
 export const PENDING_NOTIFICATION_MODAL_KEY = 'pendingNotificationModal';
 
@@ -34,6 +35,8 @@ export async function requestUserPermission() {
 
     if (enabled) {
         getFcmToken();
+        // ✅ FIX #3: Wire token-refresh listener — deferred so setupTokenRefreshListener is defined
+        setTimeout(() => { try { setupTokenRefreshListener(); } catch (_) {} }, 0);
     } else {
     }
 }
@@ -49,10 +52,25 @@ const getFcmToken = async () => {
             const token = await messaging().getToken();
             if (token) {
                 await AsyncStorage.setItem('fcmToken', token);
+                // ✅ FIX #1: Register new token with backend immediately
+                updateFcmToken({ fcmToken: token }).catch(() => {});
             }
         } catch (error) {
         }
     }
+};
+
+// ─────────────────────────────────────────────
+// TOKEN REFRESH LISTENER
+// Call once after permission granted so the backend always has a valid token
+// ─────────────────────────────────────────────
+export const setupTokenRefreshListener = () => {
+    return messaging().onTokenRefresh(async (newToken) => {
+        try {
+            await AsyncStorage.setItem('fcmToken', newToken);
+            await updateFcmToken({ fcmToken: newToken });
+        } catch (_) {}
+    });
 };
 
 // ─────────────────────────────────────────────
@@ -721,6 +739,40 @@ export const displayFcmAsExpandable = async (remoteMessage) => {
             ],
             title: 'WELCOME TO VALENS!',
             summary: body,
+        };
+
+    } else if (
+        type === 'chat' ||
+        type === 'message' ||
+        type === 'new_message' ||
+        type === 'dm' ||
+        type === 'direct_message' ||
+        type === 'chat_message'
+    ) {
+        // ── CHAT / DIRECT MESSAGE ─────────────────────────────────────────
+        const senderName =
+            data?.senderName ||
+            data?.senderDisplayName ||
+            data?.fromUserName ||
+            data?.userName ||
+            fcmTitle ||
+            'Someone';
+        const msgPreview =
+            data?.messagePreview ||
+            data?.message ||
+            data?.body ||
+            fcmBody ||
+            'Sent you a message';
+
+        title = `💬 ${senderName}`;
+        body  = msgPreview;
+        bigText = msgPreview;
+
+        androidStyle = {
+            type: AndroidStyle.BIGTEXT,
+            text: msgPreview,
+            title: `New message from ${senderName}`,
+            summary: msgPreview,
         };
 
     } else {

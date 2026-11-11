@@ -170,9 +170,21 @@ export default function Main({ onSplashFinish }) {
   }, [isLoading, isLoggedIn, isNavigationReady]);
 
   // ── Socket ────────────────────────────────────────────────────────────────
+  // Initial anonymous connect (before userId is known)
   useEffect(() => {
     initializeSocket().catch(e => console.warn('Socket init failed', e));
   }, []);
+
+  // Re-initialize with userId once login is confirmed so the backend can
+  // correctly route incoming chat messages & notifications to this socket room
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    AsyncStorage.getItem('userId').then(userId => {
+      if (userId) {
+        initializeSocket(userId).catch(e => console.warn('Socket re-init failed', e));
+      }
+    });
+  }, [isLoggedIn]);
 
   const openBattleNotification = React.useCallback(route => {
     if (!route?.screen) return;

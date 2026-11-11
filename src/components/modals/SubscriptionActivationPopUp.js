@@ -64,14 +64,11 @@ const SubscriptionActivationPopup = ({
   });
 
   const handleCancel = () => {
-    onClose?.();
+    // Always call onCancel first (parent handles navigation + drawer)
     if (typeof onCancel === 'function') {
       onCancel();
-    } else if (!returnToSettingsSub) {
-      navigation.navigate('MainApp', {
-        screen: 'HomeMain',
-        params: { screen: 'Home' },
-      });
+    } else {
+      onClose?.();
     }
   };
 
@@ -85,6 +82,7 @@ const SubscriptionActivationPopup = ({
     }
   };
 
+  // Keep openGlobalDrawer for any legacy callers that don't pass onCancel
   const openGlobalDrawer = useCallback(() => {
     let parentNav = navigation;
     let attempts = 0;

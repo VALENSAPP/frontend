@@ -101,6 +101,7 @@ export const checkKycStatus = async (providedUserId) => {
  * @param {object} [options.toast]
  * @param {Function} [options.t]
  * @param {Function} [options.onNavigateKyc]
+ * @param {Function} [options.onAfterKycDismiss]  Called after the user dismisses the KYC-pending alert (OK press)
  * @returns {Promise<boolean>}
  */
 export const ensureKycApprovedForPayment = async ({
@@ -109,6 +110,7 @@ export const ensureKycApprovedForPayment = async ({
   toast,
   t,
   onNavigateKyc,
+  onAfterKycDismiss,
 } = {}) => {
   const { status, isApproved, isPending } = await checkKycStatus(userId);
   console.log('[KYC] ensureKycApprovedForPayment decision:', {
@@ -134,7 +136,17 @@ export const ensureKycApprovedForPayment = async ({
     if (toast) {
       showToastMessage(toast, 'warning', message);
     }
-    Alert.alert(title, message, [{ text: translate('common.ok', 'OK') }]);
+    Alert.alert(title, message, [
+      {
+        text: translate('common.ok', 'OK'),
+        onPress: () => {
+          // After user acknowledges, open the drawer so they go back to where they came from
+          if (typeof onAfterKycDismiss === 'function') {
+            onAfterKycDismiss();
+          }
+        },
+      },
+    ]);
     return false;
   }
 

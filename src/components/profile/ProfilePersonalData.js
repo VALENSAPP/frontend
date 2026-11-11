@@ -922,6 +922,26 @@ const ProfilePersonData = ({
     userProfile,
   ]);
 
+  const handleServicesPress = useCallback(() => {
+    const navParams = {
+      profileType: effectiveProfileType || userProfile || userData?.profile || 'user',
+      isOwnProfile: !fromUsersProfile,
+      userData,
+    };
+
+    try {
+      navigation.navigate('MainApp', {
+        screen: 'wallet',
+        params: {
+          screen: 'ServicesComingSoon',
+          params: navParams,
+        },
+      });
+    } catch (_err) {
+      navigation.navigate('ServicesComingSoon', navParams);
+    }
+  }, [effectiveProfileType, userProfile, userData, fromUsersProfile, navigation]);
+
   const handleInviteBattlePress = useCallback(async () => {
     const storedMe = String((await AsyncStorage.getItem('userId')) || '').trim();
     const profileUserId = String(targetUserId || userData?.id || userData?._id || '').trim();
@@ -1686,6 +1706,38 @@ const ProfilePersonData = ({
           pointerEvents={compactLocked ? 'none' : 'auto'}
           style={[styles.collapsibleProfileMiddle, { maxHeight: animatedMaxHeight, opacity: animatedOpacity }]}
         >
+          {/* Valens Services Button */}
+          <View style={[styles.tabContainer, { height: 48, marginBottom: 6 }]}>
+            <TouchableOpacity
+              style={[
+                styles.servicesButton,
+                {
+                  backgroundColor: isDarkMode ? '#241536' : '#FFFFFF',
+                  borderColor: isDarkMode ? '#7C3AED' : '#8B5CF6',
+                },
+              ]}
+              onPress={handleServicesPress}
+              activeOpacity={0.75}
+            >
+              <View style={styles.servicesBtnInner}>
+                <Ionicons
+                  name="briefcase-outline"
+                  size={18}
+                  color={isDarkMode ? '#C4B5FD' : '#5B21B6'}
+                  style={{ marginRight: 8 }}
+                />
+                <Text
+                  style={[
+                    styles.servicesBtnText,
+                    { color: isDarkMode ? '#EDE9FE' : '#4C1D95' },
+                  ]}
+                >
+                  {t('profilePersonData.services', 'Serviços')}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
           {/* Battle LIVE — shown above Open Battle when a battle is active */}
           <View style={[styles.tabContainer, { marginBottom: -8, height: 50 }]}>
             <TouchableOpacity
@@ -2296,6 +2348,28 @@ const styles = StyleSheet.create({
         lineHeight: 18,
       },
     }),
+  },
+  servicesButton: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1.2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#5B21B6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  servicesBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  servicesBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   tabContainer: {
     flexDirection: 'row',
