@@ -629,6 +629,39 @@ export async function getHideChatConversation(chatId) {
   return axiosInstance.post('/post/hideChat', { chatId });
 }
 
+export async function deleteConversation(conversationIdOrPayload, typeParam = 'NORMAL') {
+  let conversationId;
+  let type = typeParam;
+  if (typeof conversationIdOrPayload === 'object' && conversationIdOrPayload !== null) {
+    conversationId = conversationIdOrPayload.conversationId || conversationIdOrPayload.chatId || conversationIdOrPayload.id;
+    type = conversationIdOrPayload.type || typeParam || 'NORMAL';
+  } else {
+    conversationId = conversationIdOrPayload;
+  }
+
+  const payload = {
+    conversationId: String(conversationId),
+    type: type || 'NORMAL',
+  };
+
+  console.log('🚀 [deleteConversationApi] Calling POST /post/deleteConversation with payload:', payload);
+
+  try {
+    const response = await axiosInstance.post('/post/deleteConversation', payload);
+    console.log('✅ [deleteConversationApi] Response received:', response);
+    return response;
+  } catch (error) {
+    console.error('❌ [deleteConversationApi] API Error:', {
+      message: error?.message,
+      status: error?.response?.status,
+      data: error?.response?.data,
+    });
+    throw error;
+  }
+}
+
+export const deleteConversationApi = deleteConversation;
+
 export async function chatStatusUpdate(chatId) {
   return axiosInstance.post('/post/chatStatusUpdate', { chatId });
 }

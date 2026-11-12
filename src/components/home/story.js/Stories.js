@@ -457,6 +457,8 @@ const StoryViewer = ({
   onDrawerClose,
   onOpenUserProfile,
   currentUserId,          // ΓåÉ add this
+  isUploadingStory = false,
+  uploadProgress,
 }) => {
   const insets = useSafeAreaInsets();
   const storyTopInset = Math.max(insets.top, Platform.OS === 'ios' ? 44 : 0);
@@ -542,6 +544,13 @@ const StoryViewer = ({
   const currentStory = currentUser?.stories[currentStoryIndex];
   const isViewingOwnStory = currentUser?.isUser;
   useEffect(() => { isViewingOwnStoryRef.current = !!isViewingOwnStory; }, [isViewingOwnStory]);
+
+  const fallbackUploadProgress = useRef(new Animated.Value(0)).current;
+  const effectiveUploadProgress = uploadProgress || fallbackUploadProgress;
+  const isCurrentStoryUploading = !!(
+    isViewingOwnStory &&
+    (currentStory?.isUploading || (isUploadingStory && currentStoryIndex === (currentUser?.stories?.length || 1) - 1))
+  );
 
   // Call view API once per active story (per viewer session)
   useEffect(() => {
@@ -813,6 +822,17 @@ const StoryViewer = ({
     return () => clearInterval(tick);
   }, [isYoutubeAudio, shouldPlayStoryAudio, youtubeVideoId]);
 
+  const prevUploadingRef = useRef(isCurrentStoryUploading);
+  useEffect(() => {
+    if (prevUploadingRef.current && !isCurrentStoryUploading && visibleRef.current) {
+      if (!progressStartedRef.current && isMediaReady && !pausedRef.current && currentStory) {
+        progressStartedRef.current = true;
+        startProgress(resolveStoryDurationMs(currentStory));
+      }
+    }
+    prevUploadingRef.current = isCurrentStoryUploading;
+  }, [isCurrentStoryUploading, isMediaReady, currentStory]);
+
   // ΓöÇΓöÇ Pan responder ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const pan = useRef(new Animated.ValueXY()).current;
   const panResponder = useRef(
@@ -920,6 +940,10 @@ const StoryViewer = ({
     const leftZone = SCREEN_WIDTH * 0.3;
     if (tapTimerRef.current) { clearTimeout(tapTimerRef.current); tapTimerRef.current = null; }
     tapTimerRef.current = setTimeout(() => {
+      if (isCurrentStoryUploading && tapX >= leftZone) {
+        tapTimerRef.current = null;
+        return;
+      }
       pauseOverlayAudio();
       pauseStoryVideo();
       stopAndResetProgress(true);
@@ -971,6 +995,7 @@ const StoryViewer = ({
     if (!isFirstFrameReady && Number(currentTime) > 0) {
       markVideoFrameReady();
     }
+    if (isCurrentStoryUploading) return;
     const durSec =
       videoDurationSecRef.current > 0
         ? videoDurationSecRef.current
@@ -986,6 +1011,7 @@ const StoryViewer = ({
     mediaFullyLoadedRef.current = true;
     setIsMediaReady(true);
     if (!progressStartedRef.current) {
+      if (isCurrentStoryUploading) return;
       progressStartedRef.current = true;
       requestAnimationFrame(() => requestAnimationFrame(() => {
         if (visibleRef.current && !pausedRef.current) {
@@ -1102,6 +1128,48 @@ const StoryViewer = ({
     shareText: { color: '#fff', fontSize: 14, fontWeight: '600', marginLeft: 8 },
   };
 
+  const instagramLoaderStyles = {
+    bottomContainer: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      paddingHorizontal: 20,
+      paddingTop: 14,
+      paddingBottom: Math.max(insets.bottom + 8, Platform.OS === 'ios' ? 26 : 18),
+      borderTopLeftRadius: 18,
+      borderTopRightRadius: 18,
+      zIndex: 25,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    spinner: {
+      marginRight: 10,
+    },
+    text: {
+      color: '#ffffff',
+      fontSize: 14,
+      fontWeight: '600',
+      letterSpacing: 0.2,
+    },
+    progressBarBg: {
+      height: 3.5,
+      backgroundColor: 'rgba(255, 255, 255, 0.25)',
+      borderRadius: 2,
+      overflow: 'hidden',
+      width: '100%',
+    },
+    progressBarFill: {
+      height: '100%',
+      backgroundColor: '#4da3ff',
+      borderRadius: 2,
+    },
+  };
+
   // ΓöÇΓöÇ Render ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   return (
     <Modal
@@ -1145,7 +1213,7 @@ const StoryViewer = ({
         {/* ΓöÇΓöÇ Fixed UI overlay: progress + header ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
         <View style={modalStyles.storyUiOverlay} pointerEvents="box-none">
           <View style={[modalStyles.progressContainer, { paddingTop: storyProgressTop }]}>
-            {currentUser.stories.map((_, idx) => (
+            {currentUser.stories.map((s, idx) => (
               <View key={idx} style={modalStyles.progressBarBg}>
                 <Animated.View
                   style={[
@@ -1153,7 +1221,9 @@ const StoryViewer = ({
                     {
                       width:
                         idx === currentStoryIndex
-                          ? progressAnimation.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] })
+                          ? (isCurrentStoryUploading
+                              ? effectiveUploadProgress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] })
+                              : progressAnimation.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }))
                           : idx < currentStoryIndex ? '100%' : '0%',
                     },
                   ]}
@@ -1264,6 +1334,10 @@ const StoryViewer = ({
                 onBuffer={onVideoBuffer}
                 onError={onMediaError}
                 onEnd={() => {
+                  if (isCurrentStoryUploading) {
+                    try { videoRef.current?.seek?.(0); } catch (_e) { }
+                    return;
+                  }
                   progressAnimation.setValue(1);
                   stopAndResetProgress(true);
                   setTimeout(() => onNext(), 120);
@@ -1481,56 +1555,80 @@ const StoryViewer = ({
 
         {/* ΓöÇΓöÇ Own story: analytics + delete + share ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
         {isViewingOwnStory && (
-          <View style={userAnalyticsStyles.bottomContainer}>
-            <View style={userAnalyticsStyles.statsRow}>
-              {currentStory.likes?.length > 0 && (
-                <View style={userAnalyticsStyles.statItem}>
-                  <Icon name="heart" size={14} color="#ff6b6b" />
-                  <Text style={userAnalyticsStyles.statText}>{currentStory.likes.length}</Text>
-                </View>
-              )}
-              {currentStory.comments?.length > 0 && (
-                <View style={userAnalyticsStyles.statItem}>
-                  <Icon name="chatbubble-outline" size={14} color="#4da3ff" />
-                  <Text style={userAnalyticsStyles.statText}>{currentStory.comments.length}</Text>
-                </View>
-              )}
-            </View>
-
-            <View style={userAnalyticsStyles.actionsRow}>
-              <TouchableOpacity style={userAnalyticsStyles.deleteButton} onPress={handleDeleteStory}>
-                <Icon name="trash-outline" size={18} color="#fff" />
-                <Text style={userAnalyticsStyles.deleteText}>{t('stories.deleteStoryLabel')}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={userAnalyticsStyles.shareButton}
-                onPress={() => {
-                  handlePause();
-                  shareRef.current?.open?.();
-                  setSelectedPostId({
-                    ...currentStory,
-                    userName: currentUser?.username,
-                    userImage: ownerProfileImage || currentUser?.image,
-                    user: {
-                      id: currentUserId,                               // ΓåÉ real userId
-                      displayName: currentUser?.username,
-                      image: ownerProfileImage || currentUser?.image   // ΓåÉ .image not .avatar
+          isCurrentStoryUploading ? (
+            <View style={instagramLoaderStyles.bottomContainer}>
+              <View style={instagramLoaderStyles.row}>
+                <ActivityIndicator size="small" color="#4da3ff" style={instagramLoaderStyles.spinner} />
+                <Text style={instagramLoaderStyles.text}>
+                  {t('stories.uploadingDrops')}
+                </Text>
+              </View>
+              <View style={instagramLoaderStyles.progressBarBg}>
+                <Animated.View
+                  style={[
+                    instagramLoaderStyles.progressBarFill,
+                    {
+                      width: effectiveUploadProgress.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', '100%'],
+                      }),
                     },
-                  });
-                }}
-              >
-                <Feather name="send" size={18} color="#fff" />
-                <Text style={userAnalyticsStyles.shareText}>{t('stories.shareStoryLabel')}</Text>
-              </TouchableOpacity>
+                  ]}
+                />
+              </View>
             </View>
+          ) : (
+            <View style={userAnalyticsStyles.bottomContainer}>
+              <View style={userAnalyticsStyles.statsRow}>
+                {currentStory.likes?.length > 0 && (
+                  <View style={userAnalyticsStyles.statItem}>
+                    <Icon name="heart" size={14} color="#ff6b6b" />
+                    <Text style={userAnalyticsStyles.statText}>{currentStory.likes.length}</Text>
+                  </View>
+                )}
+                {currentStory.comments?.length > 0 && (
+                  <View style={userAnalyticsStyles.statItem}>
+                    <Icon name="chatbubble-outline" size={14} color="#4da3ff" />
+                    <Text style={userAnalyticsStyles.statText}>{currentStory.comments.length}</Text>
+                  </View>
+                )}
+              </View>
 
-            <ShareModal
-              ref={shareRef}
-              story={selectedPostId}
-              onClose={handleResume}
-            />
-          </View>
+              <View style={userAnalyticsStyles.actionsRow}>
+                <TouchableOpacity style={userAnalyticsStyles.deleteButton} onPress={handleDeleteStory}>
+                  <Icon name="trash-outline" size={18} color="#fff" />
+                  <Text style={userAnalyticsStyles.deleteText}>{t('stories.deleteStoryLabel')}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={userAnalyticsStyles.shareButton}
+                  onPress={() => {
+                    handlePause();
+                    shareRef.current?.open?.();
+                    setSelectedPostId({
+                      ...currentStory,
+                      userName: currentUser?.username,
+                      userImage: ownerProfileImage || currentUser?.image,
+                      user: {
+                        id: currentUserId,                               // ΓåÉ real userId
+                        displayName: currentUser?.username,
+                        image: ownerProfileImage || currentUser?.image   // ΓåÉ .image not .avatar
+                      },
+                    });
+                  }}
+                >
+                  <Feather name="send" size={18} color="#fff" />
+                  <Text style={userAnalyticsStyles.shareText}>{t('stories.shareStoryLabel')}</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ShareModal
+                ref={shareRef}
+                story={selectedPostId}
+                onClose={handleResume}
+              />
+            </View>
+          )
         )}
 
         {/* ΓöÇΓöÇ Other users' story: emoji bursts + message input ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
@@ -1693,6 +1791,8 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
   const [isUploadingStory, setIsUploadingStory] = useState(false);
   const [uploadProgress] = useState(new Animated.Value(0));
   const uploadAnimationRef = useRef(null);
+  const pendingClipsRef = useRef([]);
+  const uploadInProgressRef = useRef(false);
   const profileImage = useSelector(state => state.profileImage?.profileImg);
   const toast = useToast();
   const dispatch = useDispatch();
@@ -1757,6 +1857,33 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
         ? (Array.isArray(followingStoriesResponse.data) ? followingStoriesResponse.data : [followingStoriesResponse.data])
         : [];
 
+      const pendingStories = (pendingClipsRef.current?.length > 0 && isUploadingStory)
+        ? pendingClipsRef.current.map((item, index) => ({
+            id: `pending_upload_${Date.now()}_${index}`,
+            type: item.isVideo ? 'video' : 'image',
+            uri: item.processedUri || item.original.uri,
+            thumbnail: resolveClipThumbnailUri(item),
+            audio: item.audio || { mode: 'original' },
+            audioTrim: item.audioTrim || { start: 0, end: null },
+            trim: item.trim || { start: 0, end: null },
+            volume: item.volume ?? 1,
+            duration: resolveStoryDurationMs({
+              type: item.isVideo ? 'video' : 'image',
+              isVideo: item.isVideo,
+              duration: item.original?.duration,
+              trim: item.trim,
+              audioTrim: item.audioTrim,
+            }),
+            timestamp: Date.now(),
+            seen: false,
+            views: [],
+            likes: [],
+            comments: [],
+            edits: { filterKey: item.filterKey, stickers: item.stickers, texts: item.texts },
+            isUploading: true,
+          }))
+        : [];
+
       const currentUserBucket = {
         id: 'current_user',
         username: t('stories.yourDrops'),
@@ -1764,7 +1891,10 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
         isUser: true,
         hasUnseenStory: false,
         muted: false,
-        stories: userStoriesRaw.flatMap(story => mapApiStoryRowToClips(story)),
+        stories: [
+          ...userStoriesRaw.flatMap(story => mapApiStoryRowToClips(story)),
+          ...pendingStories,
+        ],
       };
 
       const userStoriesMap = new Map();
@@ -1850,17 +1980,6 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
     if (typeof refreshTick === 'number') fetchStories();
   }, [refreshTick]);
 
-  useFocusEffect(useCallback(() => {
-    const restoreUploadState = async () => {
-      try {
-        const isUploading = await AsyncStorage.getItem('storyUploadInProgress');
-        if (isUploading === 'true') setIsUploadingStory(true);
-      } catch (error) {
-        console.error('Error restoring upload state:', error);
-      }
-    };
-    restoreUploadState();
-  }, []));
 
   const requestCameraPermission = async () => {
     if (Platform.OS !== 'android') return true;
@@ -1880,27 +1999,11 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
   };
 
   const handleAddStory = () => {
-    Alert.alert(
-      t('stories.addDropsTitle'),
-      t('stories.addDropsMessage'),
-      [
-        { text: t('stories.addDropsCamera'), onPress: () => openCamera() },
-        { text: t('stories.addDropsGallery'), onPress: () => openGallery() },
-        { text: t('stories.addDropsCancel'), style: 'cancel' },
-      ],
-    );
+    openGallery();
   };
 
   const handleAddNewStory = () => {
-    Alert.alert(
-      t('stories.addNewDropTitle'),
-      t('stories.addNewDropMessage'),
-      [
-        { text: t('stories.addDropsCamera'), onPress: () => openCamera() },
-        { text: t('stories.addDropsGallery'), onPress: () => openGallery() },
-        { text: t('stories.addDropsCancel'), style: 'cancel' },
-      ],
-    );
+    openGallery();
   };
 
   const openCamera = async () => {
@@ -1975,7 +2078,7 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
     }
   };
 
-  const retryWithBackoff = async (uploadFn, maxRetries = 15, baseDelayMs = 1000) => {
+  const retryWithBackoff = async (uploadFn, maxRetries = 3, baseDelayMs = 1500) => {
     let lastError;
     let isNetworkOffline = false;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -2036,33 +2139,7 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
     return null;
   };
 
-  const resumePendingUpload = useCallback(async () => {
-    try {
-      const pendingUpload = await getPendingUpload();
-      if (pendingUpload?.clips?.length > 0) {
-        setIsUploadingStory(true);
-        await AsyncStorage.setItem('storyUploadInProgress', 'true');
-        showToastMessage(toast, 'info', t('stories.resumingUpload'));
-        await performStoryUpload(pendingUpload.clips);
-        setIsUploadingStory(false);
-        await AsyncStorage.removeItem('storyUploadInProgress');
-      }
-    } catch (error) {
-      console.error('Error resuming upload:', error);
-      setIsUploadingStory(false);
-      await AsyncStorage.removeItem('storyUploadInProgress');
-    }
-  }, [toast, t]);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', nextAppState => {
-      if (nextAppState === 'active') resumePendingUpload();
-    });
-    return () => subscription.remove();
-  }, [resumePendingUpload]);
-
   const performStoryUpload = async (clips) => {
-    await clearUploadState();
     const formData = new FormData();
     formData.append('caption', '');
     clips.forEach((item, index) => {
@@ -2077,47 +2154,32 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
     const response = await retryWithBackoff(() =>
       Promise.race([
         PostStory(formData),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 120000)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 45000)),
       ]),
-      15, 1000,
+      3, 1500,
     );
 
     if (response?.success && !response?.error) {
+      pendingClipsRef.current = [];
+      uploadAnimationRef.current?.stop?.();
+      Animated.timing(uploadProgress, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+
       setStories(prev => prev.map(user =>
         user.isUser ? {
           ...user,
           hasUnseenStory: true,
-          stories: [
-            ...user.stories,
-            ...clips.map(item => ({
-              id: `story_${Date.now()}_${Math.random()}`,
-              type: item.isVideo ? 'video' : 'image',
-              uri: item.processedUri || item.original.uri,
-              thumbnail: resolveClipThumbnailUri(item),
-              audio: item.audio || { mode: 'original' },
-              audioTrim: item.audioTrim || { start: 0, end: null },
-              trim: item.trim || { start: 0, end: null },
-              volume: item.volume ?? 1,
-              duration: resolveStoryDurationMs({
-                type: item.isVideo ? 'video' : 'image',
-                isVideo: item.isVideo,
-                duration: item.original?.duration,
-                trim: item.trim,
-                audioTrim: item.audioTrim,
-              }),
-              timestamp: Date.now(),
-              seen: false,
-              views: [],
-              likes: [],
-              comments: [],
-              edits: { filterKey: item.filterKey, stickers: item.stickers, texts: item.texts },
-            })),
-          ],
+          stories: user.stories.map(s => s.isUploading ? { ...s, isUploading: false } : s),
         } : user
       ));
       showToastMessage(toast, 'success', t('stories.dropUploadedSuccess'));
-      setTimeout(() => setIsUploadingStory(false), 200);
-      fetchStories();
+      setTimeout(() => {
+        setIsUploadingStory(false);
+        fetchStories();
+      }, 400);
     } else {
       throw new Error(`Upload failed: ${response?.message || 'Unknown error'}`);
     }
@@ -2138,38 +2200,116 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
 
   const uploadStoryInBackground = async (clips) => {
     try {
+      uploadInProgressRef.current = true;
+      pendingClipsRef.current = clips;
+      const pendingStories = clips.map((item, index) => ({
+        id: `pending_upload_${Date.now()}_${index}`,
+        type: item.isVideo ? 'video' : 'image',
+        uri: item.processedUri || item.original.uri,
+        thumbnail: resolveClipThumbnailUri(item),
+        audio: item.audio || { mode: 'original' },
+        audioTrim: item.audioTrim || { start: 0, end: null },
+        trim: item.trim || { start: 0, end: null },
+        volume: item.volume ?? 1,
+        duration: resolveStoryDurationMs({
+          type: item.isVideo ? 'video' : 'image',
+          isVideo: item.isVideo,
+          duration: item.original?.duration,
+          trim: item.trim,
+          audioTrim: item.audioTrim,
+        }),
+        timestamp: Date.now(),
+        seen: false,
+        views: [],
+        likes: [],
+        comments: [],
+        edits: { filterKey: item.filterKey, stickers: item.stickers, texts: item.texts },
+        isUploading: true,
+      }));
+
+      setStories(prev => prev.map(user =>
+        user.isUser ? {
+          ...user,
+          stories: [
+            ...user.stories.filter(s => !s.isUploading),
+            ...pendingStories,
+          ],
+        } : user
+      ));
+
       setIsUploadingStory(true);
       await AsyncStorage.setItem('storyUploadInProgress', 'true');
       await performStoryUpload(clips);
+      await clearUploadState();
       await AsyncStorage.removeItem('storyUploadInProgress');
     } catch (error) {
       console.error('Story upload failed after all retries:', error?.message || error);
+      pendingClipsRef.current = [];
+      setStories(prev => prev.map(user =>
+        user.isUser ? {
+          ...user,
+          stories: user.stories.filter(s => !s.isUploading),
+        } : user
+      ));
       setIsUploadingStory(false);
+      await clearUploadState();
       await AsyncStorage.removeItem('storyUploadInProgress');
       showToastMessage(toast, 'danger', t('stories.dropUploadFailed'));
+    } finally {
+      uploadInProgressRef.current = false;
     }
   };
 
+  const resumePendingUpload = useCallback(async () => {
+    try {
+      if (uploadInProgressRef.current) return;
+      const pendingUpload = await getPendingUpload();
+      const age = Date.now() - (pendingUpload?.timestamp || 0);
+
+      if (pendingUpload?.clips?.length > 0 && age <= 5 * 60 * 1000) {
+        showToastMessage(toast, 'info', t('stories.resumingUpload'));
+        uploadStoryInBackground(pendingUpload.clips);
+      } else {
+        await clearUploadState();
+        await AsyncStorage.removeItem('storyUploadInProgress');
+        setIsUploadingStory(false);
+        pendingClipsRef.current = [];
+      }
+    } catch (error) {
+      console.error('Error resuming upload:', error);
+      setIsUploadingStory(false);
+      await clearUploadState();
+      await AsyncStorage.removeItem('storyUploadInProgress');
+    }
+  }, [toast, t, uploadStoryInBackground]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') resumePendingUpload();
+    });
+    return () => subscription.remove();
+  }, [resumePendingUpload]);
+
+  useFocusEffect(useCallback(() => {
+    resumePendingUpload();
+  }, [resumePendingUpload]));
+
   const handleOpenStory = (user, userIndex) => {
-    if (user.isUser && user.stories.length === 0) { handleAddStory(); return; }
-    if (user.isUser && user.stories.length > 0) {
-      Alert.alert(
-        t('stories.viewDropsTitle'),
-        t('stories.viewDropsMessage'),
-        [
-          { text: t('stories.viewDropsView'), onPress: () => openStoryViewer(user, userIndex) },
-          { text: t('stories.viewDropsAdd'), onPress: () => handleAddNewStory() },
-          { text: t('stories.viewDropsCancel'), style: 'cancel' },
-        ],
-        { cancelable: true },
-      );
+    if (user.isUser) {
+      if (user.stories && user.stories.length > 0) {
+        const uploadingIndex = user.stories.findIndex(s => s.isUploading);
+        const targetIndex = uploadingIndex !== -1 ? uploadingIndex : 0;
+        openStoryViewer(user, userIndex, targetIndex);
+        return;
+      }
+      handleAddStory();
       return;
     }
     if (!user.stories?.length || user.muted) return;
-    openStoryViewer(user, userIndex);
+    openStoryViewer(user, userIndex, 0);
   };
 
-  const openStoryViewer = (user, userIndex) => {
+  const openStoryViewer = (user, userIndex, initialStoryIndex = 0) => {
     const storiesToPrefetch = user.stories?.slice(0, 4) || [];
     storiesToPrefetch.forEach(story => {
       if (story?.uri && story.type === 'image') {
@@ -2185,10 +2325,10 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
     });
 
     setCurrentUserIndex(userIndex);
-    setCurrentStoryIndex(0);
+    setCurrentStoryIndex(initialStoryIndex);
     setViewerSession(s => s + 1);
     setViewerVisible(true);
-    if (!user.isUser) setTimeout(() => markStoryAsSeen(user.id, 0), 500);
+    if (!user.isUser) setTimeout(() => markStoryAsSeen(user.id, initialStoryIndex), 500);
   };
 
   const nextUserWithStories = fromIndex => {
@@ -2453,6 +2593,8 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
         onDrawerClose={onDrawerClose}
         onOpenUserProfile={handleOpenStoryUserProfile}
         currentUserId={currentUserId}        // ΓåÉ add this
+        isUploadingStory={isUploadingStory}
+        uploadProgress={uploadProgress}
       />
 
       <StoryComposer
@@ -2473,38 +2615,6 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
         maxSelection={10}
         mediaType="mixed"
       />
-
-      {isUploadingStory && (
-        <View style={{
-          backgroundColor: isDarkMode ? card : '#f5f5f5',
-          paddingHorizontal: 16,
-          paddingVertical: 8,
-          borderTopWidth: 1,
-          borderTopColor: border || '#e0e0e0',
-        }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-            <ActivityIndicator size={16} color="#4da3ff" style={{ marginRight: 10 }} />
-            <Text style={[{ fontSize: 13, fontWeight: '600' }, textStyle]}>
-              {t('stories.uploadingDrops')}
-            </Text>
-          </View>
-          <View style={{
-            height: 4,
-            backgroundColor: isDarkMode ? border : '#e0e0e0',
-            borderRadius: 2,
-            overflow: 'hidden',
-          }}>
-            <Animated.View
-              style={{
-                height: '100%',
-                backgroundColor: '#4da3ff',
-                borderRadius: 2,
-                width: uploadProgress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-              }}
-            />
-          </View>
-        </View>
-      )}
     </View>
   );
 }

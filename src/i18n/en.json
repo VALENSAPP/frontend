@@ -4067,7 +4067,19 @@
     "deleteWarning": "This action cannot be undone.",
     "cancel": "Cancel",
     "delete": "Delete",
-    "deleting": "Deleting..."
+    "deleting": "Deleting...",
+    "readAll": "Read All",
+    "select": "Select",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect",
+    "markRead": "Mark Read",
+    "done": "Done",
+    "selected": "Selected",
+    "selectMessages": "Select messages",
+    "allMarkedRead": "All messages marked as read",
+    "selectedMarkedRead": "Selected messages marked as read",
+    "multipleDeleteSuccess": "{{count}} conversation(s) deleted successfully",
+    "deleteMultipleConfirm": "Are you sure you want to delete {{count}} conversation(s)?"
   },
   "drawerNav": {
     "walletPanel": "Wallet Panel",
@@ -5900,5 +5912,13 @@
     "shareService": "Share Your Service",
     "bookingNotice": "We'll notify you when someone books a session.",
     "continue": "Continue"
+  },
+  "manageServices": {
+    "tabTitle": "Manage Services",
+    "meAsProfessional": "Me as a Professional",
+    "meAsClient": "Me as a Client",
+    "servicesProductList": "Services Product List",
+    "clientOrders": "Client Orders",
+    "servicesOrders": "Services Orders"
   }
 }

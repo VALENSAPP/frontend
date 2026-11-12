@@ -4064,7 +4064,19 @@
     "deleteWarning": "Cette action ne peut pas être annulée.",
     "cancel": "Annuler",
     "delete": "Supprimer",
-    "deleting": "Suppression..."
+    "deleting": "Suppression...",
+    "readAll": "Tout marquer comme lu",
+    "select": "Sélectionner",
+    "selectAll": "Tout sélectionner",
+    "deselectAll": "Désélectionner",
+    "markRead": "Marquer comme lu",
+    "done": "Terminé",
+    "selected": "Sélectionné(s)",
+    "selectMessages": "Sélectionner des messages",
+    "allMarkedRead": "Tous les messages marqués comme lus",
+    "selectedMarkedRead": "Messages sélectionnés marqués comme lus",
+    "multipleDeleteSuccess": "{{count}} conversation(s) supprimée(s)",
+    "deleteMultipleConfirm": "Voulez-vous vraiment supprimer {{count}} conversation(s) ?"
   },
   "drawerNav": {
     "walletPanel": "Panneau Portefeuille",
@@ -5897,5 +5909,13 @@
     "shareService": "Partager le Service",
     "bookingNotice": "Nous vous informerons dès qu'un client réservera une session.",
     "continue": "Continuer"
+  },
+  "manageServices": {
+    "tabTitle": "Gérer les Services",
+    "meAsProfessional": "Moi en tant que Professionnel",
+    "meAsClient": "Moi en tant que Client",
+    "servicesProductList": "Liste des Produits de Services",
+    "clientOrders": "Commandes des Clients",
+    "servicesOrders": "Commandes de Services"
   }
 }

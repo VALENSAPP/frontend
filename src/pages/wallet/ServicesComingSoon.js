@@ -4,6 +4,7 @@ import {
   Image,
   Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Switch,
   Text,
@@ -25,6 +26,12 @@ import { useThemeContext } from '../../theme/ThemeContext';
 import { showToastMessage } from '../../components/displaytoastmessage';
 import { normalizeProfileType } from '../../utils/supportEligibility';
 import RegularSubscriptionPrompt from '../../components/modals/RegularSubscriptionPrompt';
+import { saveService } from './services/servicesStorage';
+import ManageServicesView from './services/ManageServicesView';
+import ConsultationFlow from './services/ConsultationFlow';
+import AppointmentFlow from './services/AppointmentFlow';
+import EventFlow from './services/EventFlow';
+import MonthlyPackageFlow from './services/MonthlyPackageFlow';
 
 const NOTIFY_KEY = 'servicesComingSoonNotifyMe';
 const HERO_FLY = require('../../assets/icons/pngicons/welcome.png');
@@ -107,6 +114,8 @@ export default function ServicesComingSoon() {
   // Setup Flow Steps: 0 = Original Landing, 1 = Choose Type, 2 = Program Details, 3 = Service Details, 4 = Availability, 5 = Review, 6 = Live / All Set
   const isDirectSetup = route.name === 'ServiceSetup' || Boolean(route?.params?.startSetup);
   const [currentStep, setCurrentStep] = useState(isDirectSetup ? 1 : 0);
+  const [mainTab, setMainTab] = useState(route?.params?.initialTab || 'services'); // 'services' | 'manage'
+  const [activeFlow, setActiveFlow] = useState(null); // 'consultation' | 'appointment' | 'event' | 'monthly_package' | null
 
   // Form State
   const [selectedServiceType, setSelectedServiceType] = useState('mentorship');
@@ -212,12 +221,27 @@ export default function ServicesComingSoon() {
   }, [t]);
 
   const handleActivateServicesPress = useCallback((preselectedType = null) => {
-    if (preselectedType) {
-      setSelectedServiceType(preselectedType);
+    let resolvedType = preselectedType;
+    if (preselectedType === 'mentorships') resolvedType = 'mentorship';
+    else if (preselectedType === 'consultations') resolvedType = 'consultation';
+    else if (preselectedType === 'appointments') resolvedType = 'appointment';
+    else if (preselectedType === 'events') resolvedType = 'event';
+    else if (preselectedType === 'packages') resolvedType = 'monthly_package';
+
+    if (resolvedType) {
+      setSelectedServiceType(resolvedType);
     }
 
     if (isBusiness || hasMembership) {
-      setCurrentStep(1);
+      if (!resolvedType) {
+        setCurrentStep(1);
+        return;
+      }
+      if (resolvedType === 'mentorship') {
+        setCurrentStep(2);
+      } else {
+        setActiveFlow(resolvedType);
+      }
       return;
     }
 
@@ -380,7 +404,106 @@ export default function ServicesComingSoon() {
   );
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // STEP 0: ACTIVATE SERVICES HERO SCREEN (Matches media_1794310488326_b95de3d4.png)
+  // SUBFLOWS: CONSULTATION, APPOINTMENT, EVENT, MONTHLY PACKAGE
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (activeFlow === 'consultation') {
+    return (
+      <LinearGradient colors={colors.bg} style={styles.flex}>
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+          <ConsultationFlow
+            colors={colors}
+            isDarkMode={isDarkMode}
+            t={t}
+            onBack={() => {
+              setActiveFlow(null);
+              setCurrentStep(1);
+            }}
+            onFinish={() => {
+              setActiveFlow(null);
+              setCurrentStep(0);
+              setMainTab('manage');
+            }}
+            userProfilePic={userProfilePic}
+          />
+        </SafeAreaView>
+      </LinearGradient>
+    );
+  }
+
+  if (activeFlow === 'appointment') {
+    return (
+      <LinearGradient colors={colors.bg} style={styles.flex}>
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+          <AppointmentFlow
+            colors={colors}
+            isDarkMode={isDarkMode}
+            t={t}
+            onBack={() => {
+              setActiveFlow(null);
+              setCurrentStep(1);
+            }}
+            onFinish={() => {
+              setActiveFlow(null);
+              setCurrentStep(0);
+              setMainTab('manage');
+            }}
+            userProfilePic={userProfilePic}
+          />
+        </SafeAreaView>
+      </LinearGradient>
+    );
+  }
+
+  if (activeFlow === 'event') {
+    return (
+      <LinearGradient colors={colors.bg} style={styles.flex}>
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+          <EventFlow
+            colors={colors}
+            isDarkMode={isDarkMode}
+            t={t}
+            onBack={() => {
+              setActiveFlow(null);
+              setCurrentStep(1);
+            }}
+            onFinish={() => {
+              setActiveFlow(null);
+              setCurrentStep(0);
+              setMainTab('manage');
+            }}
+            userProfilePic={userProfilePic}
+          />
+        </SafeAreaView>
+      </LinearGradient>
+    );
+  }
+
+  if (activeFlow === 'monthly_package') {
+    return (
+      <LinearGradient colors={colors.bg} style={styles.flex}>
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+          <MonthlyPackageFlow
+            colors={colors}
+            isDarkMode={isDarkMode}
+            t={t}
+            onBack={() => {
+              setActiveFlow(null);
+              setCurrentStep(1);
+            }}
+            onFinish={() => {
+              setActiveFlow(null);
+              setCurrentStep(0);
+              setMainTab('manage');
+            }}
+            userProfilePic={userProfilePic}
+          />
+        </SafeAreaView>
+      </LinearGradient>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // STEP 0: ACTIVATE SERVICES HERO SCREEN & MANAGE SERVICES
   // ─────────────────────────────────────────────────────────────────────────────
   if (currentStep === 0) {
     const rawTitle = t('serviceActivation.heroTitle', 'Activate\nYour Services\nNow');
@@ -391,7 +514,7 @@ export default function ServicesComingSoon() {
 
     return (
       <LinearGradient colors={colors.bg} style={styles.flex}>
-        <SafeAreaView style={styles.flex} edges={['top']}>
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity
@@ -422,10 +545,92 @@ export default function ServicesComingSoon() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.content}
-          >
+          {/* MAIN TABS: Services | Manage Services */}
+          <View style={[styles.mainTopTabBar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+            <TouchableOpacity
+              onPress={() => setMainTab('services')}
+              activeOpacity={0.8}
+              style={[
+                styles.mainTopTabBtn,
+                mainTab === 'services' && { backgroundColor: colors.accent },
+              ]}
+            >
+              <Ionicons
+                name="briefcase-outline"
+                size={16}
+                color={mainTab === 'services' ? '#FFFFFF' : colors.muted}
+                style={{ marginRight: 6 }}
+              />
+              <Text
+                style={[
+                  styles.mainTopTabText,
+                  { color: mainTab === 'services' ? '#FFFFFF' : colors.muted, fontWeight: '700' },
+                ]}
+              >
+                {t('serviceActivation.header', 'Services')}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setMainTab('manage')}
+              activeOpacity={0.8}
+              style={[
+                styles.mainTopTabBtn,
+                mainTab === 'manage' && { backgroundColor: colors.accent },
+              ]}
+            >
+              <Ionicons
+                name="layers-outline"
+                size={16}
+                color={mainTab === 'manage' ? '#FFFFFF' : colors.muted}
+                style={{ marginRight: 6 }}
+              />
+              <Text
+                style={[
+                  styles.mainTopTabText,
+                  { color: mainTab === 'manage' ? '#FFFFFF' : colors.muted, fontWeight: '700' },
+                ]}
+              >
+                {t('manageServices.tabTitle', 'Manage Services')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {mainTab === 'manage' ? (
+            <ManageServicesView
+              colors={colors}
+              isDarkMode={isDarkMode}
+              t={t}
+              onAddNewService={() => {
+                setMainTab('services');
+                handleActivateServicesPress();
+              }}
+              userProfilePic={userProfilePic}
+            />
+          ) : (
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.content}
+            >
+              {/* Shortcut Banner to Manage Services */}
+              <TouchableOpacity
+                onPress={() => setMainTab('manage')}
+                activeOpacity={0.85}
+                style={[styles.manageServicesBanner, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+              >
+                <View style={[styles.manageIconCircle, { backgroundColor: colors.iconBg }]}>
+                  <Ionicons name="layers" size={20} color={colors.accent} />
+                </View>
+                <View style={{ flex: 1, marginHorizontal: 12 }}>
+                  <Text style={[styles.manageBannerTitle, { color: colors.title }]}>
+                    Manage Services
+                  </Text>
+                  <Text style={[styles.manageBannerSub, { color: colors.muted }]}>
+                    Duo Side: Me as a Professional & Me as a Client
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.accent} />
+              </TouchableOpacity>
             {/* Hero Row: Left (Headline & Subtitle), Right (3D Bag Art + Vertical Floating Cards) */}
             <View style={styles.heroRow}>
               <View style={styles.heroCopy}>
@@ -565,6 +770,7 @@ export default function ServicesComingSoon() {
               </View>
             </View>
           </ScrollView>
+          )}
 
           {/* Valens Membership Required Modal */}
           <RegularSubscriptionPrompt
@@ -584,7 +790,7 @@ export default function ServicesComingSoon() {
   if (currentStep === 1) {
     return (
       <LinearGradient colors={colors.bg} style={styles.flex}>
-        <SafeAreaView style={styles.flex} edges={['top']}>
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
           <View style={styles.topHeader}>
             <TouchableOpacity
               onPress={handleHeaderBack}
@@ -598,7 +804,7 @@ export default function ServicesComingSoon() {
             <View style={{ width: 40 }} />
           </View>
 
-          <ScrollView contentContainerStyle={styles.flowContent}>
+          <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.flowContent}>
             <Text style={[styles.stepQuestion, { color: colors.title }]}>
               {t('serviceActivation.step1Title', 'What would you like to offer?')}
             </Text>
@@ -645,7 +851,13 @@ export default function ServicesComingSoon() {
 
           <View style={[styles.bottomBar, { backgroundColor: colors.surface }]}>
             <TouchableOpacity
-              onPress={() => setCurrentStep(2)}
+              onPress={() => {
+                if (selectedServiceType === 'mentorship') {
+                  setCurrentStep(2);
+                } else {
+                  setActiveFlow(selectedServiceType);
+                }
+              }}
               activeOpacity={0.85}
               style={styles.primaryContinueBtn}
             >
@@ -672,7 +884,7 @@ export default function ServicesComingSoon() {
   if (currentStep === 2) {
     return (
       <LinearGradient colors={colors.bg} style={styles.flex}>
-        <SafeAreaView style={styles.flex} edges={['top']}>
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
           <View style={styles.topHeader}>
             <TouchableOpacity
               onPress={handleHeaderBack}
@@ -686,7 +898,7 @@ export default function ServicesComingSoon() {
             <View style={{ width: 40 }} />
           </View>
 
-          <ScrollView contentContainerStyle={styles.flowContent}>
+          <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.flowContent}>
             {renderProgressBar(2, 5)}
 
             <Text style={[styles.fieldSectionTitle, { color: colors.title }]}>
@@ -833,7 +1045,7 @@ export default function ServicesComingSoon() {
   if (currentStep === 3) {
     return (
       <LinearGradient colors={colors.bg} style={styles.flex}>
-        <SafeAreaView style={styles.flex} edges={['top']}>
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
           <View style={styles.topHeader}>
             <TouchableOpacity
               onPress={handleHeaderBack}
@@ -847,7 +1059,7 @@ export default function ServicesComingSoon() {
             <View style={{ width: 40 }} />
           </View>
 
-          <ScrollView contentContainerStyle={styles.flowContent}>
+          <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.flowContent}>
             {renderProgressBar(3, 5)}
 
             <Text style={[styles.fieldSectionTitle, { color: colors.title }]}>
@@ -1002,7 +1214,7 @@ export default function ServicesComingSoon() {
   if (currentStep === 4) {
     return (
       <LinearGradient colors={colors.bg} style={styles.flex}>
-        <SafeAreaView style={styles.flex} edges={['top']}>
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
           <View style={styles.topHeader}>
             <TouchableOpacity
               onPress={handleHeaderBack}
@@ -1016,7 +1228,7 @@ export default function ServicesComingSoon() {
             <View style={{ width: 40 }} />
           </View>
 
-          <ScrollView contentContainerStyle={styles.flowContent}>
+          <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.flowContent}>
             {renderProgressBar(4, 5)}
 
             <View style={styles.calendarHeaderCenter}>
@@ -1203,7 +1415,7 @@ export default function ServicesComingSoon() {
   if (currentStep === 5) {
     return (
       <LinearGradient colors={colors.bg} style={styles.flex}>
-        <SafeAreaView style={styles.flex} edges={['top']}>
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
           <View style={styles.topHeader}>
             <TouchableOpacity
               onPress={handleHeaderBack}
@@ -1217,7 +1429,7 @@ export default function ServicesComingSoon() {
             <View style={{ width: 40 }} />
           </View>
 
-          <ScrollView contentContainerStyle={styles.flowContent}>
+          <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.flowContent}>
             {renderProgressBar(5, 5)}
 
             <View style={[styles.reviewHeroCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
@@ -1337,7 +1549,27 @@ export default function ServicesComingSoon() {
 
           <View style={[styles.bottomBar, { backgroundColor: colors.surface }]}>
             <TouchableOpacity
-              onPress={() => setCurrentStep(6)}
+              onPress={async () => {
+                await saveService({
+                  id: `svc_mentorship_${Date.now()}`,
+                  type: 'mentorship',
+                  title: 'Business Growth Mentorship',
+                  subtitle: `${programLength} Program • ${serviceFormat === 'online' ? 'Online' : 'In Person'}`,
+                  category: 'Mentorship',
+                  duration: programLength,
+                  sessionDuration: sessionDuration,
+                  format: serviceFormat,
+                  address: serviceFormat === 'in_person' ? officeAddress : '',
+                  price: priceAmount || '750.00',
+                  availability: `${selectedDays.join(', ')} 10:00 AM – 6:00 PM (EST)`,
+                  status: 'active',
+                  bookingsCount: 0,
+                  rating: 5.0,
+                  createdAt: new Date().toISOString(),
+                  icon: 'school-outline',
+                });
+                setCurrentStep(6);
+              }}
               activeOpacity={0.85}
               style={styles.primaryContinueBtn}
             >
@@ -1363,7 +1595,7 @@ export default function ServicesComingSoon() {
   // ─────────────────────────────────────────────────────────────────────────────
   return (
     <LinearGradient colors={colors.bg} style={styles.flex}>
-      <SafeAreaView style={styles.flex} edges={['top']}>
+      <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
         <View style={styles.topHeader}>
           <TouchableOpacity
             onPress={() => setCurrentStep(0)}
@@ -1377,7 +1609,7 @@ export default function ServicesComingSoon() {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.flowContent}>
+        <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.flowContent}>
           <View style={styles.celebrationCenter}>
             <View style={styles.confettiWrap}>
               <LinearGradient colors={colors.btnGradient} style={styles.bigCheckCircle}>
@@ -1464,7 +1696,8 @@ export default function ServicesComingSoon() {
             <TouchableOpacity
               onPress={() => {
                 showToastMessage(toast, 'success', t('serviceActivation.allSetTitle', "You're all set!"));
-                navigation.goBack();
+                setCurrentStep(0);
+                setMainTab('manage');
               }}
               activeOpacity={0.85}
               style={styles.viewMyServicesBtn}
@@ -1482,8 +1715,13 @@ export default function ServicesComingSoon() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => {
-                showToastMessage(toast, 'info', t('serviceActivation.shareService', 'Share Your Service'));
+              onPress={async () => {
+                try {
+                  await Share.share({
+                    message: 'Book Business Growth Mentorship with me on Valens! https://valens.app/services/mentorship',
+                    title: 'Business Growth Mentorship',
+                  });
+                } catch (_) {}
               }}
               activeOpacity={0.8}
               style={[styles.shareServiceBtn, { borderColor: colors.accent, backgroundColor: colors.surface }]}
@@ -1868,7 +2106,8 @@ const styles = StyleSheet.create({
   },
   bottomBar: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 14 : 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.05)',
   },
@@ -2353,5 +2592,48 @@ const styles = StyleSheet.create({
   securityText: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  mainTopTabBar: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 4,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  mainTopTabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  mainTopTabText: {
+    fontSize: 13.5,
+  },
+  manageServicesBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 14,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  manageIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  manageBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  manageBannerSub: {
+    fontSize: 11.5,
+    marginTop: 2,
   },
 });
