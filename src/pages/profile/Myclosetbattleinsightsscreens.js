@@ -359,6 +359,9 @@ export function BattleInsightsActionsScreen({ navigation, route }) {
               nextRoute: 'BattleSetup',
               previewRoute: 'BattlePreview',
               liveRoute: 'BattleLive',
+              fromRoute: 'BattleInsightsActions',
+              winnerItem,
+              battleId,
             })
           }
         />
