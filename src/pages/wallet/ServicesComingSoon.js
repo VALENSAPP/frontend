@@ -35,6 +35,7 @@ import MonthlyPackageFlow from './services/MonthlyPackageFlow';
 
 const NOTIFY_KEY = 'servicesComingSoonNotifyMe';
 const HERO_FLY = require('../../assets/icons/pngicons/welcome.png');
+const HERO_FLY_BUSINESS = require('../../assets/icons/pngicons/Golden_Bee_Masco.png');
 
 const OFFERINGS = [
   { key: 'mentorships', icon: 'school-outline' },
@@ -85,8 +86,8 @@ const INITIAL_DAY_SLOTS = {
   },
 };
 
-const Sparkle = ({ style, size = 10, color = '#C4B5FD' }) => (
-  <Ionicons name="sparkles" size={size} color={color} style={style} />
+const Sparkle = ({ style, size = 10, color }) => (
+  <Ionicons name="sparkles" size={size} color={color || '#C4B5FD'} style={style} />
 );
 
 export default function ServicesComingSoon() {
@@ -106,9 +107,14 @@ export default function ServicesComingSoon() {
     route?.params?.userData?.profile ||
     reduxProfile;
 
+  const routeIsBusiness =
+    route?.params?.isBusinessProfile === true ||
+    route?.params?.params?.isBusinessProfile === true ||
+    normalizeProfileType(incomingProfileType) === 'company';
+
   const [notified, setNotified] = useState(false);
-  const [isBusiness, setIsBusiness] = useState(false);
-  const [hasMembership, setHasMembership] = useState(false);
+  const [isBusiness, setIsBusiness] = useState(routeIsBusiness);
+  const [hasMembership, setHasMembership] = useState(routeIsBusiness);
   const [showMembershipModal, setShowMembershipModal] = useState(false);
 
   // Setup Flow Steps: 0 = Original Landing, 1 = Choose Type, 2 = Program Details, 3 = Service Details, 4 = Availability, 5 = Review, 6 = Live / All Set
@@ -134,55 +140,105 @@ export default function ServicesComingSoon() {
   // Responsive scale — 1.0 on a 390-pt base
   const scale = Math.min(width / 390, 1.15);
 
-  const colors = useMemo(
-    () =>
-      isDarkMode
+  const colors = useMemo(() => {
+    if (isBusiness) {
+      return isDarkMode
         ? {
-            bg: ['#1A1228', '#241536', '#1A1228'],
-            surface: '#2A1C40',
-            card: '#2C2044',
-            cardBorder: '#3F2C61',
-            cardInner: '#201533',
-            launch: '#32224C',
-            title: '#F3E8FF',
-            body: '#C4B5D6',
-            muted: '#A78BBE',
-            iconBg: '#3B2760',
-            wave: '#4C1D95',
-            wave2: '#2E1064',
-            headerIcon: '#EDE4FF',
-            accent: '#8B5CF6',
-            accentDark: '#6D28D9',
-            btnGradient: ['#7C3AED', '#A855F7', '#C026D3'],
-            pillBg: 'rgba(139, 92, 246, 0.2)',
-            inputBg: '#1E1430',
-            divider: '#362354',
+            bg: ['#1A1713', '#251F18', '#1A1713'],
+            surface: '#241E16',
+            card: '#2A2319',
+            cardBorder: '#4D3E28',
+            cardInner: '#1F1A13',
+            launch: '#33291B',
+            title: '#FBF5E8',
+            body: '#DDD0B8',
+            muted: '#B8A688',
+            iconBg: '#3D311F',
+            wave: '#8C6D37',
+            wave2: '#5C441D',
+            headerIcon: '#FDF7EB',
+            accent: '#C9A15A',
+            accentDark: '#A88038',
+            btnGradient: ['#B8923E', '#C9A15A', '#DFBA74'],
+            pillBg: 'rgba(201, 161, 90, 0.22)',
+            inputBg: '#1F1A13',
+            divider: '#3D3220',
+            isBusiness: true,
           }
         : {
-            bg: ['#FBFAFF', '#F4ECFF', '#EDE4FE'],
+            bg: ['#FCFBFA', '#FBF6ED', '#F5ECE0'],
             surface: '#FFFFFF',
             card: '#FFFFFF',
-            cardBorder: '#E9D7FD',
-            cardInner: '#F8F3FF',
-            launch: '#F3EAFF',
-            title: '#2A1258',
-            body: '#5B4A7A',
-            muted: '#7A6A94',
-            iconBg: '#EFE6FF',
-            wave: '#D8C4F6',
-            wave2: '#C4A7F0',
-            headerIcon: '#2A1258',
-            accent: '#7C3AED',
-            accentDark: '#5B21B6',
-            btnGradient: ['#6D28D9', '#9333EA', '#C026D3'],
-            pillBg: 'rgba(124, 58, 237, 0.08)',
+            cardBorder: '#F0E2C8',
+            cardInner: '#FCF8F2',
+            launch: '#F8EEDD',
+            title: '#4A3B18',
+            body: '#6E5D34',
+            muted: '#8C7A55',
+            iconBg: '#FAF1E2',
+            wave: '#ECD9B7',
+            wave2: '#DFC496',
+            headerIcon: '#4A3B18',
+            accent: '#C9A15A',
+            accentDark: '#A88038',
+            btnGradient: ['#B8923E', '#C9A15A', '#DFBA74'],
+            pillBg: 'rgba(201, 161, 90, 0.12)',
             inputBg: '#FFFFFF',
-            divider: '#EBDCFD',
-          },
-    [isDarkMode],
-  );
+            divider: '#F0E2C8',
+            isBusiness: true,
+          };
+    }
+    return isDarkMode
+      ? {
+          bg: ['#1A1228', '#241536', '#1A1228'],
+          surface: '#2A1C40',
+          card: '#2C2044',
+          cardBorder: '#3F2C61',
+          cardInner: '#201533',
+          launch: '#32224C',
+          title: '#F3E8FF',
+          body: '#C4B5D6',
+          muted: '#A78BBE',
+          iconBg: '#3B2760',
+          wave: '#4C1D95',
+          wave2: '#2E1064',
+          headerIcon: '#EDE4FF',
+          accent: '#8B5CF6',
+          accentDark: '#6D28D9',
+          btnGradient: ['#7C3AED', '#A855F7', '#C026D3'],
+          pillBg: 'rgba(139, 92, 246, 0.2)',
+          inputBg: '#1E1430',
+          divider: '#362354',
+          isBusiness: false,
+        }
+      : {
+          bg: ['#FBFAFF', '#F4ECFF', '#EDE4FE'],
+          surface: '#FFFFFF',
+          card: '#FFFFFF',
+          cardBorder: '#E9D7FD',
+          cardInner: '#F8F3FF',
+          launch: '#F3EAFF',
+          title: '#2A1258',
+          body: '#5B4A7A',
+          muted: '#7A6A94',
+          iconBg: '#EFE6FF',
+          wave: '#D8C4F6',
+          wave2: '#C4A7F0',
+          headerIcon: '#2A1258',
+          accent: '#7C3AED',
+          accentDark: '#5B21B6',
+          btnGradient: ['#6D28D9', '#9333EA', '#C026D3'],
+          pillBg: 'rgba(124, 58, 237, 0.08)',
+          inputBg: '#FFFFFF',
+          divider: '#EBDCFD',
+          isBusiness: false,
+        };
+  }, [isDarkMode, isBusiness]);
 
   useEffect(() => {
+    if (routeIsBusiness) {
+      setIsBusiness(true);
+    }
     AsyncStorage.getItem(NOTIFY_KEY).then(value => {
       setNotified(value === 'true');
     });
@@ -190,7 +246,7 @@ export default function ServicesComingSoon() {
     (async () => {
       const stored = await AsyncStorage.getItem('profile');
       const resolved = normalizeProfileType(incomingProfileType || stored);
-      const isBiz = resolved === 'company';
+      const isBiz = routeIsBusiness || resolved === 'company';
       setIsBusiness(isBiz);
 
       const mem = await AsyncStorage.getItem('hasValensMembership');
@@ -198,7 +254,7 @@ export default function ServicesComingSoon() {
         setHasMembership(true);
       }
     })();
-  }, [incomingProfileType]);
+  }, [incomingProfileType, routeIsBusiness]);
 
   const handleNotify = useCallback(async () => {
     const next = !notified;
@@ -394,7 +450,7 @@ export default function ServicesComingSoon() {
             style={[
               styles.progressBarSegment,
               {
-                backgroundColor: i < stepNum ? colors.accent : (isDarkMode ? '#3A2755' : '#E9D7FD'),
+                backgroundColor: i < stepNum ? colors.accent : (isDarkMode ? colors.cardBorder : colors.divider),
               },
             ]}
           />
@@ -526,7 +582,7 @@ export default function ServicesComingSoon() {
             </TouchableOpacity>
 
             <View style={styles.headerCenterTitleWrap}>
-              <Ionicons name="briefcase-outline" size={19} color="#7C3AED" style={{ marginRight: 7 }} />
+              <Ionicons name="briefcase-outline" size={19} color={colors.accent} style={{ marginRight: 7 }} />
               <Text style={[styles.headerCenterTitle, { color: colors.title }]}>
                 {t('valensServices.comingSoon', 'Services')}
               </Text>
@@ -637,7 +693,7 @@ export default function ServicesComingSoon() {
                 <Text style={[styles.heroTitleMain, { color: colors.title }]}>
                   {line1}
                   {'\n'}
-                  <Text style={styles.heroTitleHighlight}>
+                  <Text style={[styles.heroTitleHighlight, { color: isBusiness ? colors.accent : '#C026D3' }]}>
                     {line2}
                   </Text>
                   {line3 ? `\n${line3}` : ''}
@@ -652,19 +708,23 @@ export default function ServicesComingSoon() {
               </View>
 
               <View style={[styles.heroArt, { width: Math.round(154 * scale), height: Math.round(186 * scale) }]}>
-                <Sparkle style={styles.heroSparkleTop} size={13} color="#C4B5FD" />
+                <Sparkle style={styles.heroSparkleTop} size={13} color={isBusiness ? '#E8D49E' : '#C4B5FD'} />
 
                 <View style={styles.bagWrap}>
-                  <View style={styles.bagHandle} />
+                  <View style={[styles.bagHandle, { borderColor: isBusiness ? '#DFBA74' : '#A78BFA' }]} />
                   <LinearGradient
-                    colors={['#DDD6FE', '#A78BFA', '#7C3AED']}
+                    colors={isBusiness ? ['#F5E6C8', '#DFBA74', '#C9A15A'] : ['#DDD6FE', '#A78BFA', '#7C3AED']}
                     start={{ x: 0.15, y: 0 }}
                     end={{ x: 0.9, y: 1 }}
                     style={[styles.bag, { width: Math.round(92 * scale), height: Math.round(100 * scale) }]}
                   >
                     <View style={styles.bagFlap} />
                     <View style={styles.bagShine} />
-                    <Image source={HERO_FLY} style={styles.bagFly} resizeMode="contain" />
+                    <Image
+                      source={isBusiness ? HERO_FLY_BUSINESS : HERO_FLY}
+                      style={styles.bagFly}
+                      resizeMode="contain"
+                    />
                   </LinearGradient>
                 </View>
 
@@ -676,14 +736,15 @@ export default function ServicesComingSoon() {
                       {
                         top: Math.round(c.top * scale),
                         backgroundColor: colors.surface,
+                        shadowColor: colors.accent,
                       },
                     ]}
                   >
-                    <Ionicons name={c.icon} size={18} color="#7C3AED" />
+                    <Ionicons name={c.icon} size={18} color={colors.accent} />
                   </View>
                 ))}
 
-                <Sparkle style={styles.heroSparkleBottom} size={12} color="#E879F9" />
+                <Sparkle style={styles.heroSparkleBottom} size={12} color={isBusiness ? '#DFBA74' : '#E879F9'} />
               </View>
             </View>
 
@@ -691,7 +752,7 @@ export default function ServicesComingSoon() {
             <TouchableOpacity
               onPress={() => handleActivateServicesPress()}
               activeOpacity={0.85}
-              style={styles.activateBtnWrap}
+              style={[styles.activateBtnWrap, { shadowColor: colors.accent }]}
             >
               <LinearGradient
                 colors={colors.btnGradient}
@@ -736,8 +797,8 @@ export default function ServicesComingSoon() {
                     activeOpacity={0.75}
                     style={[styles.offerItem, { width: itemWidth, maxWidth: itemWidth }]}
                   >
-                    <View style={[styles.offerIcon, { backgroundColor: colors.surface }]}>
-                      <Ionicons name={item.icon} size={22} color="#7C3AED" />
+                    <View style={[styles.offerIcon, { backgroundColor: colors.surface, shadowColor: colors.accent }]}>
+                      <Ionicons name={item.icon} size={22} color={colors.accent} />
                     </View>
                     <Text
                       style={[styles.offerLabel, { color: colors.body }]}
@@ -753,9 +814,9 @@ export default function ServicesComingSoon() {
             </View>
 
             {/* Built for creators and experts Card */}
-            <View style={[styles.builtCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+            <View style={[styles.builtCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder, shadowColor: colors.accent }]}>
               <View style={[styles.shieldWrap, { backgroundColor: colors.iconBg }]}>
-                <Ionicons name="shield-checkmark-outline" size={26} color="#7C3AED" />
+                <Ionicons name="shield-checkmark-outline" size={26} color={colors.accent} />
               </View>
               <View style={styles.builtCopy}>
                 <Text style={[styles.builtTitle, { color: colors.title }]}>
@@ -775,7 +836,7 @@ export default function ServicesComingSoon() {
           {/* Valens Membership Required Modal */}
           <RegularSubscriptionPrompt
             visible={showMembershipModal}
-            isBusinessProfile={false}
+            isBusinessProfile={isBusiness}
             onLater={() => setShowMembershipModal(false)}
             onLearnMore={handleMembershipLearnMore}
           />
@@ -921,7 +982,7 @@ export default function ServicesComingSoon() {
                 <Text style={[styles.durationCardSub, { color: colors.muted }]}>
                   {t('serviceActivation.durationOneSessionSub', 'Single 30, 60 or 90 min session')}
                 </Text>
-                <View style={[styles.radioCircle, durationStructure === 'one' && { borderColor: colors.accent, backgroundColor: colors.accent }]}>
+                <View style={[styles.radioCircle, { borderColor: colors.cardBorder }, durationStructure === 'one' && { borderColor: colors.accent, backgroundColor: colors.accent }]}>
                   {durationStructure === 'one' && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
                 </View>
               </TouchableOpacity>
@@ -942,7 +1003,7 @@ export default function ServicesComingSoon() {
                 <Text style={[styles.durationCardSub, { color: colors.muted }]}>
                   {t('serviceActivation.durationShortSub', '2 weeks or 1 month')}
                 </Text>
-                <View style={[styles.radioCircle, durationStructure === 'short' && { borderColor: colors.accent, backgroundColor: colors.accent }]}>
+                <View style={[styles.radioCircle, { borderColor: colors.cardBorder }, durationStructure === 'short' && { borderColor: colors.accent, backgroundColor: colors.accent }]}>
                   {durationStructure === 'short' && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
                 </View>
               </TouchableOpacity>
@@ -963,7 +1024,7 @@ export default function ServicesComingSoon() {
                 <Text style={[styles.durationCardSub, { color: colors.muted }]}>
                   {t('serviceActivation.durationLongSub', '3, 6 or 12 months or custom')}
                 </Text>
-                <View style={[styles.radioCircle, durationStructure === 'long' && { borderColor: colors.accent, backgroundColor: colors.accent }]}>
+                <View style={[styles.radioCircle, { borderColor: colors.cardBorder }, durationStructure === 'long' && { borderColor: colors.accent, backgroundColor: colors.accent }]}>
                   {durationStructure === 'long' && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
                 </View>
               </TouchableOpacity>
@@ -1311,7 +1372,7 @@ export default function ServicesComingSoon() {
                       <Switch
                         value={Boolean(dayData.enabled)}
                         onValueChange={() => toggleDaySwitch(dayId)}
-                        trackColor={{ false: isDarkMode ? '#3A2952' : '#E5E7EB', true: colors.accentDark }}
+                        trackColor={{ false: isDarkMode ? (isBusiness ? '#3D301C' : '#3A2952') : '#E5E7EB', true: colors.accentDark }}
                         thumbColor="#FFFFFF"
                       />
                     </View>
@@ -1612,13 +1673,13 @@ export default function ServicesComingSoon() {
         <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.flowContent}>
           <View style={styles.celebrationCenter}>
             <View style={styles.confettiWrap}>
-              <LinearGradient colors={colors.btnGradient} style={styles.bigCheckCircle}>
+              <LinearGradient colors={colors.btnGradient} style={[styles.bigCheckCircle, { shadowColor: colors.accent }]}>
                 <Ionicons name="checkmark" size={44} color="#FFFFFF" />
               </LinearGradient>
-              <Ionicons name="star" size={14} color="#C084FC" style={{ position: 'absolute', top: 4, left: 24 }} />
-              <Ionicons name="sparkles" size={18} color="#E879F9" style={{ position: 'absolute', top: 10, right: 28 }} />
-              <Ionicons name="ellipse" size={8} color="#A855F7" style={{ position: 'absolute', bottom: 12, left: 16 }} />
-              <Ionicons name="sparkles" size={14} color="#C4B5FD" style={{ position: 'absolute', bottom: 16, right: 20 }} />
+              <Ionicons name="star" size={14} color={isBusiness ? '#F3E2B8' : '#C084FC'} style={{ position: 'absolute', top: 4, left: 24 }} />
+              <Ionicons name="sparkles" size={18} color={isBusiness ? '#DFBA74' : '#E879F9'} style={{ position: 'absolute', top: 10, right: 28 }} />
+              <Ionicons name="ellipse" size={8} color={isBusiness ? '#C9A15A' : '#A855F7'} style={{ position: 'absolute', bottom: 12, left: 16 }} />
+              <Ionicons name="sparkles" size={14} color={isBusiness ? '#F3E2B8' : '#C4B5FD'} style={{ position: 'absolute', bottom: 16, right: 20 }} />
             </View>
 
             <Text style={[styles.allSetTitle, { color: colors.title }]}>

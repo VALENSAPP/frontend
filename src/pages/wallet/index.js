@@ -1849,6 +1849,13 @@ export const WalletDashboardScreen = ({ navigation }) => {
           )}
         </View>
 
+        {isTotalEarning && (
+          <View style={styles.cardWaveContainer} pointerEvents="none">
+            <View style={[styles.cardWaveShape, { backgroundColor: themePalette.waveOuter }]} />
+            <View style={[styles.cardWaveShapeInner, { backgroundColor: themePalette.waveInner }]} />
+          </View>
+        )}
+
         <View style={styles.kpiValueWrap}>
           <Text
             style={[
@@ -1866,13 +1873,6 @@ export const WalletDashboardScreen = ({ navigation }) => {
                 : (kpiValueText ?? '-').split('\n')[0].trim()}
           </Text>
         </View>
-
-        {isTotalEarning && (
-          <View style={styles.cardWaveContainer} pointerEvents="none">
-            <View style={[styles.cardWaveShape, { backgroundColor: themePalette.waveOuter }]} />
-            <View style={[styles.cardWaveShapeInner, { backgroundColor: themePalette.waveInner }]} />
-          </View>
-        )}
 
         {isSupportCard && (
           <View style={styles.chartBarsWrap} pointerEvents="none">
@@ -3353,6 +3353,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
     alignSelf: 'stretch',
     marginVertical: 5,
+    zIndex: 2,
+    elevation: 2,
   },
 
   kpiValue: {
@@ -3396,6 +3398,8 @@ const styles = StyleSheet.create({
     width: 80,
     height: 36,
     overflow: 'hidden',
+    zIndex: 0,
+    elevation: 0,
   },
   cardWaveShape: {
     position: 'absolute',

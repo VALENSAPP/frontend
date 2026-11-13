@@ -690,9 +690,28 @@ export function CreateBattleScreen({ navigation, route }) {
   const nextRoute = route?.params?.nextRoute || 'BattleSetup';
   const targetScreen = useTargetClosetScreen();
   const handleBack = useCallback(() => {
-    if (isEditing || route?.params?.fromEdit || fromRoute === "PromotionExpired" || fromRoute === "BattleLive") {
+    const isFromInsights =
+      fromRoute === "BattleInsightsActions" ||
+      fromRoute === "BattleInsights" ||
+      route?.params?.fromInsights ||
+      Boolean(route?.params?.winnerItem);
+
+    if (
+      isEditing ||
+      route?.params?.fromEdit ||
+      fromRoute === "PromotionExpired" ||
+      fromRoute === "BattleLive" ||
+      isFromInsights
+    ) {
       if (navigation.canGoBack?.()) {
         navigation.goBack();
+        return;
+      }
+      if (isFromInsights) {
+        navigation.navigate('BattleInsightsActions', {
+          winnerItem: route?.params?.winnerItem,
+          battleId: route?.params?.battleId,
+        });
         return;
       }
       if (route?.params?.editingBattleId) {
@@ -703,7 +722,7 @@ export function CreateBattleScreen({ navigation, route }) {
       return;
     }
     navigateToTargetClosetScreen(navigation, targetScreen);
-  }, [isEditing, route?.params?.fromEdit, route?.params?.editingBattleId, fromRoute, navigation, targetScreen]);
+  }, [isEditing, route?.params?.fromEdit, route?.params?.editingBattleId, route?.params?.winnerItem, route?.params?.battleId, route?.params?.fromInsights, fromRoute, navigation, targetScreen]);
 
 
   const initialPassedItems = useMemo(() => {
@@ -775,7 +794,13 @@ export function CreateBattleScreen({ navigation, route }) {
 
   useFocusEffect(
     useCallback(() => {
-      if (isEditing || route?.params?.fromEdit || fromRoute === "PromotionExpired" || fromRoute === "BattleLive") {
+      const isFromInsights =
+        fromRoute === "BattleInsightsActions" ||
+        fromRoute === "BattleInsights" ||
+        route?.params?.fromInsights ||
+        Boolean(route?.params?.winnerItem);
+
+      if (isEditing || route?.params?.fromEdit || fromRoute === "PromotionExpired" || fromRoute === "BattleLive" || isFromInsights) {
         const onBackPress = () => {
           handleBack();
           return true;
@@ -783,7 +808,7 @@ export function CreateBattleScreen({ navigation, route }) {
         const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
         return () => subscription.remove();
       }
-    }, [handleBack, isEditing, route?.params?.fromEdit, fromRoute])
+    }, [handleBack, isEditing, route?.params?.fromEdit, fromRoute, route?.params?.winnerItem, route?.params?.fromInsights])
   );
 
   const selectedItems = useMemo(

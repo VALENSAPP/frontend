@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { useToast } from 'react-native-toast-notifications';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
 import ProfilePersonData from '../../components/profile/ProfilePersonalData';
 import HighlightStories from '../../components/profile/HighLightStories';
@@ -18,6 +18,7 @@ import { showToastMessage } from '../../components/displaytoastmessage';
 import { getPostByUser, getUserCredentials, getUserDashboard } from '../../services/post';
 import { showLoader, hideLoader } from '../../redux/actions/LoaderAction';
 import { useAppTheme } from '../../theme/useApptheme';
+import { useThemeContext } from '../../theme/ThemeContext';
 import { normalizeProfileType } from '../../utils/supportEligibility';
 import { BASE_URL } from '../../config/urls';
 import WelcomeValensModal from '../../components/modals/WelcomeValensModal';
@@ -47,7 +48,25 @@ const ProfileScreen = () => {
 
   const toast = useToast();
   const dispatch = useDispatch();
-  const profileThemeType = normalizeProfileType(userData?.profile);
+  const reduxProfile = useSelector(state => state.userProfile?.userProfile);
+  const { activeProfile } = useThemeContext();
+  const [storedProfileType, setStoredProfileType] = useState(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem('profile').then(type => {
+      if (type) setStoredProfileType(type);
+    }).catch(() => {});
+  }, []);
+
+  const screenParams = route?.params?.params || route?.params || {};
+  const effectiveProfileType =
+    userData?.profile ||
+    screenParams?.profileType ||
+    (reduxProfile && reduxProfile !== 'normal' ? reduxProfile : undefined) ||
+    storedProfileType ||
+    activeProfile ||
+    'user';
+  const profileThemeType = normalizeProfileType(effectiveProfileType);
   const { bgStyle, accent } = useAppTheme(profileThemeType);
   const { t } = useLanguage();
 
@@ -193,13 +212,14 @@ const profileTabsProps = useMemo(() => ({
   post: posts,
   displayName: userData?.userName,
   userData: userData,
+  profileType: profileThemeType,
   dashboard: userDashboard,
   loggedInUserId: userId,
   refreshKey: refreshKey,
   onPostPinChanged: handlePostPinChanged,
   scrollEnabled: false,
   initialTab,
-}), [posts, userData, userDashboard, userId, refreshKey, handlePostPinChanged, initialTab]);
+}), [posts, userData, profileThemeType, userDashboard, userId, refreshKey, handlePostPinChanged, initialTab]);
 
   return (
     <SafeAreaView style={[styles.container, bgStyle]}>
@@ -227,7 +247,7 @@ const profileTabsProps = useMemo(() => ({
           bio={userData?.bio}
           dashboard={userDashboard}
           userData={userData}
-          profileType={userData?.profile}
+          profileType={profileThemeType}
           compactLocked={compactLocked}
 
         // executeFollowAction={executeFollowAction}

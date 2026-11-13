@@ -379,7 +379,12 @@ const CustomDrawerContent = (props) => {
       )}
 
       <TouchableOpacity
-        onPress={() => navigateToWalletScreen('ServicesComingSoon')}
+        onPress={() =>
+          navigateToWalletScreen('ServicesComingSoon', {
+            profileType: isCompanyProfile ? 'company' : 'user',
+            isBusinessProfile: isCompanyProfile,
+          })
+        }
         activeOpacity={0.75}
         style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 18 }}
       >
@@ -387,8 +392,22 @@ const CustomDrawerContent = (props) => {
         <Text style={{ fontSize: 15, color: drawerColors.inactive, fontWeight: '600' }}>
           {t('drawerNav.services', 'Services')}
         </Text>
-        <View style={{ marginLeft: 8, backgroundColor: '#E6D5F7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
-          <Text style={{ fontSize: 10, color: '#5a2d82', fontWeight: 'bold' }}>
+        <View
+          style={{
+            marginLeft: 8,
+            backgroundColor: isCompanyProfile ? 'rgba(201, 161, 90, 0.18)' : '#E6D5F7',
+            paddingHorizontal: 8,
+            paddingVertical: 2,
+            borderRadius: 12,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 10,
+              color: isCompanyProfile ? '#C9A15A' : '#5a2d82',
+              fontWeight: 'bold',
+            }}
+          >
             {t('servicesComingSoon.comingSoon', 'Coming Soon')}
           </Text>
         </View>

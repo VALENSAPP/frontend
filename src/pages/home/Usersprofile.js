@@ -43,9 +43,16 @@ const Usersprofile = () => {
   const returnTo = screenParams?.returnTo;
   const battleLiveFromRoute = Boolean(screenParams?.battleLive);
 
+  const passedUserData =
+    screenParams?.userData ||
+    screenParams?.user ||
+    route.params?.userData ||
+    route.params?.user ||
+    null;
+
   const [posts, setPosts] = useState([]);
   const [userDashboard, setUserDashboard] = useState();
-  const [userData, setUserData] = useState();
+  const [userData, setUserData] = useState(passedUserData);
   const [refreshing, setRefreshing] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followsMe, setFollowsMe] = useState(false);
@@ -66,7 +73,9 @@ const Usersprofile = () => {
   const dispatch = useDispatch();
   const purchaseSheetRef = useRef(null);
   const sellSheetRef = useRef(null);
-  const profileThemeType = normalizeProfileType(userData?.profile);
+  const profileThemeType = normalizeProfileType(
+    userData?.profile || screenParams?.profileType || route.params?.profileType || 'user',
+  );
   const { bgStyle, textStyle, accent } = useAppTheme(profileThemeType);
 
   const fetchLoggedInUserId = useCallback(async () => {
@@ -442,7 +451,7 @@ const Usersprofile = () => {
           username={userData?.userName}
           profilepic={userData?.image}
           bio={userData?.bio}
-          profileType={userData?.profile}
+          profileType={userData?.profile || screenParams?.profileType || route.params?.profileType || 'user'}
           dashboard={userDashboard}
           fromUsersProfile={true}
           isFollowing={isFollowing}
@@ -467,7 +476,7 @@ const Usersprofile = () => {
           post={posts}
           displayName={userData?.userName}
           userData={userData ? { ...userData, battleLive: battleLiveFromRoute } : userData}
-          profileType={userData?.profile}
+          profileType={userData?.profile || screenParams?.profileType || route.params?.profileType || 'user'}
           dashboard={userDashboard}
           targetUserId={targetUserId}
           isSubscribed={isSubscribed}
