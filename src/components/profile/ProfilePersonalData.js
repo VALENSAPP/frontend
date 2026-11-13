@@ -162,6 +162,7 @@ const ProfilePersonData = ({
   });
 
   const fetchAllData = useCallback(async () => {
+    if (fromUsersProfile) return;
     try {
       dispatch(showLoader());
       const [profileResponse] = await Promise.all([getUserCredentials(userData?.id)]);
@@ -249,20 +250,21 @@ const ProfilePersonData = ({
   const [activeTab, setActiveTab] = useState('battle');
   const toast = useToast();
   const { startSupportPayment } = useWalletConnectSupport();
-  const effectiveProfileType =
-    userData?.profile ||
-    profileType ||
-    userProfile ||
-    (isBusinessProfile ? 'company' : undefined);
-  const normalizedProfileThemeType = normalizeProfileType(effectiveProfileType);
-  const isCompanyProfile = normalizedProfileThemeType === 'company';
-  const reduxProfile = useSelector(state => state.userProfile.userProfile);
+  const { isDarkMode, activeProfile } = useThemeContext();
+  const reduxProfile = useSelector(state => state.userProfile?.userProfile);
   const [loggedInProfileType, setLoggedInProfileType] = useState(null);
 
   const loadLoggedInProfileType = useCallback(async () => {
+    if (fromUsersProfile) return;
     const type = await AsyncStorage.getItem('profile');
     if (type) setLoggedInProfileType(type);
-  }, []);
+  }, [fromUsersProfile]);
+
+  useEffect(() => {
+    if (!fromUsersProfile) {
+      loadLoggedInProfileType();
+    }
+  }, [fromUsersProfile, loadLoggedInProfileType]);
 
   useFocusEffect(
     useCallback(() => {
@@ -270,21 +272,39 @@ const ProfilePersonData = ({
     }, [loadLoggedInProfileType]),
   );
 
+  const effectiveProfileType = fromUsersProfile
+    ? (userData?.profile || profileType || 'user')
+    : (userData?.profile ||
+       profileType ||
+       (reduxProfile && reduxProfile !== 'normal' ? reduxProfile : undefined) ||
+       activeProfile ||
+       userProfile ||
+       loggedInProfileType ||
+       (isBusinessProfile ? 'company' : undefined));
+
+  const normalizedProfileThemeType = normalizeProfileType(effectiveProfileType);
+
+  const isCompanyProfile = normalizeProfileType(
+    fromUsersProfile
+      ? (userData?.profile || profileType)
+      : effectiveProfileType,
+  ) === 'company';
+
   const isViewerCompanyProfile = useMemo(() => {
+    if (fromUsersProfile) return false;
     const resolved = reduxProfile && reduxProfile !== 'normal'
       ? reduxProfile
-      : loggedInProfileType || (fromUsersProfile ? 'user' : effectiveProfileType);
+      : loggedInProfileType || activeProfile || effectiveProfileType;
     return normalizeProfileType(resolved) === 'company';
-  }, [reduxProfile, loggedInProfileType, fromUsersProfile, effectiveProfileType]);
+  }, [reduxProfile, loggedInProfileType, activeProfile, fromUsersProfile, effectiveProfileType]);
 
   // Theme follows the profile being displayed, not only who's viewing it.
   const profileThemeIsCompany = fromUsersProfile
     ? isCompanyProfile
-    : isCompanyProfile || isBusinessProfile || isViewerCompanyProfile;
+    : isCompanyProfile || isBusinessProfile || isViewerCompanyProfile || (activeProfile === 'company');
   // Always pass an explicit profile type — `undefined` falls back to the logged-in
   // theme (e.g. business gold while viewing a simple profile).
   const uiThemeType = profileThemeIsCompany ? 'company' : 'user';
-  const { isDarkMode } = useThemeContext();
   const { bgStyle, textStyle, text, card, bg, icon, mutedText, accent, border, cardStyle } =
     useAppTheme(uiThemeType);
   const profileActionGradient = profileThemeIsCompany
@@ -786,10 +806,10 @@ const ProfilePersonData = ({
             if (!fromUsersProfile) {
               setData(response.data);
               if (response.data.image) setProfileImage(response.data.image);
+              setIsBusinessProfile(
+                normalizeProfileType(response?.data?.profile) === 'company',
+              );
             }
-            setIsBusinessProfile(
-              normalizeProfileType(response?.data?.profile) === 'company',
-            );
 
             if (!fromUsersProfile && response.data.kyc === true) {
               const hasShownWelcome = await AsyncStorage.getItem(KYC_WELCOME_SHOWN_KEY);
@@ -924,7 +944,8 @@ const ProfilePersonData = ({
 
   const handleServicesPress = useCallback(() => {
     const navParams = {
-      profileType: effectiveProfileType || userProfile || userData?.profile || 'user',
+      profileType: uiThemeType,
+      isBusinessProfile: profileThemeIsCompany,
       isOwnProfile: !fromUsersProfile,
       userData,
     };
@@ -940,7 +961,7 @@ const ProfilePersonData = ({
     } catch (_err) {
       navigation.navigate('ServicesComingSoon', navParams);
     }
-  }, [effectiveProfileType, userProfile, userData, fromUsersProfile, navigation]);
+  }, [uiThemeType, profileThemeIsCompany, userData, fromUsersProfile, navigation]);
 
   const handleInviteBattlePress = useCallback(async () => {
     const storedMe = String((await AsyncStorage.getItem('userId')) || '').trim();
@@ -1568,7 +1589,7 @@ const ProfilePersonData = ({
                       </LinearGradient>
                     </TouchableOpacity>
 
-                    {normalizedProfileThemeType !== 'company' && (
+                    {!profileThemeIsCompany && (
                       <TouchableOpacity onPress={handleToggleTotalSupport}>
                         <LinearGradient
                           colors={profileActionGradient}
@@ -1712,8 +1733,13 @@ const ProfilePersonData = ({
               style={[
                 styles.servicesButton,
                 {
-                  backgroundColor: isDarkMode ? '#241536' : '#FFFFFF',
-                  borderColor: isDarkMode ? '#7C3AED' : '#8B5CF6',
+                  backgroundColor: isDarkMode
+                    ? (profileThemeIsCompany ? '#1E1E1E' : '#241536')
+                    : '#FFFFFF',
+                  borderColor: profileThemeIsCompany
+                    ? accent
+                    : (isDarkMode ? '#7C3AED' : '#8B5CF6'),
+                  shadowColor: profileThemeIsCompany ? accent : '#5B21B6',
                 },
               ]}
               onPress={handleServicesPress}
@@ -1723,13 +1749,21 @@ const ProfilePersonData = ({
                 <Ionicons
                   name="briefcase-outline"
                   size={18}
-                  color={isDarkMode ? '#C4B5FD' : '#5B21B6'}
+                  color={
+                    profileThemeIsCompany
+                      ? accent
+                      : (isDarkMode ? '#C4B5FD' : '#5B21B6')
+                  }
                   style={{ marginRight: 8 }}
                 />
                 <Text
                   style={[
                     styles.servicesBtnText,
-                    { color: isDarkMode ? '#EDE9FE' : '#4C1D95' },
+                    {
+                      color: profileThemeIsCompany
+                        ? accent
+                        : (isDarkMode ? '#EDE9FE' : '#4C1D95'),
+                    },
                   ]}
                 >
                   {t('profilePersonData.services', 'Serviços')}
