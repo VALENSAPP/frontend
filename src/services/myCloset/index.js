@@ -614,3 +614,30 @@ export const declineMarketplaceBattle = async (battleId) => {
 export const getMarketplaceBattleChallengeStatus = async (battleId) => {
   return axiosInstance.get('/marketplace-battles/' + battleId + '/challenge');
 };
+
+/**
+ * Fetch item details (including condition, brand, category, quantity, shipping, and battle winner status)
+ * Endpoint provided by backend: items/:itemId/details (mounted under mycloset/items/:itemId/details)
+ */
+export const getItemDetails = async (itemId) => {
+  if (!itemId) return null;
+  try {
+    const res = await axiosInstance.get(`mycloset/items/${itemId}/details`);
+    console.log('[API] /mycloset/items/' + itemId + '/details response:', JSON.stringify(res, null, 2));
+    return res;
+  } catch (error) {
+    if (error?.response?.status === 404 || error?.statusCode === 404) {
+      try {
+        const fallbackRes = await axiosInstance.get(`items/${itemId}/details`);
+        console.log('[API Fallback] /items/' + itemId + '/details response:', JSON.stringify(fallbackRes, null, 2));
+        return fallbackRes;
+      } catch (fallbackError) {
+        console.log('[API Error] items/' + itemId + '/details failed:', fallbackError?.response?.data || fallbackError?.message);
+        throw fallbackError;
+      }
+    }
+    console.log('[API Error] mycloset/items/' + itemId + '/details failed:', error?.response?.data || error?.message);
+    throw error;
+  }
+};
+

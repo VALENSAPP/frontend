@@ -49,6 +49,7 @@ import {
   getClosetBattlesPriority,
   toggleMyClosetItemLike,
   getBuyerOrderDetail,
+  getItemDetails,
 } from '../../services/myCloset';
 import { getClosetChatThreadsApi } from '../../services/chatMessage';
 import { ensureKycApprovedForPayment } from '../../utils/kycPaymentGuard';
@@ -2231,11 +2232,72 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
     }));
   };
 
+  const [fetchedDetails, setFetchedDetails] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    if (!productId) return;
+    const fetchDetails = async () => {
+      try {
+        setDetailsLoading(true);
+        console.log('[MyCloset] Fetching items/:itemId/details for productId:', productId);
+        const res = await getItemDetails(productId);
+        console.log('[MyCloset] API RESPONSE [items/:itemId/details]:\n', JSON.stringify(res, null, 2));
+        const data = res?.data?.data || res?.data || res;
+        if (active && data && typeof data === 'object') {
+          setFetchedDetails(data);
+        }
+      } catch (err) {
+        console.log('[MyCloset] Error fetching item details:', err?.response?.data || err?.message);
+      } finally {
+        if (active) setDetailsLoading(false);
+      }
+    };
+    fetchDetails();
+    return () => { active = false; };
+  }, [productId]);
+
+  const battleWinner = useMemo(() => {
+    if (route?.params?.battleWinner) return route.params.battleWinner;
+    if (fetchedDetails?.isWinner) {
+      return {
+        isWinner: true,
+        pct: fetchedDetails.winnerPct ?? 50,
+        totalVotes: fetchedDetails.totalVotes ?? null,
+        battleId: fetchedDetails.battleId ?? null,
+        battleTitle: fetchedDetails.battleTitle ?? null,
+      };
+    }
+    return null;
+  }, [route?.params?.battleWinner, fetchedDetails]);
+
+  const displayCondition = fetchedDetails?.condition || item.condition;
+  const displayBrand = fetchedDetails?.brand || item.brand;
+  const displayCategory = fetchedDetails?.category || item.category;
+  const displayQuantity = fetchedDetails?.quantityAvailable ?? item.quantityAvailable;
+  const displayTitle = fetchedDetails?.name || item.name;
+  const displayPrice = fetchedDetails?.price != null ? `$${Number(fetchedDetails.price).toFixed(2)}` : item.price;
+  const displayDescription = fetchedDetails?.description || item.description;
+  const displayImages = (Array.isArray(fetchedDetails?.images) && fetchedDetails.images.length > 0)
+    ? fetchedDetails.images
+    : item.images;
+
+  const currentShippingOption = String(fetchedDetails?.shippingOption || item.shippingOption || 'ship_items').toLowerCase();
+  const currentOffersShipping = currentShippingOption === 'ship_items' || currentShippingOption === 'both' || currentShippingOption.includes('ship');
+  const currentOffersPickup = currentShippingOption === 'local_pick' || currentShippingOption === 'both' || currentShippingOption.includes('pick');
+  const currentShippingFee = fetchedDetails?.shippingFee ?? item.shippingFee;
+  const currentEstimatedShipping = fetchedDetails?.estimatedShippingDays
+    ? `${fetchedDetails.estimatedShippingDays} business days`
+    : item.estimatedShippingTime;
+  const currentPickupAddress = fetchedDetails?.pickupLocation || pickupAddress;
+  const headerDisplayName = resolveStr(fetchedDetails?.closet?.displayName || displayName);
+
   return (
     <SafeAreaView style={[styles.safeArea, bgStyle]}>
       <Header
         navigation={navigation}
-        title={!isOwnProfile ? displayName : t('myClosetBuyer.myClosetTitle')}
+        title={!isOwnProfile ? headerDisplayName : t('myClosetBuyer.myClosetTitle')}
         isFirstScreen={true}
         rightIcon={liked ? 'heart' : 'heart-outline'}
         onRightPress={handleLikePress}
@@ -2268,7 +2330,7 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
         <View style={[styles.detailCard, themedCard(card, border)]}>
           <View style={styles.detailHeaderRow}>
             <DetailImageCarousel
-              images={item.images}
+              images={displayImages}
               accentColor={text}
               onZoomChange={zoomed => setDetailScrollEnabled(!zoomed)}
               imageWidth={Math.round(SCREEN_WIDTH * 0.38)}
@@ -2277,16 +2339,16 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
               overlayIndicators
             />
             <View style={styles.detailHeaderInfo}>
-              <Text style={[styles.detailName, { color: text }]}>{item.name}</Text>
-              <Text style={[styles.detailPrice, { color: accent, marginTop: 4 }]}>{item.price}</Text>
+              <Text style={[styles.detailName, { color: text }]}>{displayTitle}</Text>
+              <Text style={[styles.detailPrice, { color: accent, marginTop: 4 }]}>{displayPrice}</Text>
               <Text style={[styles.sectionLabel, { color: text, marginTop: 12 }]}>{t('myClosetBuyer.description')}</Text>
-              <Text style={[styles.description, { color: mutedText, marginBottom: 10 }]} numberOfLines={2}>{item.description}</Text>
+              <Text style={[styles.description, { color: mutedText, marginBottom: 10 }]} numberOfLines={2}>{displayDescription}</Text>
               <View style={styles.attributeList}>
                 {[
-                  { icon: 'shield-checkmark-outline', label: t('myClosetBuyer.condition'), value: item.condition },
-                  { icon: 'pricetag-outline', label: t('myClosetBuyer.brand'), value: item.brand },
-                  { icon: 'albums-outline', label: t('myClosetBuyer.category'), value: item.category },
-                  { icon: 'cube-outline', label: t('myClosetBuyer.quantity'), value: t('myClosetBuyer.onlyAvailable', { count: item.quantityAvailable }) },
+                  { icon: 'shield-checkmark-outline', label: t('myClosetBuyer.condition'), value: displayCondition },
+                  { icon: 'pricetag-outline', label: t('myClosetBuyer.brand'), value: displayBrand },
+                  { icon: 'albums-outline', label: t('myClosetBuyer.category'), value: displayCategory },
+                  { icon: 'cube-outline', label: t('myClosetBuyer.quantity'), value: t('myClosetBuyer.onlyAvailable', { count: displayQuantity }) },
                 ].map(attr => (
                   <View key={attr.label} style={styles.attributeRow}>
                     <View style={styles.attributeLeftGroup}>
@@ -2303,7 +2365,7 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
           </View>
         </View>
         {/* <View style={styles.detailBannerSpacer} /> */}
-        {(offersShipping || offersPickup) ? (
+        {(currentOffersShipping || currentOffersPickup) ? (
           <View style={[styles.fulfilmentCard, themedCard(card, border)]}>
             <View style={styles.fulfilmentHeader}>
               <View style={[styles.fulfilmentIcon, { backgroundColor: withAlphaFlow(accent, 0.12) }]}>
@@ -2312,9 +2374,9 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
               <View style={styles.fulfilmentHeaderCopy}>
                 <Text style={[styles.fulfilmentTitle, { color: text }]}>{t('myClosetBuyer.shippingMethod')}</Text>
                 <Text style={[styles.fulfilmentSubtitle, { color: mutedText }]}>
-                  {offersShipping && offersPickup
+                  {currentOffersShipping && currentOffersPickup
                     ? t('myClosetBuyer.shippingAndPickupHelper')
-                    : offersShipping
+                    : currentOffersShipping
                       ? t('myClosetBuyer.shippingOnlyHelper')
                       : t('myClosetBuyer.pickupOnlyHelper')}
                 </Text>
@@ -2322,24 +2384,26 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
             </View>
 
             <View style={[styles.fulfilmentOptions, { borderColor: border }]}>
-              {offersShipping ? (
-                <View style={[styles.fulfilmentOption, offersPickup && { borderBottomWidth: 1, borderBottomColor: border }]}>
+              {currentOffersShipping ? (
+                <View style={[styles.fulfilmentOption, currentOffersPickup && { borderBottomWidth: 1, borderBottomColor: border }]}>
                   <View style={[styles.fulfilmentIconSmall, { backgroundColor: withAlphaFlow(accent, 0.1) }]}>
                     <Ionicons name="car-outline" size={20} color={accent} />
                   </View>
                   <View style={styles.fulfilmentOptionCopy}>
                     <Text style={[styles.fulfilmentOptionTitle, { color: text }]}>{t('myClosetBuyer.shipItemsTitle')}</Text>
-                    <Text style={[styles.fulfilmentOptionSubtitle, { color: mutedText }]}>{t('myClosetBuyer.shipItemsHelper')}</Text>
-                    {(item.shippingFee != null || item.estimatedShippingTime) ? (
+                    <Text style={[styles.fulfilmentOptionSubtitle, { color: mutedText }]}>
+                      {fetchedDetails?.shippingDescription || t('myClosetBuyer.shipItemsHelper')}
+                    </Text>
+                    {(currentShippingFee != null || currentEstimatedShipping) ? (
                       <View style={styles.fulfilmentMeta}>
-                        {item.shippingFee != null ? (
+                        {currentShippingFee != null ? (
                           <Text style={[styles.fulfilmentMetaText, { color: text }]}>
-                            {t('myClosetBuyer.shippingFee')}: {currency(item.shippingFee)}
+                            {t('myClosetBuyer.shippingFee')}: {currency(currentShippingFee)}
                           </Text>
                         ) : null}
-                        {item.estimatedShippingTime ? (
+                        {currentEstimatedShipping ? (
                           <Text style={[styles.fulfilmentMetaText, { color: text }]}>
-                            {t('myClosetBuyer.estimatedDelivery')}: {formatEstimatedShippingTime(item.estimatedShippingTime)}
+                            {t('myClosetBuyer.estimatedDelivery')}: {formatEstimatedShippingTime(currentEstimatedShipping)}
                           </Text>
                         ) : null}
                       </View>
@@ -2348,7 +2412,7 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
                 </View>
               ) : null}
 
-              {offersPickup ? (
+              {currentOffersPickup ? (
                 <TouchableOpacity activeOpacity={0.7} onPress={openLocationInMaps} style={styles.fulfilmentOption}>
                   <View style={[styles.fulfilmentIconSmall, { backgroundColor: withAlphaFlow(accent, 0.1) }]}>
                     <Ionicons name="location-outline" size={21} color={accent} />
@@ -2356,7 +2420,7 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
                   <View style={styles.fulfilmentOptionCopy}>
                     <Text style={[styles.fulfilmentOptionTitle, { color: text }]}>{t('myClosetBuyer.pickupLocationTitle')}</Text>
                     <Text style={[styles.fulfilmentOptionSubtitle, { color: mutedText }]}>{t('myClosetBuyer.pickupLocationHelper')}</Text>
-                    {pickupAddress ? <Text style={[styles.pickupAddressDetail, { color: text }]}>{pickupAddress}</Text> : null}
+                    {currentPickupAddress ? <Text style={[styles.pickupAddressDetail, { color: text }]}>{currentPickupAddress}</Text> : null}
                   </View>
                 </TouchableOpacity>
               ) : null}
@@ -2364,7 +2428,7 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
           </View>
         ) : null}
 
-        {offersPickup && item.pickupAvailableHours ? (
+        {currentOffersPickup && item.pickupAvailableHours ? (
           <View style={[styles.pickupTimeCard, themedCard(card, border)]}>
             <View style={[styles.fulfilmentIcon, { backgroundColor: withAlphaFlow(accent, 0.12) }]}>
               <Ionicons name="time-outline" size={23} color={accent} />
@@ -2376,7 +2440,7 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
             </View>
           </View>
         ) : null}
-        {route?.params?.battleWinner ? (
+        {battleWinner ? (
           <>
             <LinearGradient
               colors={accent?.toLowerCase() === '#c9a15a' ? ['#A16207', '#854D0E', '#422006'] : ['#6B21A8', '#581C87', '#3B0764']}
@@ -2400,8 +2464,8 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
                 {t('myClosetBuyer.battleWinnerBannerTitle') || 'WOW, this is a winner! 🏆'}
               </Text>
               <Text style={styles.winnerBannerSubline}>
-                {t('myClosetBuyer.battleWinnerBannerSub', { pct: route.params.battleWinner.pct }) ||
-                  `This item won the battle with ${route.params.battleWinner.pct}% of the votes.`}
+                {t('myClosetBuyer.battleWinnerBannerSub', { pct: battleWinner.pct }) ||
+                  `This item won the battle with ${battleWinner.pct}% of the votes.`}
               </Text>
             </LinearGradient>
 
@@ -2434,7 +2498,7 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
                 </View>
               </View>
 
-              {route.params.battleWinner.totalVotes ? (
+              {battleWinner.totalVotes ? (
                 <View style={styles.battleDetailRow}>
                   <View style={[styles.battleRowIconWrap, { backgroundColor: withAlphaFlow(accent, 0.08) }]}>
                     <Ionicons name="people-outline" size={14} color={accent} />
@@ -2443,7 +2507,7 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
                     {t('myClosetBuyer.totalVotesLabel') || 'Total Votes'}
                   </Text>
                   <Text style={[styles.battleDetailValue, { color: text }]}>
-                    {Number(route.params.battleWinner.totalVotes).toLocaleString()}
+                    {Number(battleWinner.totalVotes).toLocaleString()}
                   </Text>
                 </View>
               ) : null}
@@ -2462,13 +2526,13 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
                         styles.miniProgressFill,
                         {
                           backgroundColor: accent,
-                          width: `${Math.min(Math.max(Number(route.params.battleWinner.pct) || 50, 10), 100)}%`,
+                          width: `${Math.min(Math.max(Number(battleWinner.pct) || 50, 10), 100)}%`,
                         },
                       ]}
                     />
                   </View>
                   <Text style={[styles.percentageBadgeText, { color: accent }]}>
-                    {route.params.battleWinner.pct}%
+                    {battleWinner.pct}%
                   </Text>
                 </View>
               </View>
@@ -5503,7 +5567,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   sectionLabel: { fontSize: 14, fontWeight: '800', marginBottom: 6 },
-  description: { fontSize: 13, lineHeight: 18, marginBottom: 14 },
+  description: { fontSize: 10, lineHeight: 18, marginBottom: 14 },
   attributeList: { gap: 6 },
   attributeRow: {
     flexDirection: 'row',
