@@ -351,19 +351,20 @@ export default function ChatMessages() {
 
   // ✅ Request chat box when user ID is available, socket is ready, or active tab changes
   useEffect(() => {
-    if (currentUserId && socketReady) {
-      const socket = getSocket();
-      if (socket?.connected) {
-        if (activeTab === CHAT_TABS.CLOSET) {
-          setIsClosetLoading(true);
-          getClosetChatThreads(currentUserId);
-          fetchClosetConversations();
-        } else {
+    if (currentUserId) {
+      if (activeTab === CHAT_TABS.CLOSET) {
+        setIsClosetLoading(true);
+        if (socketReady) getClosetChatThreads(currentUserId);
+        fetchClosetConversations();
+      } else {
+        const socket = getSocket();
+        if (socket?.connected) {
           socket.emit('getUserChatBox', { userId: currentUserId });
         }
+        fetchConversations();
       }
     }
-  }, [currentUserId, socketReady, activeTab, fetchClosetConversations]);
+  }, [currentUserId, socketReady, activeTab, fetchClosetConversations, fetchConversations]);
 
   // ✅ Handle shared content from ShareModal
   useEffect(() => {
@@ -549,14 +550,25 @@ export default function ChatMessages() {
       conversationsData = data.data;
     }
 
-    
     const processedConversations = processConversationsData(conversationsData);
     
-    setConversations(processedConversations);
-    setDataSource('socket');
+    // Only update if socket returned valid conversations.
+    // NEVER overwrite with empty list to prevent wiping API-loaded conversations (e.g. renewal chats)
+    if (processedConversations.length > 0) {
+      setConversations(prev => {
+        if (!prev || prev.length === 0) return processedConversations;
+        const map = new Map();
+        prev.forEach(c => map.set(String(c.userId || c.id || c.chatId), c));
+        processedConversations.forEach(c => map.set(String(c.userId || c.id || c.chatId), c));
+        return Array.from(map.values()).sort(
+          (a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0)
+        );
+      });
+      setDataSource('socket');
+    }
     setIsLoading(false);
     setError(null);
-  }, [currentUserId]);
+  }, [currentUserId, processConversationsData]);
 
   useSocket('messageSeen', (payload) => {
     if (!payload?.messageId) return;
@@ -725,24 +737,27 @@ export default function ChatMessages() {
 
   // ✅ Pull-to-refresh handler
   const onRefresh = useCallback(async () => {
-    if (!currentUserId || !socketReady) return;
+    if (!currentUserId) return;
     
     setRefreshing(true);
     
-    const socket = getSocket();
-    if (socket?.connected) {
+    try {
       if (activeTab === CHAT_TABS.CLOSET) {
-        getClosetChatThreads(currentUserId);
-        fetchClosetConversations();
+        if (socketReady) getClosetChatThreads(currentUserId);
+        await fetchClosetConversations();
       } else {
-        socket.emit('getUserChatBox', { userId: currentUserId });
+        const socket = getSocket();
+        if (socket?.connected) {
+          socket.emit('getUserChatBox', { userId: currentUserId });
+        }
+        await fetchConversations();
       }
-    }
-    
-    setTimeout(() => {
+    } catch (e) {
+      console.error('Error refreshing conversations:', e);
+    } finally {
       setRefreshing(false);
-    }, 500);
-  }, [currentUserId, socketReady, activeTab, fetchClosetConversations]);
+    }
+  }, [currentUserId, socketReady, activeTab, fetchClosetConversations, fetchConversations]);
 
   const formatTimestamp = useCallback((timestamp) => {
     const now = new Date();
@@ -820,8 +835,11 @@ export default function ChatMessages() {
 
         message = item;
 
-        const isCurrentUserSender = message.sender.id === currentUserId;
-        const chatPartner = isCurrentUserSender ? message.receiver : message.sender;
+        const isCurrentUserSender = String(message.sender?.id || message.senderId || '') === String(currentUserId || '');
+        const chatPartner = isCurrentUserSender ? (message.receiver || message.sender) : (message.sender || message.receiver);
+        if (!chatPartner?.id) {
+          return;
+        }
         const partnerId = chatPartner.id;
 
         // Prefer a stable server-provided conversation id when present.
@@ -834,7 +852,7 @@ export default function ChatMessages() {
             '',
         ).trim();
 
-        const generatedChatId = [currentUserId, partnerId].sort().join('_');
+        const generatedChatId = [currentUserId, partnerId].filter(Boolean).sort().join('_');
         chatId = serverChatId || generatedChatId;
 
         if (chatId && hiddenChatIdsRef.current.has(String(chatId).trim())) {
@@ -862,8 +880,8 @@ export default function ChatMessages() {
       }
 
       const unreadCount = conversation?.unreadCount || 0;
-      const isCurrentUserSender = (message.senderId || message.sender?.id) === currentUserId;
-      const chatPartner = conversation.user || (isCurrentUserSender ? message.receiver : message.sender);
+      const isCurrentUserSender = String(message.senderId || message.sender?.id || '') === String(currentUserId || '');
+      const chatPartner = conversation.user || (isCurrentUserSender ? (message.receiver || message.sender) : (message.sender || message.receiver));
 
       if (!chatPartner?.id) {
         return;
@@ -878,8 +896,8 @@ export default function ChatMessages() {
         previewMessage = isCurrentUserSender
           ? t('chatMessages.youSharedMedia')
           : t('chatMessages.sharedMedia');
-      } else if (message.type === "CHAT") {
-        const content = message.content || "";
+      } else if (message.type === "CHAT" || message.content) {
+        const content = message.content || message.message || "";
         previewMessage = isCurrentUserSender
           ? `${t('chatMessages.you')}: ${content}`
           : content;
@@ -895,6 +913,11 @@ export default function ChatMessages() {
         previewMessage = isCurrentUserSender
           ? t('chatMessages.youSharedStory')
           : t('chatMessages.sharedStory');
+      } else {
+        const content = message.content || message.message || "";
+        previewMessage = isCurrentUserSender
+          ? `${t('chatMessages.you')}: ${content}`
+          : content;
       }
 
       if (
@@ -939,13 +962,9 @@ export default function ChatMessages() {
     return result;
   }, [currentUserId, t, formatTimestamp]);
 
-  // ✅ Fetch conversations via API (only as fallback if socket data not received)
+  // ✅ Fetch conversations via API
   const fetchConversations = useCallback(async () => {
     if (!currentUserId) return;
-
-    if (dataSource === 'socket') {
-      return;
-    }
 
     try {
       // Avoid flashing loader when list is already visible.
@@ -953,13 +972,21 @@ export default function ChatMessages() {
 
       const response = await getAllConversations();
 
-      if (response.success && response.data) {
+      if (response?.success && response?.data) {
         const processedConversations = processConversationsData(response.data);
-        setConversations(processedConversations);
+        setConversations(prev => {
+          if (!prev || prev.length === 0) return processedConversations;
+          const map = new Map();
+          prev.forEach(c => map.set(String(c.userId || c.id || c.chatId), c));
+          processedConversations.forEach(c => map.set(String(c.userId || c.id || c.chatId), c));
+          return Array.from(map.values()).sort(
+            (a, b) => new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0)
+          );
+        });
         setDataSource('api');
         setError(null);
       } else {
-        setError(response.message || t('chatMessages.failedToLoad'));
+        setError(response?.message || t('chatMessages.failedToLoad'));
       }
     } catch (error) {
       console.error('❌ Error fetching conversations:', error);
@@ -967,7 +994,7 @@ export default function ChatMessages() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUserId, dataSource, conversations.length, t, processConversationsData]);
+  }, [currentUserId, conversations.length, t, processConversationsData]);
 
   const handleUserChat = async (item) => {
     if (activeTab === CHAT_TABS.CLOSET) {
@@ -1413,7 +1440,7 @@ export default function ChatMessages() {
     : messagesTabConversations;
 
   const filteredConversations = activeConversations.filter(c =>
-    c.username.toLowerCase().includes(search.toLowerCase())
+    (c.username || c.displayName || '').toLowerCase().includes(search.toLowerCase())
   );
 
   const liveMessagesUnread = conversations.reduce((acc, conversation) => {

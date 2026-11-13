@@ -176,7 +176,7 @@ export default function ManageServicesView({
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* Quick Metrics Bar */}
           <LinearGradient
-            colors={isDarkMode ? ['#2D1B4E', '#1F1335'] : ['#F4ECFF', '#EBE0FF']}
+            colors={isDarkMode ? (colors.isBusiness ? ['#33291B', '#241E16'] : ['#2D1B4E', '#1F1335']) : (colors.isBusiness ? ['#FAF1E2', '#F5ECE0'] : ['#F4ECFF', '#EBE0FF'])}
             style={[styles.metricsCard, { borderColor: colors.cardBorder }]}
           >
             <View style={styles.metricItem}>
@@ -510,7 +510,7 @@ export default function ManageServicesView({
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* Buyer Notification Banner */}
           {showNotificationBanner && (
-            <View style={[styles.buyerNotifBanner, { backgroundColor: isDarkMode ? '#281745' : '#F5EEFF', borderColor: colors.accent }]}>
+            <View style={[styles.buyerNotifBanner, { backgroundColor: isDarkMode ? (colors.isBusiness ? '#33291B' : '#281745') : (colors.isBusiness ? '#FAF1E2' : '#F5EEFF'), borderColor: colors.accent }]}>
               <View style={styles.notifIconWrap}>
                 <Ionicons name="notifications" size={20} color={colors.accent} />
               </View>
@@ -795,7 +795,7 @@ export default function ManageServicesView({
 
             <View style={styles.qrCenter}>
               <View style={[styles.qrBox, { backgroundColor: '#FFFFFF', borderColor: colors.cardBorder }]}>
-                <Ionicons name="qr-code" size={180} color="#1F1335" />
+                <Ionicons name="qr-code" size={180} color={colors.isBusiness ? '#3D2E10' : '#1F1335'} />
               </View>
               <Text style={[styles.qrCodeLabel, { color: colors.title }]}>
                 {selectedItem?.ticketCode || 'VAL-PASS-2024'}
