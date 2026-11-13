@@ -4064,7 +4064,19 @@
     "deleteWarning": "Esta acción no se puede deshacer.",
     "cancel": "Cancelar",
     "delete": "Eliminar",
-    "deleting": "Eliminando..."
+    "deleting": "Eliminando...",
+    "readAll": "Marcar todo como leído",
+    "select": "Seleccionar",
+    "selectAll": "Seleccionar todo",
+    "deselectAll": "Deseleccionar",
+    "markRead": "Marcar leído",
+    "done": "Listo",
+    "selected": "Seleccionado(s)",
+    "selectMessages": "Seleccionar mensajes",
+    "allMarkedRead": "Todos los mensajes marcados como leídos",
+    "selectedMarkedRead": "Mensajes seleccionados marcados como leídos",
+    "multipleDeleteSuccess": "{{count}} conversación(es) eliminada(s)",
+    "deleteMultipleConfirm": "¿Seguro que deseas eliminar {{count}} conversación(es)?"
   },
   "drawerNav": {
     "walletPanel": "Panel de Billetera",
@@ -5897,5 +5909,13 @@
     "shareService": "Compartir Servicio",
     "bookingNotice": "Te avisaremos cuando alguien reserve una sesión.",
     "continue": "Continuar"
+  },
+  "manageServices": {
+    "tabTitle": "Gestionar Servicios",
+    "meAsProfessional": "Yo como Profesional",
+    "meAsClient": "Yo como Cliente",
+    "servicesProductList": "Lista de Productos de Servicios",
+    "clientOrders": "Pedidos de Clientes",
+    "servicesOrders": "Pedidos de Servicios"
   }
 }

@@ -823,7 +823,7 @@ const SubventionSetupScreen = () => {
             case 'reels': navigateToCreate({ postType: 'private', type: 'Flips', fromSubscription: true, returnTo: { tab: 'wallet', screen: 'SubscriptionSetup' } }); break;
             case 'videos': navigateToCreate({ postType: 'private', type: 'video', fromSubscription: true, returnTo: { tab: 'wallet', screen: 'SubscriptionSetup' } }); break;
             case 'ebook': navigation.push('EbookPublisher', { type: 'private', format: 'ebook' }); break;
-            case 'stories': handleAddStory(); break;
+            case 'stories': openGallery(); break;
             default: break;
         }
     };

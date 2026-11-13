@@ -5,14 +5,16 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   TextInput,
   Dimensions,
   ScrollView,
   Alert,
   RefreshControl,
-  Modal
+  Modal,
+  BackHandler,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import { getAllConversations, sendMessage as sendMessageAPI, getClosetChatThreadsApi, getCachedMessagesUnread, setCachedMessagesUnread, sumConversationUnread } from '../../../services/chatMessage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,7 +25,7 @@ import useSocket from '../../../hooks/useSocket';
 import { number } from 'yup';
 import { useToast } from 'react-native-toast-notifications';
 import { showToastMessage } from '../../../components/displaytoastmessage';
-import { getHideChatConversation, chatStatusUpdate, sharePost } from '../../../services/post';
+import { deleteConversationApi, chatStatusUpdate, sharePost } from '../../../services/post';
 import HexAvatar from '../../../components/home/story.js/HexAvatar';
 import { useLanguage } from '../../../i18n';
 import { appendTrustPostShareFields } from '../../../utils/trustPost';
@@ -42,6 +44,18 @@ const FallbackIcon = ({ name, size = 24, color = '#000', style }) => {
         return '🔍';
       case 'trash-outline':
         return '🗑️';
+      case 'checkmark-done':
+      case 'checkmark-done-outline':
+        return '✓✓';
+      case 'checkmark-circle':
+        return '✓';
+      case 'checkmark-circle-outline':
+      case 'ellipse-outline':
+        return '○';
+      case 'checkbox-outline':
+        return '☐';
+      case 'ellipsis-horizontal':
+        return '•••';
       case 'close':
         return '✕';
       default:
@@ -108,6 +122,15 @@ export default function ChatMessages() {
   const { t } = useLanguage();
   const [isScreenFocused, setIsScreenFocused] = useState(true);
   const [profileType, setProfileType] = useState('');
+
+  const insets = useSafeAreaInsets();
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [moreMenuVisible, setMoreMenuVisible] = useState(false);
+  const [menuAnchorY, setMenuAnchorY] = useState(200);
+  const moreBtnRef = useRef(null);
+  const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false);
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -195,6 +218,12 @@ export default function ChatMessages() {
   const hiddenChatIdsRef = useRef(new Set());
 
   const handleBackPress = useCallback(() => {
+    if (isSelectionMode) {
+      setIsSelectionMode(false);
+      setSelectedIds(new Set());
+      return;
+    }
+
     const { returnTo, returnParams, returnToTab } = route?.params || {};
 
     if (returnTo) {
@@ -226,7 +255,20 @@ export default function ChatMessages() {
     }
 
     navigation.getParent?.()?.navigate?.('HomeMain');
-  }, [navigation, route?.params]);
+  }, [navigation, route?.params, isSelectionMode]);
+
+  useEffect(() => {
+    const onBackPress = () => {
+      if (isSelectionMode) {
+        setIsSelectionMode(false);
+        setSelectedIds(new Set());
+        return true;
+      }
+      return false;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [isSelectionMode]);
 
   // ✅ Get current user ID and initialize socket on mount
   useEffect(() => {
@@ -864,6 +906,8 @@ export default function ChatMessages() {
           id: partnerId,
           userId: partnerId,
           chatId: chatId,
+          conversationId: item?.conversationId || item?.chatId || (chatId !== partnerId ? chatId : (item?.id || chatId)),
+          conversationType: 'NORMAL',
           lastMessageId: message.id,
           username: chatPartner.displayName || chatPartner.username || t('chatMessages.unknownUser'),
           displayName: chatPartner.displayName,
@@ -968,8 +1012,15 @@ export default function ChatMessages() {
   };
 
   const handleDeleteConversation = async () => {
+    if (!selectedConversation) {
+      setShowDeleteModal(false);
+      return;
+    }
 
-    if (!selectedConversation || !selectedConversation.chatId) {
+    const convId = selectedConversation.conversationId || selectedConversation.chatId || selectedConversation.threadId || selectedConversation.id;
+
+    if (!convId) {
+      console.warn('⚠️ [ChatMessages:handleDeleteConversation] Unable to delete: missing ID', selectedConversation);
       showToastMessage(toast, 'error', t('chatMessages.unableToDelete'), 2000);
       setShowDeleteModal(false);
       return;
@@ -978,43 +1029,76 @@ export default function ChatMessages() {
     setIsDeleting(true);
 
     try {
-      const response = await getHideChatConversation(selectedConversation.chatId);
+      const convType = selectedConversation.isClosetChat || selectedConversation.conversationType === 'CLOSET'
+        ? 'CLOSET'
+        : 'NORMAL';
 
+      console.log('🗑️ [ChatMessages:handleDeleteConversation] Requesting delete:', { convId, convType });
+      const response = await deleteConversationApi(convId, convType);
+      console.log('📥 [ChatMessages:handleDeleteConversation] Response:', response);
 
-      if (response.success) {
-        // Store both conversation id and partner id as hidden keys, since the
-        // server can return different shapes (conversation vs message list).
+      const isSuccess = Boolean(
+        response && (
+          response.success === true ||
+          response.statusCode === 200 ||
+          response.status === 200 ||
+          response.data?.success === true
+        )
+      );
+
+      if (isSuccess) {
         if (selectedConversation.chatId != null) {
           hiddenChatIdsRef.current.add(String(selectedConversation.chatId).trim());
         }
         if (selectedConversation.id != null) {
           hiddenChatIdsRef.current.add(String(selectedConversation.id).trim());
         }
+        if (selectedConversation.threadId != null) {
+          hiddenChatIdsRef.current.add(String(selectedConversation.threadId).trim());
+        }
+        if (selectedConversation.conversationId != null) {
+          hiddenChatIdsRef.current.add(String(selectedConversation.conversationId).trim());
+        }
 
-        setConversations(prev =>
-          prev.filter(conv => conv.chatId !== selectedConversation.chatId)
-        );
+        if (convType === 'CLOSET') {
+          setClosetThreads(prev =>
+            prev.filter(thr => {
+              const id = String(thr.threadId || thr.id);
+              return id !== String(convId) && id !== String(selectedConversation.id);
+            })
+          );
+        } else {
+          setConversations(prev =>
+            prev.filter(conv => {
+              const id = String(conv.chatId || conv.id || conv.conversationId);
+              return id !== String(convId) && id !== String(selectedConversation.id);
+            })
+          );
+        }
 
+        const successMsg = response?.data?.message || response?.message || t('chatMessages.deleteSuccess');
         showToastMessage(
           toast,
           'success',
-          t('chatMessages.deleteSuccess'),
+          successMsg,
           2000
         );
       } else {
+        const errorMsg = response?.data?.message || response?.message || t('chatMessages.deleteFailed');
         showToastMessage(
           toast,
           'error',
-          response.message || t('chatMessages.deleteFailed'),
+          errorMsg,
           2000
         );
       }
     } catch (error) {
       console.error('❌ Error deleting conversation:', error);
+      const errorMsg = error?.response?.data?.message || error?.message || t('chatMessages.deleteFailed');
       showToastMessage(
         toast,
         'error',
-        t('chatMessages.deleteFailed'),
+        errorMsg,
         2000
       );
     } finally {
@@ -1029,68 +1113,262 @@ export default function ChatMessages() {
     setSelectedConversation(null);
   };
 
-  const renderChatItem = ({ item }) => (
-    <TouchableOpacity
-      style={[styles.chatItem, cardStyle, { shadowColor: text, borderColor: border, borderWidth: StyleSheet.hairlineWidth }]}
-      onPress={() => handleUserChat(item)}
-      onLongPress={() => handleLongPress(item)}
-      delayLongPress={500}
-    >
-      <View style={styles.avatarContainer}>
-        <View style={styles.storyNoRing}>
-          <HexAvatar
-            uri={item.avatar || ONLINE_PLACEHOLDER}
-            size={48}
-            borderWidth={2}
-            borderColor={icon}
-          />
-          {item.isOnline && <View style={[styles.onlineDot, { borderColor: card }]} />}
-        </View>
-      </View>
-      <View style={styles.chatContent}>
-        <View style={styles.chatHeader}>
-          <Text style={[styles.username, item.unreadCount > 0 && styles.unreadMessage, textStyle]}>{item.username}</Text>
-          <Text style={[styles.timestamp, { color: mutedText }]}>{item.timestamp}</Text>
-        </View>
-      <View style={styles.messageRow}>
-        {item.lastMessage ? (
-          <Text
-            style={[
-              styles.lastMessage,
-              { color: item.unreadCount > 0 ? text : mutedText },
-              item.unreadCount > 0 && { fontWeight: '700' },
-            ]}
-            numberOfLines={1}
-          >
-            {item.lastMessage}
-          </Text>
-        ) : (
-          <Text
-            style={[styles.lastMessage, { color: mutedText }, item.unreadCount > 0 && { fontWeight: '600' }]}
-            numberOfLines={1}
-          >
-            {t('chatMessages.startConversation')}
-          </Text>
-        )}
+  const toggleSelectItem = (id) => {
+    if (!id) return;
+    const strId = String(id);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(strId)) {
+        next.delete(strId);
+      } else {
+        next.add(strId);
+      }
+      return next;
+    });
+  };
 
-        {item.sentByMe && (
-          <SafeIcon
-            name="checkmark-done"
-            size={16}
-            color={item.lastMessageIsSeen ? accent : mutedText}
-            style={styles.readReceiptIcon}
-          />
-        )}
+  const handleToggleSelectAll = () => {
+    const visibleIds = filteredConversations.map(c => String(c.id || c.chatId || c.threadId)).filter(Boolean);
+    const isAllSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(visibleIds));
+    }
+  };
 
-        {item.unreadCount > 0 && (
-          <View style={[styles.unreadBadge, { backgroundColor: accent }]}>
-            <Text style={styles.unreadBadgeText}>{item.unreadCount}</Text>
+  const handleExitSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleOpenMenu = () => {
+    if (filteredConversations.length === 0) {
+      showToastMessage(toast, 'info', t('chatMessages.noConversationsFound') || 'No conversations', 2000);
+      return;
+    }
+    moreBtnRef.current?.measureInWindow?.((x, y, width, height) => {
+      if (y && height) {
+        setMenuAnchorY(y + height + 6);
+      }
+      setMoreMenuVisible(true);
+    });
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) {
+      setShowBatchDeleteModal(false);
+      return;
+    }
+    setIsBatchDeleting(true);
+    try {
+      const toDeleteList = filteredConversations.filter(c => {
+        const id = String(c.id || c.chatId || c.threadId);
+        return (
+          selectedIds.has(id) ||
+          (c.chatId && selectedIds.has(String(c.chatId))) ||
+          (c.threadId && selectedIds.has(String(c.threadId))) ||
+          (c.conversationId && selectedIds.has(String(c.conversationId)))
+        );
+      });
+
+      console.log('🗑️ [ChatMessages:handleBatchDelete] Starting batch delete for', toDeleteList.length, 'conversations:', {
+        selectedIds: Array.from(selectedIds),
+        items: toDeleteList.map(item => ({
+          id: item.id,
+          chatId: item.chatId,
+          threadId: item.threadId,
+          conversationId: item.conversationId,
+          isClosetChat: item.isClosetChat,
+        }))
+      });
+
+      const results = await Promise.allSettled(
+        toDeleteList.map(async (item) => {
+          const convId = item.conversationId || item.chatId || item.threadId || item.id;
+          const convType = item.isClosetChat || item.conversationType === 'CLOSET' ? 'CLOSET' : 'NORMAL';
+          if (convId) {
+            hiddenChatIdsRef.current.add(String(convId).trim());
+            if (item.chatId) hiddenChatIdsRef.current.add(String(item.chatId).trim());
+            if (item.id) hiddenChatIdsRef.current.add(String(item.id).trim());
+            if (item.threadId) hiddenChatIdsRef.current.add(String(item.threadId).trim());
+            console.log(`🚀 [ChatMessages:handleBatchDelete] Calling delete API for ${convId} (${convType})`);
+            const res = await deleteConversationApi(convId, convType);
+            console.log(`✅ [ChatMessages:handleBatchDelete] API Response for ${convId}:`, res);
+            return res;
+          }
+          return null;
+        })
+      );
+
+      console.log('📊 [ChatMessages:handleBatchDelete] All settled results:', results);
+
+      const successfulResults = results.filter(
+        r => r.status === 'fulfilled' && r.value && (
+          r.value.success === true ||
+          r.value.statusCode === 200 ||
+          r.value.status === 200 ||
+          r.value.data?.success === true
+        )
+      );
+
+      if (successfulResults.length > 0) {
+        if (activeTab === CHAT_TABS.CLOSET) {
+          setClosetThreads(prev => prev.filter(thr => {
+            const id = String(thr.threadId || thr.id);
+            return !selectedIds.has(id);
+          }));
+        } else {
+          setConversations(prev => prev.filter(c => {
+            const id = String(c.id || c.chatId || c.conversationId);
+            return !selectedIds.has(id) && !(c.chatId && selectedIds.has(String(c.chatId)));
+          }));
+        }
+
+        const firstApiMsg = successfulResults[0]?.value?.data?.message || successfulResults[0]?.value?.message;
+        const successMsg = toDeleteList.length === 1 && firstApiMsg
+          ? firstApiMsg
+          : (t('chatMessages.multipleDeleteSuccess', { count: successfulResults.length }) || `${successfulResults.length} conversation(s) deleted`);
+
+        showToastMessage(
+          toast,
+          'success',
+          successMsg,
+          2000
+        );
+      } else {
+        const rejectedReason = results.find(r => r.status === 'rejected')?.reason;
+        const failedResult = results.find(r => r.status === 'fulfilled')?.value;
+        const errorMsg =
+          rejectedReason?.response?.data?.message ||
+          rejectedReason?.message ||
+          failedResult?.data?.message ||
+          failedResult?.message ||
+          t('chatMessages.deleteFailed') ||
+          'Failed to delete conversations';
+
+        showToastMessage(toast, 'error', errorMsg, 2000);
+      }
+    } catch (err) {
+      console.error('Error batch deleting conversations:', err);
+      const errorMsg = err?.response?.data?.message || err?.message || t('chatMessages.deleteFailed') || 'Failed to delete conversations';
+      showToastMessage(toast, 'error', errorMsg, 2000);
+    } finally {
+      setIsBatchDeleting(false);
+      setShowBatchDeleteModal(false);
+      handleExitSelectionMode();
+    }
+  };
+
+  const handleTabChange = (newTab) => {
+    if (activeTab !== newTab) {
+      if (isSelectionMode) {
+        setIsSelectionMode(false);
+        setSelectedIds(new Set());
+      }
+      setMoreMenuVisible(false);
+      setActiveTab(newTab);
+    }
+  };
+
+  const renderChatItem = ({ item }) => {
+    const itemId = String(item.id || item.chatId || item.threadId);
+    const isSelected = selectedIds.has(itemId) || (item.chatId && selectedIds.has(String(item.chatId))) || (item.threadId && selectedIds.has(String(item.threadId)));
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.chatItem,
+          cardStyle,
+          {
+            shadowColor: text,
+            borderColor: isSelected ? accent : border,
+            borderWidth: isSelected ? 1.5 : StyleSheet.hairlineWidth,
+            backgroundColor: isSelected ? (card ? `${accent}14` : '#f6f0ff') : (cardStyle?.backgroundColor || '#fff'),
+          }
+        ]}
+        onPress={() => {
+          if (isSelectionMode) {
+            toggleSelectItem(itemId);
+            return;
+          }
+          handleUserChat(item);
+        }}
+        onLongPress={() => {
+          if (isSelectionMode) {
+            toggleSelectItem(itemId);
+          } else {
+            handleLongPress(item);
+          }
+        }}
+        delayLongPress={400}
+        activeOpacity={0.7}
+      >
+        {isSelectionMode && (
+          <View style={styles.selectionCheckboxWrapper}>
+            <SafeIcon
+              name={isSelected ? "checkmark-circle" : "ellipse-outline"}
+              size={22}
+              color={isSelected ? accent : mutedText}
+            />
           </View>
         )}
-      </View>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.avatarContainer}>
+          <View style={styles.storyNoRing}>
+            <HexAvatar
+              uri={item.avatar || ONLINE_PLACEHOLDER}
+              size={48}
+              borderWidth={2}
+              borderColor={icon}
+            />
+            {item.isOnline && <View style={[styles.onlineDot, { borderColor: card }]} />}
+          </View>
+        </View>
+        <View style={styles.chatContent}>
+          <View style={styles.chatHeader}>
+            <Text style={[styles.username, item.unreadCount > 0 && styles.unreadMessage, textStyle]}>{item.username}</Text>
+            <Text style={[styles.timestamp, { color: mutedText }]}>{item.timestamp}</Text>
+          </View>
+          <View style={styles.messageRow}>
+            {item.lastMessage ? (
+              <Text
+                style={[
+                  styles.lastMessage,
+                  { color: item.unreadCount > 0 ? text : mutedText },
+                  item.unreadCount > 0 && { fontWeight: '700' },
+                ]}
+                numberOfLines={1}
+              >
+                {item.lastMessage}
+              </Text>
+            ) : (
+              <Text
+                style={[styles.lastMessage, { color: mutedText }, item.unreadCount > 0 && { fontWeight: '600' }]}
+                numberOfLines={1}
+              >
+                {t('chatMessages.startConversation')}
+              </Text>
+            )}
+
+            {item.sentByMe && (
+              <SafeIcon
+                name="checkmark-done"
+                size={16}
+                color={item.lastMessageIsSeen ? accent : mutedText}
+                style={styles.readReceiptIcon}
+              />
+            )}
+
+            {item.unreadCount > 0 && (
+              <View style={[styles.unreadBadge, { backgroundColor: accent }]}>
+                <Text style={styles.unreadBadgeText}>{item.unreadCount}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   // Map closet threads to standard conversation list shape
   const mappedClosetConversations = closetThreads.map(thread => {
@@ -1104,6 +1382,9 @@ export default function ChatMessages() {
     return {
       id: thread.threadId || thread.id,
       threadId: thread.threadId || thread.id,
+      chatId: thread.threadId || thread.id,
+      conversationId: thread.conversationId || thread.threadId || thread.id,
+      conversationType: 'CLOSET',
       userId: otherUser.id || otherUser.userId,
       username: otherUser.displayName || otherUser.username || 'User',
       displayName: otherUser.displayName,
@@ -1194,7 +1475,7 @@ export default function ChatMessages() {
       <View style={[styles.tabRow, { borderBottomColor: border }]}>
         <TouchableOpacity
           style={styles.tabButton}
-          onPress={() => setActiveTab(CHAT_TABS.MESSAGES)}
+          onPress={() => handleTabChange(CHAT_TABS.MESSAGES)}
           activeOpacity={0.7}
         >
           <View style={styles.tabLabelRow}>
@@ -1221,7 +1502,7 @@ export default function ChatMessages() {
 
         <TouchableOpacity
           style={styles.tabButton}
-          onPress={() => setActiveTab(CHAT_TABS.CLOSET)}
+          onPress={() => handleTabChange(CHAT_TABS.CLOSET)}
           activeOpacity={0.7}
         >
           <View style={styles.tabLabelRow}>
@@ -1247,18 +1528,44 @@ export default function ChatMessages() {
         </TouchableOpacity>
       </View>
 
-      {/* Section Title for Closet Tab */}
-      {activeTab === CHAT_TABS.CLOSET && (
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, textStyle]}>{closetChatTitle}</Text>
-        </View>
-      )}
+      {/* Section Header with Section Title & (...) Pill Button */}
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, textStyle]}>
+          {isSelectionMode
+            ? (selectedIds.size > 0
+                ? `${selectedIds.size} ${t('chatMessages.selected')}`
+                : t('chatMessages.selectMessages'))
+            : (activeTab === CHAT_TABS.CLOSET ? closetChatTitle : t('chatMessages.messagesLabel'))}
+        </Text>
+
+        {!isSelectionMode ? (
+          <TouchableOpacity
+            ref={moreBtnRef}
+            style={[styles.moreButton, { borderColor: accent }]}
+            onPress={handleOpenMenu}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <SafeIcon name="ellipsis-horizontal" size={18} color={accent} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.doneHeaderBtn}
+            onPress={handleExitSelectionMode}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.doneHeaderText, { color: accent }]}>
+              {t('chatMessages.done')}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Chat List with RefreshControl */}
       <ScrollView
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: isSelectionMode ? 110 : 40 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1325,7 +1632,7 @@ export default function ChatMessages() {
         )}
       </ScrollView>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Single Conversation Modal */}
       <Modal
         visible={showDeleteModal}
         transparent={true}
@@ -1342,10 +1649,6 @@ export default function ChatMessages() {
             <Text style={[styles.modalMessage, textStyle]}>
               {t('chatMessages.deleteConfirm')}{' '}
               <Text style={[styles.modalUsername, textStyle]}>{selectedConversation?.username}</Text>?
-            </Text>
-
-            <Text style={[styles.modalWarning, { color: mutedText }]}>
-              {t('chatMessages.deleteWarning')}
             </Text>
 
             <View style={styles.modalButtons}>
@@ -1370,6 +1673,158 @@ export default function ChatMessages() {
           </View>
         </View>
       </Modal>
+
+      {/* Batch Delete Confirmation Modal */}
+      <Modal
+        visible={showBatchDeleteModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowBatchDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, cardStyle, { borderColor: border, borderWidth: StyleSheet.hairlineWidth }]}>
+            <View style={styles.modalHeader}>
+              <SafeIcon name="trash-outline" size={32} color="#ff6b6b" />
+              <Text style={[styles.modalTitle, textStyle]}>{t('chatMessages.deleteTitle')}</Text>
+            </View>
+
+            <Text style={[styles.modalMessage, textStyle]}>
+              {t('chatMessages.deleteMultipleConfirm', { count: selectedIds.size })}
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: border }]}
+                onPress={() => setShowBatchDeleteModal(false)}
+                disabled={isBatchDeleting}
+              >
+                <Text style={[styles.cancelButtonText, textStyle]}>{t('chatMessages.cancel')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.deleteButton]}
+                onPress={handleBatchDelete}
+                disabled={isBatchDeleting}
+              >
+                <Text style={styles.deleteButtonText}>
+                  {isBatchDeleting ? t('chatMessages.deleting') : t('chatMessages.delete')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Popover Dropdown Menu (Image 2 mockup) */}
+      <Modal
+        visible={moreMenuVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setMoreMenuVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setMoreMenuVisible(false)}>
+          <View style={styles.popoverOverlay}>
+            <View
+              style={[
+                styles.popoverMenu,
+                cardStyle,
+                {
+                  top: menuAnchorY,
+                  borderColor: border || '#E8E0F2',
+                  backgroundColor: card || '#fff',
+                }
+              ]}
+            >
+              {/* Select */}
+              <TouchableOpacity
+                style={styles.popoverMenuItem}
+                onPress={() => {
+                  setMoreMenuVisible(false);
+                  setIsSelectionMode(true);
+                  setSelectedIds(new Set());
+                }}
+                activeOpacity={0.7}
+              >
+                <SafeIcon name="checkbox-outline" size={19} color={accent} style={styles.popoverMenuIcon} />
+                <Text style={[styles.popoverMenuText, textStyle]}>
+                  {t('chatMessages.select')}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={[styles.popoverDivider, { backgroundColor: border || '#F1E8FB' }]} />
+
+              {/* Delete */}
+              <TouchableOpacity
+                style={styles.popoverMenuItem}
+                onPress={() => {
+                  setMoreMenuVisible(false);
+                  setIsSelectionMode(true);
+                  setSelectedIds(new Set());
+                }}
+                activeOpacity={0.7}
+              >
+                <SafeIcon name="trash-outline" size={19} color="#ff4d4f" style={styles.popoverMenuIcon} />
+                <Text style={[styles.popoverMenuText, { color: '#ff4d4f' }]}>
+                  {t('chatMessages.delete')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Bottom Action Bar in Selection Mode */}
+      {isSelectionMode && (
+        <View style={[styles.bottomActionBar, cardStyle, { borderTopColor: border, backgroundColor: card || '#fff', paddingBottom: Math.max(insets.bottom, 12) }]}>
+          {/* Select All / Deselect */}
+          <TouchableOpacity
+            style={styles.bottomActionBtn}
+            onPress={handleToggleSelectAll}
+            activeOpacity={0.7}
+          >
+            <SafeIcon
+              name={
+                filteredConversations.length > 0 &&
+                filteredConversations.every(c => selectedIds.has(String(c.id || c.chatId || c.threadId)))
+                  ? "checkmark-circle"
+                  : "checkmark-circle-outline"
+              }
+              size={20}
+              color={accent}
+            />
+            <Text style={[styles.bottomActionText, { color: accent }]}>
+              {filteredConversations.length > 0 &&
+              filteredConversations.every(c => selectedIds.has(String(c.id || c.chatId || c.threadId)))
+                ? t('chatMessages.deselectAll')
+                : t('chatMessages.selectAll')}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Delete */}
+          <TouchableOpacity
+            style={[styles.bottomActionBtn, selectedIds.size === 0 && { opacity: 0.35 }]}
+            disabled={selectedIds.size === 0}
+            onPress={() => setShowBatchDeleteModal(true)}
+            activeOpacity={0.7}
+          >
+            <SafeIcon name="trash-outline" size={20} color="#ff4d4f" />
+            <Text style={[styles.bottomActionText, { color: '#ff4d4f' }]}>
+              {selectedIds.size > 0 ? `${t('chatMessages.delete')} (${selectedIds.size})` : t('chatMessages.delete')}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Done */}
+          <TouchableOpacity
+            style={[styles.doneBottomBtn, { backgroundColor: accent }]}
+            onPress={handleExitSelectionMode}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.doneBottomBtnText}>
+              {t('chatMessages.done')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -1554,11 +2009,112 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#111',
+  },
+  moreButton: {
+    borderWidth: 1.5,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doneHeaderBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  doneHeaderText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  popoverOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  popoverMenu: {
+    position: 'absolute',
+    right: 16,
+    width: 170,
+    borderRadius: 16,
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+    borderWidth: 1,
+  },
+  popoverMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  popoverMenuIcon: {
+    width: 22,
+    textAlign: 'center',
+  },
+  popoverMenuText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  popoverDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: 12,
+  },
+  selectionCheckboxWrapper: {
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bottomActionBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 12,
+  },
+  bottomActionBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    gap: 3,
+  },
+  bottomActionText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  doneBottomBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  doneBottomBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '800',
   },
   loadingContainer: {
     flex: 1,

@@ -556,7 +556,7 @@ export function BoostWinningItemScreen({ navigation, route }) {
                 id: item?.id || item?._id || `package-${index}`,
                 days: durationHours > 0 ? Math.max(1, Math.round(durationHours / 24)) : (item?.days || 0),
                 priceLabel: item?.currency && priceValue ? `${item.currency === 'USD' ? '$' : item.currency}${priceValue.toFixed(2)}` : item?.price ? `$${Number(item.price).toFixed(2)}` : '$0.00',
-                viewsLabel: item?.description || item?.viewsLabel || '',
+                viewsLabel: (item?.description || item?.viewsLabel || '').replace(/^(estimated\s*(reach|views)?\s*:\s*)/i, '').trim(),
               };
             })
           );
@@ -787,7 +787,14 @@ export function ReviewBoostScreen({ navigation, route }) {
           </View>
           <View style={[styles.reviewRow, { borderBottomColor: rowBorder }]}>
             <Text style={[styles.reviewLabel, { color: subtleMuted }]}>{t('boost.estimatedViews')}</Text>
-            <Text style={[styles.reviewValue, { color: text || TEXT }]}>{pkg.viewsLabel}</Text>
+            <Text
+              style={[styles.reviewValue, { color: text || TEXT }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              {(pkg?.viewsLabel || '').replace(/^(estimated\s*(reach|views)?\s*:\s*)/i, '').trim() || pkg?.viewsLabel}
+            </Text>
           </View>
           <View style={[styles.reviewRow, { borderBottomColor: rowBorder }]}>
             <Text style={[styles.reviewLabel, { color: subtleMuted }]}>{t('boost.starts')}</Text>
@@ -1608,9 +1615,28 @@ const styles = StyleSheet.create({
 
   reviewItemCard: { flexDirection: 'row', gap: 12, alignItems: 'center', borderRadius: 18, borderWidth: 1, borderColor: BORDER, padding: 12 },
   reviewBlock: { gap: 4, borderRadius: 18, borderWidth: 1, borderColor: BORDER, padding: 14 },
-  reviewRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F1E8FB' },
-  reviewLabel: { color: MUTED, fontWeight: '700', fontSize: 13 },
-  reviewValue: { fontWeight: '800', fontSize: 13 },
+  reviewRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1E8FB',
+    gap: 12,
+  },
+  reviewLabel: {
+    color: MUTED,
+    fontWeight: '700',
+    fontSize: 13,
+    flexShrink: 0,
+  },
+  reviewValue: {
+    fontWeight: '800',
+    fontSize: 13,
+    textAlign: 'right',
+    flex: 1,
+    flexShrink: 1,
+  },
 
   promoTypeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderWidth: 1, borderColor: BORDER, padding: 12 },
   promoTypeTitle: { fontWeight: '800', fontSize: 13 },
