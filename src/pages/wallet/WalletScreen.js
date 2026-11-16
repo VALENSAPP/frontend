@@ -4,30 +4,22 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
-    FlatList,
     SafeAreaView,
-    Alert,
     Image,
     ScrollView,
-    TextInput,
     Keyboard,
-    Linking,
     Platform,
     useWindowDimensions,
 } from "react-native";
-import LinearGradient from "react-native-linear-gradient";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import Clipboard from "@react-native-clipboard/clipboard";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useDispatch, useSelector } from "react-redux";
-import { getUserCredentials, getUserDashboard } from "../../services/post";
+import { getUserCredentials } from "../../services/post";
 import { hideLoader, showLoader } from "../../redux/actions/LoaderAction";
 import { showToastMessage } from "../../components/displaytoastmessage";
 import { useToast } from "react-native-toast-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getTopCreators, getTotalTokenPurchase } from "../../services/tokens";
 import RBSheet from "react-native-raw-bottom-sheet";
 import TokenPurchaseModal from "../../components/modals/TokenPurchaseModal";
 import { getCreditsLeft } from "../../services/wallet";
@@ -37,11 +29,9 @@ import { ensureKycApprovedForPayment } from "../../utils/kycPaymentGuard";
 import { useBusinessProfileTheme } from "../../theme/useBusinessProfileTheme";
 import { useThemeContext } from "../../theme/ThemeContext";
 import HexAvatar from "../../components/home/story.js/HexAvatar";
-import { Dragonfly } from "../../assets/icons";
 import { useLanguage } from "../../i18n";
 import { getDragonflyIcon } from "../../components/profile/ProfilePersonalData";
 import { BASE_URL } from "../../config/urls";
-import { primaryCtaColors } from "../../utils/ctaContrast";
 import {
     getActivePaymentProvider,
     hydratePaymentProvider,
@@ -49,28 +39,16 @@ import {
     persistUserCountry,
     readPaymentProvider,
     readUserCountry,
+    formatProviderAmount,
 } from "../../utils/paymentCurrency";
-import { formatProviderAmount } from "../../utils/paymentCurrency";
-
-const WalletAddress = '0xf8652b01';
-const userCredits = { current: 3, total: 5, renewal: "Oct 1" };
 
 export default function WalletComponent() {
     const [userData, setUserData] = useState();
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCreator, setSelectedCreator] = useState(null);
-    const [portfolioValue, setPortfolioValue] = useState();
-    const [purchaseAutoFocus, setPurchaseAutoFocus] = useState(false);
     const [subscriptionHitsLeft, setSubscriptionHitsLeft] = useState(0);
     const [purchasedHitsLeft, setPurchasedHitsLeft] = useState(0);
     const [maxPurchasedHits, setMaxPurchasedHits] = useState(5);
     const [canBuyHits, setCanBuyHits] = useState(true);
-    const [postCounts, setPostCounts] = useState(0);
-    const [topCreators, setTopCreators] = useState([]);
-    const [holdingsData, setHoldingsData] = useState([]);
-    const [tokenAddress, setTokenAddress] = useState(null);
     const [showCreditModal, setShowCreditModal] = useState(false);
-    const [profile, setProfile] = useState(null);
     const [paymentProvider, setPaymentProvider] = useState(getActivePaymentProvider);
 
     const navigation = useNavigation();
@@ -79,32 +57,12 @@ export default function WalletComponent() {
     const purchaseSheetRef = useRef(null);
     const sellSheetRef = useRef(null);
     const profileImage = useSelector(state => state.profileImage?.profileImg);
-    const { isBusinessProfile, bgStyle, textStyle, bg, text, cardStyle, accent, mutedText, border, card } = useBusinessProfileTheme();
+    const { isBusinessProfile, bgStyle, textStyle, accent } = useBusinessProfileTheme();
     const { isDarkMode } = useThemeContext();
     const { width: screenWidth } = useWindowDimensions();
-    const labelStyle = isDarkMode ? textStyle : { color: '#111827' };
-    const accentTextStyle = { color: accent };
     const { t } = useLanguage();
-    const isCompactCredits = screenWidth < 360;
-    const missionMascotSize = Math.min(
-        124,
-        Math.max(96, Math.round(screenWidth * (isCompactCredits ? 0.3 : 0.32))),
-    );
-    const creditsButtonBg = isDarkMode
-        ? (isBusinessProfile ? '#D4B06A' : '#3A2158')
-        : accent;
-    const creditsCta = primaryCtaColors(creditsButtonBg);
-    const creditsLabelColor = isDarkMode
-        ? (isBusinessProfile ? '#F3E2B8' : '#F4ECFF')
-        : accent;
-    const missionPostPrice = formatProviderAmount(1.99, paymentProvider);
-    const creditsGradient = isBusinessProfile
-        ? (isDarkMode ? ['#2A2318', '#3A2E18', '#241E14'] : ['#FFF9F0', '#F4DDB4', '#FFF6E8'])
-        : (isDarkMode ? ['#241433', '#3A2158', '#1C1028'] : ['#F7F1FF', '#E3CCFF', '#F4E9FF']);
 
-    const MissionImage = isBusinessProfile
-        ? require('../../assets/icons/pngicons/GoldenBeee.png')
-        : require('../../assets/icons/pngicons/mission.png');
+    const missionPostPrice = formatProviderAmount(1.99, paymentProvider);
 
     const userVerificationStatus = useMemo(() => {
         const verified = userData?.kyc === true;
@@ -115,6 +73,7 @@ export default function WalletComponent() {
                 : t('walletScreen.profileNotVerified'),
         };
     }, [t, userData?.kyc]);
+
     const DragonflyIcon = useMemo(() => {
         const followerCount = Number(
             userData?.totalFollowers ??
@@ -122,14 +81,8 @@ export default function WalletComponent() {
             userData?.followerCount ??
             0
         );
-        return getDragonflyIcon(followerCount, false, isDarkMode);
-    }, [userData?.followerCount, userData?.followers, userData?.totalFollowers, isDarkMode]);
-    const referPoints = useMemo(() => {
-        const rawPoints =
-            userData?.referPoints ?? userData?.referralPoints ?? userData?.referPoint ?? 0;
-        const points = Number(rawPoints);
-        return Number.isFinite(points) ? points : 0;
-    }, [userData?.referPoints, userData?.referralPoints, userData?.referPoint]);
+        return getDragonflyIcon(followerCount, isBusinessProfile, isDarkMode);
+    }, [userData?.followerCount, userData?.followers, userData?.totalFollowers, isDarkMode, isBusinessProfile]);
 
     useEffect(() => {
         let cancelled = false;
@@ -139,11 +92,6 @@ export default function WalletComponent() {
         return () => {
             cancelled = true;
         };
-    }, []);
-
-    const loadProfileType = useCallback(async () => {
-        const type = await AsyncStorage.getItem('profile');
-        setProfile(type);
     }, []);
 
     const fetchUserCreds = useCallback(async () => {
@@ -179,36 +127,13 @@ export default function WalletComponent() {
                 if (profileCountry !== undefined) {
                     await persistUserCountry(profileCountry);
                 }
-            } else {
-                showToastMessage(toast, 'danger', response.data.message);
             }
         } catch (error) {
             // silent
         } finally {
             dispatch(hideLoader());
         }
-    }, [dispatch, toast]);
-
-    const fetchDashboardData = useCallback(async () => {
-        try {
-            dispatch(showLoader());
-            const response = await getTotalTokenPurchase();
-            if (response?.statusCode === 200) {
-                const totalPortfolioValue = response.data.reduce(
-                    (sum, item) => sum + (item.totalTokenAmount || 0),
-                    0
-                );
-                setPortfolioValue(`$ ${totalPortfolioValue.toFixed(4)}`);
-                setHoldingsData(response.data);
-            } else {
-                showToastMessage(toast, 'danger', response.data.message);
-            }
-        } catch (error) {
-            // silent
-        } finally {
-            dispatch(hideLoader());
-        }
-    }, [dispatch, toast]);
+    }, [dispatch]);
 
     const fetchCreditsLeft = useCallback(async () => {
         try {
@@ -224,90 +149,24 @@ export default function WalletComponent() {
                 setPurchasedHitsLeft(toCount(data.purchasedHitsLeft));
                 setMaxPurchasedHits(toCount(data.maxPurchasedHits, 5) || 5);
                 setCanBuyHits(data.canBuyHits !== false);
-                setPostCounts(data.postCount);
-            } else {
-                showToastMessage(toast, 'danger', response.data.message);
             }
         } catch (error) {
             // silent
         } finally {
             dispatch(hideLoader());
         }
-    }, [dispatch, toast]);
-
-    const fetchTopCreators = useCallback(async () => {
-        try {
-            dispatch(showLoader());
-            const response = await getTopCreators();
-            if (response?.statusCode === 200) {
-                setTopCreators(response.data || []);
-            } else {
-                showToastMessage(toast, 'danger', response?.message || 'Failed to fetch creators');
-            }
-        } catch (error) {
-            // silent
-        } finally {
-            dispatch(hideLoader());
-        }
-    }, [dispatch, toast]);
+    }, [dispatch]);
 
     useFocusEffect(
         useCallback(() => {
-            loadProfileType();
             fetchUserCreds();
-            fetchDashboardData();
             fetchCreditsLeft();
-            fetchTopCreators();
-        }, [fetchCreditsLeft, fetchDashboardData, fetchTopCreators, fetchUserCreds, loadProfileType])
+        }, [fetchCreditsLeft, fetchUserCreds])
     );
-
-    useEffect(() => {
-        let timeout;
-        const onKeyboardHide = () => {
-            timeout = setTimeout(() => {
-                purchaseSheetRef.current?.updateLayout?.({ height: 500 });
-            }, 300);
-        };
-        const hideSub = Keyboard.addListener('keyboardDidHide', onKeyboardHide);
-        return () => {
-            hideSub.remove();
-            if (timeout) clearTimeout(timeout);
-        };
-    }, []);
-
-    const handleFollowUnfollow = (creator, currentlyFollowing) => {
-        setTokenAddress(creator?.tokenAddress || null);
-        setSelectedCreator(creator?.vendorId || null);
-    };
-
-    const copyToClipboard = () => {
-        Clipboard.setString(userData?.walletAddress);
-        Alert.alert(
-            t('walletScreen.copiedTitle'),
-            t('walletScreen.copiedMessage')
-        );
-    };
-
-    const handleTokenModalClose = () => {
-        purchaseSheetRef.current?.close?.();
-    };
-
-    const handleTokenPurchase = async () => {
-        purchaseSheetRef.current?.close?.();
-    };
-
-    const handleTokenSell = useCallback(() => {
-        sellSheetRef.current?.close();
-        showToastMessage(toast, 'success', 'Tokens sold successfully!');
-        fetchUserCreds();
-        fetchDashboardData();
-        fetchCreditsLeft();
-        fetchTopCreators();
-    }, [fetchCreditsLeft, fetchDashboardData, fetchTopCreators, fetchUserCreds, toast]);
 
     const handleBuyCredits = async () => {
         if (!canBuyHits || purchasedHitsLeft >= maxPurchasedHits) {
-            showToastMessage(toast, 'danger', t('walletScreen.maxCreditsReached'));
+            showToastMessage(toast, 'danger', t('walletScreen.maxCreditsReached', 'You already have maximum credits.'));
             return;
         }
         const isKycApproved = await ensureKycApprovedForPayment({
@@ -321,408 +180,290 @@ export default function WalletComponent() {
         setShowCreditModal(true);
     };
 
-    const CreatorDashboard = ({ creator }) => (
-        <View style={[styles.creatorDashboard, { shadowColor: text }]}>
-            <View style={styles.creatorHeader}>
-                <View style={styles.creatorInfo}>
-                    <View style={[styles.creatorAvatar, { backgroundColor: accent }]}>
-                        <Text style={styles.avatarText}>
-                            {creator.vendorName ? creator.vendorName.charAt(0) : 'U'}
-                        </Text>
-                    </View>
-                    <View>
-                        <View style={styles.nameRow}>
-                            <Text style={styles.creatorName}>
-                                {creator.vendorName || 'Unknown Creator'}
-                            </Text>
-                        </View>
-                        <Text style={styles.creatorUsername}>
-                            {creator.tokenAddress ? `${creator.tokenAddress.slice(0, 10)}...` : ''}
-                        </Text>
-                    </View>
-                </View>
-            </View>
+    // Dynamic color & theme definitions based on profile mode (Persona / Business)
+    const brandColor = isBusinessProfile
+        ? (isDarkMode ? '#D4B06A' : '#C9A15A')
+        : (isDarkMode ? '#A855F7' : '#6B21A8');
+    const cardBg = isDarkMode
+        ? (isBusinessProfile ? '#1F1A13' : '#1A1226')
+        : (isBusinessProfile ? '#FFFDF9' : '#FFFFFF');
+    const cardBorderColor = isDarkMode
+        ? (isBusinessProfile ? 'rgba(212, 176, 106, 0.28)' : 'rgba(255,255,255,0.08)')
+        : (isBusinessProfile ? '#EEDCB8' : '#EDE9FE');
+    const statBoxBg = isDarkMode
+        ? (isBusinessProfile ? 'rgba(212, 176, 106, 0.12)' : 'rgba(255,255,255,0.06)')
+        : (isBusinessProfile ? '#FBF6EA' : '#F6F0FD');
+    const statBoxBorderColor = isBusinessProfile
+        ? (isDarkMode ? 'rgba(212, 176, 106, 0.25)' : '#E8D5A5')
+        : 'transparent';
+    const statLabelColor = isBusinessProfile
+        ? (isDarkMode ? '#F3E2B8' : '#8C6510')
+        : (isDarkMode ? '#D8B4FE' : '#4C1D95');
+    const statValueColor = isBusinessProfile
+        ? (isDarkMode ? '#FFFFFF' : '#8C6510')
+        : (isDarkMode ? '#F5F3FF' : '#4C1D95');
+    const iconBadgeBg = isDarkMode
+        ? (isBusinessProfile ? 'rgba(212, 176, 106, 0.22)' : 'rgba(107,33,168,0.25)')
+        : (isBusinessProfile ? '#FBF6EA' : '#F3E8FF');
+    const heroTitleColor = isBusinessProfile
+        ? (isDarkMode ? '#F5E6C4' : '#8C6510')
+        : (isDarkMode ? '#FFFFFF' : '#111827');
+    const heroSubtitleColor = isBusinessProfile
+        ? (isDarkMode ? '#D4B06A' : '#A37A24')
+        : (isDarkMode ? '#9CA3AF' : '#4B5563');
+    const cardTitleColor = isBusinessProfile
+        ? (isDarkMode ? '#F3E2B8' : '#8C6510')
+        : (isDarkMode ? '#FFFFFF' : '#111827');
+    const bodyDescColor = isBusinessProfile
+        ? (isDarkMode ? '#E5D6B8' : '#6E5218')
+        : (isDarkMode ? '#9CA3AF' : '#4B5563');
+    const ruleTitleColor = isBusinessProfile
+        ? (isDarkMode ? '#F3E2B8' : '#8C6510')
+        : (isDarkMode ? '#FFFFFF' : '#111827');
+    const ruleDescColor = isBusinessProfile
+        ? (isDarkMode ? '#D4B06A' : '#7A5B18')
+        : (isDarkMode ? '#9CA3AF' : '#4B5563');
+    const ruleDividerColor = isBusinessProfile
+        ? (isDarkMode ? 'rgba(212, 176, 106, 0.18)' : '#F3E8CC')
+        : cardBorderColor;
+    const profileNameColor = isBusinessProfile
+        ? (isDarkMode ? '#F3E2B8' : '#8C6510')
+        : (isDarkMode ? '#FFFFFF' : '#111827');
+    const swordIconColor = isBusinessProfile
+        ? brandColor
+        : (isDarkMode ? '#9CA3AF' : '#6B7280');
+    const cardShadowColor = isBusinessProfile ? (isDarkMode ? '#000000' : '#C9A15A') : '#7C3AED';
+    const buttonBg = isDarkMode
+        ? (isBusinessProfile ? '#D4B06A' : '#7C3AED')
+        : (isBusinessProfile ? '#C9A15A' : '#5E2490');
 
-            <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                    <Text style={[styles.statValue, textStyle]}>
-                        ${creator.tokenPrice?.toFixed(4) || '0.00'}
-                    </Text>
-                    <Text style={styles.statLabel}>{t('walletScreen.currentPrice')}</Text>
-                </View>
-                <View style={styles.statItem}>
-                    <Text style={[styles.statValue, textStyle]}>
-                        ${creator.totalTokenAmount?.toFixed(2) || '0.00'}
-                    </Text>
-                    <Text style={styles.statLabel}>{t('walletScreen.totalValue')}</Text>
-                </View>
-                <View style={styles.statItem}>
-                    <Text style={[styles.statValue, textStyle]}>
-                        {creator.tokenAmount || 0}
-                    </Text>
-                    <Text style={styles.statLabel}>{t('walletScreen.tokensHeld')}</Text>
-                </View>
-            </View>
+    // Dynamic Rocket Asset: gold rocket illustration for business profile, purple for personal
+    const rocketImage = isBusinessProfile
+        ? require('../../assets/Valens Stickers/Valens Stickers/PNG/rocket_gold.png')
+        : require('../../assets/Valens Stickers/Valens Stickers/PNG/rocket.png');
 
-            <View style={styles.tradeButtons}>
-                <TouchableOpacity
-                    style={[styles.tradeBtn, { backgroundColor: accent }]}
-                    onPress={() => handleFollowUnfollow(creator, false)}
-                >
-                    <Text style={styles.tradeBtnText}>{t('walletScreen.buyFollow')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.tradeBtn, styles.sellBtn, { backgroundColor: accent }]}
-                    onPress={() => handleFollowUnfollow(creator, true)}
-                >
-                    <Text style={[styles.tradeBtnText, styles.sellBtnText]}>
-                        {t('walletScreen.sellUnfollow')}
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
-
-    const CoinsList = ({ navigation }) => {
-        const filteredList = topCreators.filter(item =>
-            (item.username?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-            (item.tokenAddress?.toLowerCase() || '').includes(searchQuery.toLowerCase())
-        );
-
-        return (
-            <View style={[{ flex: 1 }]}>
-                <Text style={[styles.subHeader, { shadowColor: text }]}>
-                    {t('walletScreen.topCreatorsCount', { count: filteredList.length })}
-                </Text>
-
-                <FlatList
-                    data={filteredList}
-                    keyExtractor={(item, index) => item.vendorId || index.toString()}
-                    renderItem={({ item }) => (
-                        <TouchableOpacity
-                            style={[styles.coinItem, { shadowColor: text }]}
-                            onPress={() => setSelectedCreator(item)}
-                        >
-                            <View style={[styles.coinAvatar, { backgroundColor: accent }]}>
-                                <Text style={styles.avatarText}>
-                                    {item.username ? item.username.charAt(0) : 'U'}
-                                </Text>
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <View style={styles.nameRow}>
-                                    <Text style={styles.coinName}>{item.username || 'Unknown'}</Text>
-                                </View>
-                                <Text style={styles.creatorUsername}>
-                                    {item.tokenAddress ? `${item.tokenAddress.slice(0, 15)}...` : ''}
-                                </Text>
-                                <Text style={styles.marketCapText}>
-                                    Tokens: {item.tokenAmount || 0}
-                                </Text>
-                            </View>
-                            <View style={styles.priceSection}>
-                                <Text style={[styles.price, textStyle]}>
-                                    ${item.purchaseTokenPrice?.toFixed(4) || '0.00'}
-                                </Text>
-                            </View>
-                        </TouchableOpacity>
-                    )}
-                    ListEmptyComponent={() => (
-                        <View style={{ padding: 20, alignItems: 'center' }}>
-                            <Text style={{ color: '#666', fontSize: 16 }}>
-                                {t('walletScreen.noCreatorsFound')}
-                            </Text>
-                        </View>
-                    )}
-                />
-            </View>
-        );
-    };
-
-    const MyHoldings = () => {
-        return (
-            <View style={[{ flex: 1 }, bgStyle]}>
-                <Text style={[styles.subHeader, { shadowColor: text }]}>
-                    {t('walletScreen.holdingsCount', { count: holdingsData.length })}
-                </Text>
-                <Text style={styles.note}>{t('walletScreen.holdingsNote')}</Text>
-
-                <FlatList
-                    data={holdingsData}
-                    keyExtractor={(item, index) => item.vendorId || index.toString()}
-                    renderItem={({ item }) => (
-                        <View style={styles.holdingItem}>
-                            <CreatorDashboard creator={item} />
-                        </View>
-                    )}
-                    ListEmptyComponent={() => (
-                        <View style={{ padding: 20, alignItems: 'center' }}>
-                            <Text style={{ color: '#666', fontSize: 16 }}>
-                                {t('walletScreen.noHoldingsTitle')}
-                            </Text>
-                            <Text style={{ color: '#999', fontSize: 14, marginTop: 8 }}>
-                                {t('walletScreen.noHoldingsSub')}
-                            </Text>
-                        </View>
-                    )}
-                />
-            </View>
-        );
-    };
-
-    const Tab = createMaterialTopTabNavigator();
+    const displayName = userData?.displayName || userData?.name || userData?.username || 'Graziela Barrette';
+    const avatarUri = profileImage || userData?.image;
 
     return (
         <SafeAreaView style={[styles.container, bgStyle]}>
             <ScrollView
-                contentContainerStyle={{ paddingBottom: '20%', marginTop: Platform.OS === "ios" ? 20 : 0 }}
+                contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                <View style={{ paddingHorizontal: 15 }}>
-                    {/* Profile Section */}
-                    <View style={[styles.profileSection, { borderBottomWidth: 1, borderBottomColor: border }]}>
-                        <View>
-                            <View style={styles.nameRow}>
-                                <Text style={[styles.username, labelStyle]}>{userData?.displayName}</Text>
-                                {userVerificationStatus.verified && (
-                                 <DragonflyIcon width={22} height={22} style={styles.icon} />
-                                 )}
-                            </View>
-                        </View>
-                        <HexAvatar
-                            uri={profileImage}
-                            size={100}
-                            borderWidth={3}
-                            borderColor={accent}
+                {/* 1. Profile Bar */}
+                <View style={styles.profileRow}>
+                    <HexAvatar
+                        uri={avatarUri}
+                        size={44}
+                        borderWidth={2}
+                        borderColor={brandColor}
+                    />
+                    <View style={styles.profileTextWrapper}>
+                        <Text style={[styles.profileName, { color: profileNameColor }]} numberOfLines={1}>
+                            {displayName}
+                        </Text>
+                        <MaterialCommunityIcons
+                            name="sword-cross"
+                            size={16}
+                            color={swordIconColor}
+                            style={styles.swordIcon}
                         />
+                        <DragonflyIcon width={18} height={18} style={styles.dragonflyIcon} />
                     </View>
+                </View>
+                <View style={[styles.divider, { backgroundColor: ruleDividerColor }]} />
 
-                    {/* Credits Section */}
-                    <View
-                        style={[
-                            styles.creditsCard,
-                            {
-                                shadowColor: accent,
-                                borderColor: isDarkMode ? 'rgba(255,255,255,0.14)' : 'transparent',
-                            },
-                        ]}
-                    >
-                        <LinearGradient
-                            pointerEvents="none"
-                            colors={creditsGradient}
-                            start={{ x: 0, y: 0.5 }}
-                            end={{ x: 1, y: 0.5 }}
-                            style={StyleSheet.absoluteFill}
-                        />
-                        <View style={styles.creditsTop}>
-                            <View style={styles.creditsCopy}>
-                                <View style={styles.creditsInfo}>
-                                    <View
-                                        style={[
-                                            styles.creditsIconWrap,
-                                            {
-                                                width: isCompactCredits ? 32 : 36,
-                                                height: isCompactCredits ? 32 : 36,
-                                                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.14)' : '#FFFFFF',
-                                            },
-                                        ]}
-                                    >
-                                        <MaterialCommunityIcons
-                                            name="credit-card-outline"
-                                            size={isCompactCredits ? 16 : 18}
-                                            color={creditsLabelColor}
-                                        />
-                                    </View>
-                                    <Text
-                                        style={[
-                                            styles.creditsTitle,
-                                            { color: creditsLabelColor, fontSize: isCompactCredits ? 14 : 15 },
-                                        ]}
-                                        numberOfLines={2}
-                                    >
-                                        {t('walletScreen.postCredits')}
-                                    </Text>
-                                </View>
-                                <View style={styles.creditsStats}>
-                                    <View
-                                        style={[
-                                            styles.creditsStat,
-                                            { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.72)' },
-                                        ]}
-                                    >
-                                        <Text
-                                            style={[styles.creditsStatLabel, { color: creditsLabelColor }]}
-                                            numberOfLines={2}
-                                        >
-                                            {t('walletScreen.subscriptionHits')}
-                                        </Text>
-                                        <Text style={[styles.creditsStatValue, { color: creditsLabelColor }]}>
-                                            {subscriptionHitsLeft}
-                                        </Text>
-                                    </View>
-                                    <View
-                                        style={[
-                                            styles.creditsStat,
-                                            { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.72)' },
-                                        ]}
-                                    >
-                                        <Text
-                                            style={[styles.creditsStatLabel, { color: creditsLabelColor }]}
-                                            numberOfLines={2}
-                                        >
-                                            {t('walletScreen.purchasedHits')}
-                                        </Text>
-                                        <Text style={[styles.creditsStatValue, { color: creditsLabelColor }]}>
-                                            {purchasedHitsLeft}
-                                        </Text>
-                                    </View>
-                                </View>
-                            </View>
-                            <Image
-                                source={MissionImage}
-                                style={{
-                                    width: missionMascotSize,
-                                    height: missionMascotSize,
-                                    flexShrink: 0,
-                                }}
-                                resizeMode="contain"
+                {/* 2. Hero Section */}
+                <View style={styles.heroSection}>
+                    <View style={styles.heroLeft}>
+                        <Text style={[styles.heroTitle, { color: heroTitleColor }]}>
+                            {t('walletScreen.heroTitle', 'Give your mission a lift.')}
+                        </Text>
+                        <Text style={[styles.heroSubtitle, { color: heroSubtitleColor }]}>
+                            {t('walletScreen.heroSubtitle', 'Turn your community into backers.')}
+                        </Text>
+                    </View>
+                    <Image
+                        source={rocketImage}
+                        style={styles.heroRocket}
+                        resizeMode="contain"
+                    />
+                </View>
+
+                {/* 3. Card 1: Your Mission Credits */}
+                <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorderColor, shadowColor: cardShadowColor }]}>
+                    <View style={styles.cardHeader}>
+                        <View style={[styles.iconBadge, { backgroundColor: iconBadgeBg }]}>
+                            <MaterialCommunityIcons
+                                name="credit-card-outline"
+                                size={16}
+                                color={brandColor}
                             />
                         </View>
-                        <TouchableOpacity
-                            style={[
-                                styles.buyCreditsBtn,
-                                { backgroundColor: creditsCta.backgroundColor },
-                                (!canBuyHits || purchasedHitsLeft >= maxPurchasedHits) && styles.buyCreditsBtnDisabled,
-                            ]}
-                            onPress={handleBuyCredits}
-                            disabled={!canBuyHits || purchasedHitsLeft >= maxPurchasedHits}
-                            activeOpacity={0.85}
-                        >
-                            <Text
-                                style={[
-                                    styles.buyCreditsText,
-                                    { color: creditsCta.color, fontSize: isCompactCredits ? 13 : 15 },
-                                ]}
-                                numberOfLines={2}
-                                adjustsFontSizeToFit
-                                minimumFontScale={0.8}
-                            >
-                                {t('walletScreen.buyCredits', {
-                                    price: missionPostPrice,
-                                })}
-                            </Text>
-                        </TouchableOpacity>
+                        <Text style={[styles.cardTitle, { color: cardTitleColor }]}>
+                            {t('walletScreen.yourMissionCredits', 'Your Mission Credits')}
+                        </Text>
                     </View>
 
-                    <View style={styles.infoBoxesRow}>
-                        <View style={[styles.infoCard, cardStyle, { borderColor: accent, borderWidth: StyleSheet.hairlineWidth }]}>
-                            <View style={styles.infoCardHeader}>
-                                <View style={[styles.infoCardIcon, { backgroundColor: `${accent}18`, borderColor: `${accent}35` }]}>
-                                    <Ionicons name="information" size={25} color={accent} />
-                                </View>
-                                <Text style={[styles.infoCardTitle, labelStyle]}>
-                                    {t('walletScreen.missionPostTitle')}
-                                </Text>
-                            </View>
-                            <Text style={[styles.infoCardText, accentTextStyle]}>
-                                {t('walletScreen.missionPostDescription')}
+                    <View style={styles.statsRow}>
+                        <View style={[styles.statBox, { backgroundColor: statBoxBg, borderColor: statBoxBorderColor, borderWidth: isBusinessProfile ? 1 : 0 }]}>
+                            <Text style={[styles.statLabel, { color: statLabelColor }]} numberOfLines={1}>
+                                {t('walletScreen.membershipCredits', 'Membership credits')}
+                            </Text>
+                            <Text style={[styles.statValue, { color: statValueColor }]}>
+                                {subscriptionHitsLeft}
                             </Text>
                         </View>
-                        <View style={[styles.infoCard, styles.infoCardSpacing, cardStyle, { borderColor: accent, borderWidth: StyleSheet.hairlineWidth }]}>
-                            <View style={styles.infoCardHeader}>
-                                <View style={[styles.infoCardIcon, { backgroundColor: `${accent}18`, borderColor: `${accent}35` }]}>
-                                    <Ionicons name="document-text-outline" size={25} color={accent} />
-                                </View>
-                                <Text style={[styles.infoCardTitle, labelStyle]}>
-                                    {t('walletScreen.missionRulesTitle')}
+
+                        <View style={[styles.statBox, { backgroundColor: statBoxBg, borderColor: statBoxBorderColor, borderWidth: isBusinessProfile ? 1 : 0 }]}>
+                            <Text style={[styles.statLabel, { color: statLabelColor }]} numberOfLines={1}>
+                                {t('walletScreen.purchasedCredits', 'Purchased credits')}
+                            </Text>
+                            <Text style={[styles.statValue, { color: statValueColor }]}>
+                                {purchasedHitsLeft}
+                            </Text>
+                        </View>
+                    </View>
+
+                    <TouchableOpacity
+                        style={[
+                            styles.buyButton,
+                            { backgroundColor: buttonBg },
+                            (!canBuyHits || purchasedHitsLeft >= maxPurchasedHits) && styles.buyButtonDisabled,
+                        ]}
+                        onPress={handleBuyCredits}
+                        disabled={!canBuyHits || purchasedHitsLeft >= maxPurchasedHits}
+                        activeOpacity={0.85}
+                    >
+                        <Text style={styles.buyButtonText}>
+                            {t('walletScreen.buyMissionPostBtn', {
+                                price: missionPostPrice,
+                                defaultValue: `Buy Mission Post • ${missionPostPrice}`,
+                            })}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* 4. Card 2: What is a Mission Post? */}
+                <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorderColor, shadowColor: cardShadowColor }]}>
+                    <View style={styles.cardHeader}>
+                        <View style={[styles.iconBadgeCircle, { backgroundColor: iconBadgeBg }]}>
+                            <Ionicons name="information" size={16} color={brandColor} />
+                        </View>
+                        <Text style={[styles.cardTitle, { color: cardTitleColor }]}>
+                        {t('walletScreen.whatIsMissionPost', 'What is a Mission Post?')}
+                        </Text>
+                    </View>
+                    <Text style={[styles.bodyDescription, { color: bodyDescColor }]}>
+                        {t('walletScreen.missionPostDescription', 'Set a goal, share your vision, and let your community help fund what matters.')}
+                    </Text>
+                </View>
+
+                {/* 5. Card 3: Mission Post Rules */}
+                <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorderColor, shadowColor: cardShadowColor }]}>
+                    <View style={styles.cardHeader}>
+                        <View style={[styles.iconBadge, { backgroundColor: iconBadgeBg }]}>
+                            <Ionicons name="document-text-outline" size={16} color={brandColor} />
+                        </View>
+                        <Text style={[styles.cardTitle, { color: cardTitleColor }]}>
+                        {t('walletScreen.missionRulesTitle', 'Mission Post Rules')}
+                        </Text>
+                    </View>
+
+                    <View style={styles.rulesList}>
+                        {/* Monthly Members */}
+                        <View style={styles.ruleItem}>
+                            <View style={[styles.ruleIconBadge, { backgroundColor: iconBadgeBg }]}>
+                                <MaterialCommunityIcons name="crown-outline" size={22} color={brandColor} />
+                            </View>
+                            <View style={styles.ruleContent}>
+                                <Text style={[styles.ruleTitle, { color: ruleTitleColor }]}>
+                                    {t('walletScreen.monthlyMembersTitle', 'Monthly Members')}
+                                </Text>
+                                <Text style={[styles.ruleDesc, { color: ruleDescColor }]}>
+                                    {t('walletScreen.monthlyMembersDesc', '5 Mission Posts included each month.')}
                                 </Text>
                             </View>
-                            <View style={styles.missionRulesList}>
-                                <View style={styles.missionRule}>
-                                    <View style={[styles.missionRuleIcon, { backgroundColor: `${accent}18`, borderColor: `${accent}35` }]}>
-                                        <MaterialCommunityIcons name="crown-outline" size={31} color={accent} />
-                                    </View>
-                                    <View style={styles.missionRuleContent}>
-                                        <Text style={[styles.missionRuleTitle, labelStyle]}>{t('walletScreen.monthlyMembersTitle')}</Text>
-                                        <Text style={[styles.missionRuleText, accentTextStyle]}>{t('walletScreen.monthlyMembersDescription')}</Text>
-                                    </View>
-                                </View>
-                                <View style={[styles.missionRule, styles.missionRuleBorder, { borderTopColor: border }]}>
-                                    <View style={[styles.missionRuleIcon, { backgroundColor: `${accent}18`, borderColor: `${accent}35` }]}>
-                                        <MaterialCommunityIcons name="tag-outline" size={31} color={accent} />
-                                    </View>
-                                    <View style={styles.missionRuleContent}>
-                                        <Text style={[styles.missionRuleTitle, labelStyle]}>{t('walletScreen.nonMembersTitle')}</Text>
-                                        <Text style={[styles.missionRuleText, accentTextStyle]}>
-                                            {t('walletScreen.nonMembersDescription', { price: missionPostPrice })}
-                                        </Text>
-                                    </View>
-                                </View>
-                                <View style={[styles.missionRule, styles.missionRuleBorder, { borderTopColor: border }]}>
-                                    <View style={[styles.missionRuleIcon, { backgroundColor: `${accent}18`, borderColor: `${accent}35` }]}>
-                                        <Ionicons name="calendar-outline" size={31} color={accent} />
-                                    </View>
-                                    <View style={styles.missionRuleContent}>
-                                        <Text style={[styles.missionRuleTitle, labelStyle]}>{t('walletScreen.monthlyLimitTitle')}</Text>
-                                        <Text style={[styles.missionRuleText, accentTextStyle]}>{t('walletScreen.monthlyLimitDescription')}</Text>
-                                    </View>
-                                </View>
+                        </View>
+
+                        <View style={[styles.ruleDivider, { backgroundColor: ruleDividerColor }]} />
+
+                        {/* Non-Members */}
+                        <View style={styles.ruleItem}>
+                            <View style={[styles.ruleIconBadge, { backgroundColor: iconBadgeBg }]}>
+                                <MaterialCommunityIcons name="tag-outline" size={20} color={brandColor} />
+                            </View>
+                            <View style={styles.ruleContent}>
+                                <Text style={[styles.ruleTitle, { color: ruleTitleColor }]}>
+                                    {t('walletScreen.nonMembersTitle', 'Non-Members')}
+                                </Text>
+                                <Text style={[styles.ruleDesc, { color: ruleDescColor }]}>
+                                    {t('walletScreen.nonMembersDesc', {
+                                        price: missionPostPrice,
+                                        defaultValue: `${missionPostPrice} per Mission Post. Up to 5 per month.`,
+                                    })}
+                                </Text>
+                            </View>
+                        </View>
+
+                        <View style={[styles.ruleDivider, { backgroundColor: ruleDividerColor }]} />
+
+                        {/* Monthly Limit */}
+                        <View style={styles.ruleItem}>
+                            <View style={[styles.ruleIconBadge, { backgroundColor: iconBadgeBg }]}>
+                                <Ionicons name="calendar-outline" size={20} color={brandColor} />
+                            </View>
+                            <View style={styles.ruleContent}>
+                                <Text style={[styles.ruleTitle, { color: ruleTitleColor }]}>
+                                    {t('walletScreen.monthlyLimitTitle', 'Monthly Limit')}
+                                </Text>
+                                <Text style={[styles.ruleDesc, { color: ruleDescColor }]}>
+                                    {t('walletScreen.monthlyLimitDesc', 'Up to 5 posts per month. Unused credits do not roll over. Your limit resets each month.')}
+                                </Text>
                             </View>
                         </View>
                     </View>
                 </View>
             </ScrollView>
 
-            {/* Token Purchase Modal */}
+            {/* Token Purchase Modal (kept for functional compatibility) */}
             <RBSheet
                 ref={purchaseSheetRef}
                 height={500}
                 openDuration={250}
                 draggable={true}
                 closeOnPressMask={true}
-                customModalProps={{ statusBarTranslucent: true }}
-                onOpen={() => setPurchaseAutoFocus(true)}
-                onClose={() => {
-                    Keyboard.dismiss();
-                    setPurchaseAutoFocus(false);
-                    setSelectedCreator(null);
-                }}
                 customStyles={{
                     container: [{ borderTopLeftRadius: 30, borderTopRightRadius: 30, bottom: -30 }, bgStyle],
                     draggableIcon: { backgroundColor: '#ccc', width: 60 },
                 }}
             >
                 <TokenPurchaseModal
-                    onClose={handleTokenModalClose}
-                    onPurchase={handleTokenPurchase}
+                    onClose={() => purchaseSheetRef.current?.close?.()}
+                    onPurchase={() => purchaseSheetRef.current?.close?.()}
                     hasFollowing={true}
-                    autoFocus={purchaseAutoFocus}
-                    vendorid={selectedCreator?.vendorId || ''}
+                    autoFocus={false}
+                    vendorid=""
                 />
             </RBSheet>
 
-            {/* Token Sell Modal */}
+            {/* Token Sell Modal (kept for functional compatibility) */}
             <RBSheet
                 ref={sellSheetRef}
                 height={550}
                 openDuration={250}
                 draggable={true}
                 closeOnPressMask={true}
-                customModalProps={{ statusBarTranslucent: true }}
-                onOpen={() => setPurchaseAutoFocus(true)}
-                onClose={() => {
-                    Keyboard.dismiss();
-                    setPurchaseAutoFocus(false);
-                    setSelectedCreator(null);
-                }}
                 customStyles={{
                     container: [{ borderTopLeftRadius: 30, borderTopRightRadius: 30, bottom: -30 }, bgStyle],
                     draggableIcon: { backgroundColor: '#ccc', width: 60 },
                 }}
             >
                 <TokenSellModal
-                    onSell={handleTokenSell}
-                    userId={selectedCreator?.vendorId || ''}
-                    tokenAddress={tokenAddress}
+                    onSell={() => sellSheetRef.current?.close?.()}
+                    userId=""
+                    tokenAddress={null}
                 />
             </RBSheet>
 
@@ -745,450 +486,183 @@ export default function WalletComponent() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        paddingTop: 20,
-        paddingBottom: 50,
-        marginBottom:'5%'
     },
-    profileSection: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingVertical: 12,
-        marginTop: 0,
+    scrollContent: {
+        paddingHorizontal: 16,
+        paddingTop: 8,
+        paddingBottom: Platform.OS === 'ios' ? 40 : 30,
     },
-    nameRow: {
+    profileRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 5,
+        paddingVertical: 8,
     },
-    username: {
-        fontSize: 20,
-        fontWeight: "600",
+    profileTextWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginLeft: 12,
+        flex: 1,
     },
-    verificationBadge: {
-        fontSize: 12,
-        fontWeight: '600',
-        marginTop: 2,
+    profileName: {
+        fontSize: 17,
+        fontWeight: '700',
+        letterSpacing: -0.2,
     },
-    walletAddress: {
-        fontSize: 16,
+    swordIcon: {
+        marginLeft: 8,
     },
-    idRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginTop: 4,
+    dragonflyIcon: {
+        marginLeft: 6,
     },
-    clipboardBtn: {
-        marginLeft: 3
-    },
-    profileImage: {
-        width: 50,
-        height: 50,
-        borderRadius: 35,
-        borderWidth: 2
-    },
-    holdingsBox: {
-        alignItems: "center",
-        marginVertical: 10,
+    divider: {
+        height: 1,
+        width: '100%',
         marginTop: 8,
-        backgroundColor: '#ffffff',
+        marginBottom: 8,
+    },
+    heroSection: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         paddingVertical: 10,
-        borderRadius: 16,
-        marginHorizontal: 8,
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-        elevation: 2,
+        paddingHorizontal: 2,
+        marginBottom: 6,
     },
-    holdingsText: {
-        color: "#666",
-        fontSize: 14
-    },
-    holdingsAmount: {
-        fontSize: 34,
-        fontWeight: "700",
-        paddingHorizontal: 20,
-        textAlign: 'center'
-    },
-    creditsCard: {
-        marginTop: 12,
-        borderRadius: 22,
-        borderWidth: StyleSheet.hairlineWidth,
-        paddingHorizontal: 14,
-        paddingTop: 12,
-        paddingBottom: 14,
-        overflow: 'hidden',
-        shadowOpacity: 0.12,
-        shadowRadius: 14,
-        shadowOffset: { width: 0, height: 6 },
-        elevation: 3,
-    },
-    creditsTop: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    creditsCopy: {
+    heroLeft: {
         flex: 1,
-        minWidth: 0,
-        justifyContent: 'center',
-        paddingRight: 4,
+        paddingRight: 10,
     },
-    creditsInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    creditsIconWrap: {
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    creditsTitle: {
-        flex: 1,
-        flexShrink: 1,
-        marginLeft: 10,
-        fontSize: 15,
-        fontWeight: '600',
-    },
-    creditsCount: {
-        marginTop: 8,
+    heroTitle: {
         fontSize: 24,
         fontWeight: '800',
-        letterSpacing: -0.3,
+        lineHeight: 30,
+        letterSpacing: -0.4,
     },
-    creditsStats: {
+    heroSubtitle: {
+        fontSize: 14,
+        fontWeight: '400',
+        lineHeight: 20,
+        marginTop: 6,
+    },
+    heroRocket: {
+        width: 130,
+        height: 140,
+        flexShrink: 0,
+    },
+    card: {
+        borderRadius: 18,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        shadowColor: '#7C3AED',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    cardHeader: {
         flexDirection: 'row',
-        marginTop: 12,
-        gap: 8,
+        alignItems: 'center',
     },
-    creditsStat: {
-        flex: 1,
+    iconBadge: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 12,
-        paddingVertical: 8,
-        paddingHorizontal: 6,
-        minHeight: 64,
     },
-    creditsStatLabel: {
-        fontSize: 12,
-        fontWeight: '600',
-        textAlign: 'center',
-        lineHeight: 16,
-    },
-    creditsStatValue: {
-        marginTop: 4,
-        fontSize: 22,
-        fontWeight: '800',
-        textAlign: 'center',
-    },
-    creditsRenewal: {
-        fontSize: 12,
-        color: '#666',
-    },
-    buyCreditsBtn: {
-        marginTop: 12,
-        minHeight: 48,
-        paddingVertical: 13,
-        paddingHorizontal: 12,
+    iconBadgeCircle: {
+        width: 28,
+        height: 28,
         borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
-        alignSelf: 'stretch',
     },
-    buyCreditsBtnDisabled: {
-        opacity: 0.45,
-    },
-    buyCreditsText: {
-        color: '#fff',
-        fontWeight: '700',
-        fontSize: 15,
-        textAlign: 'center',
-        width: '100%',
-    },
-    infoBoxesRow: {
-        flexDirection: 'column',
-        marginTop: 12,
-    },
-    infoCard: {
-        width: '100%',
-        borderRadius: 20,
-        padding: 18,
-        minHeight: 90,
-        elevation: 10,
-
-    },
-    infoCardSpacing: {
-        marginTop: 12,
-    },
-    referralBox: {
-        backgroundColor: '#ffffff',
-        padding: 10,
-        borderRadius: 16,
-        marginHorizontal: 8,
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-        elevation: 2,
-    },
-    infoCardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 4,
-        gap: 12,
-    },
-    infoCardIcon: {
-        width: 30,
-        height: 30,
-        borderRadius: 24,
-        borderWidth: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    infoCardTitle: {
-        flex: 1,
-        flexShrink: 1,
-        minWidth: 0,
-        fontSize: 18,
-        fontWeight: '700',
-    },
-    infoCardText: {
-        flexShrink: 1,
-        width: '100%',
-        fontSize: 14,
-        lineHeight: 20,
-        fontWeight: '300',
-    },
-    missionRulesList: {
-        marginTop: 4,
-        marginLeft:'10%'
-    },
-    missionRule: {
-        flexDirection: 'row',
-        gap: 16,
-        paddingVertical: 16,
-        alignItems: 'center',
-    },
-    missionRuleBorder: {
-        borderTopWidth: 1,
-    },
-    missionRuleContent: {
-        flex: 1,
-        flexShrink: 1,
-        minWidth: 0,
-    },
-    missionRuleIcon: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        borderWidth: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    missionRuleTitle: {
-        flexShrink: 1,
-        fontSize: 18,
-        fontWeight: '700',
-        marginBottom: 6,
-    },
-    missionRuleText: {
-        flexShrink: 1,
-        fontSize: 15,
-        lineHeight: 22,
-        fontWeight: '300',
-    },
-    referralUsageText: {
-        fontSize: 12,
-        color: '#666',
-        marginTop: 10,
-    },
-    actions: {
-        flexDirection: "row",
-        marginVertical: 15,
-    },
-    coinName: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: '#111'
-    },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#ffffff',
-        marginHorizontal: 15,
-        marginTop: 10,
-        paddingHorizontal: 12,
-        borderRadius: 12,
-        shadowOpacity: 0.05,
-        shadowRadius: 5,
-        elevation: 2,
-    },
-    searchIcon: {
-        marginRight: 8,
-    },
-    searchInput: {
-        flex: 1,
-        paddingVertical: 12,
-        fontSize: 16,
-        color: '#111',
-    },
-    subHeader: {
-        fontSize: 20,
-        fontWeight: "700",
-        marginHorizontal: 15,
-        marginTop: 15,
-    },
-    note: {
-        fontSize: 13,
-        color: "#666",
-        marginHorizontal: 15,
-        marginBottom: 5
-    },
-    coinItem: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginHorizontal: 15,
-        marginVertical: 8,
-        backgroundColor: '#ffffff',
-        padding: 12,
-        borderRadius: 16,
-        shadowOpacity: 0.05,
-        shadowRadius: 5,
-        elevation: 2,
-    },
-    coinAvatar: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        marginRight: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    avatarText: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    creatorUsername: {
-        fontSize: 12,
-        color: '#666',
-        marginTop: 2,
-    },
-    marketCapText: {
-        fontSize: 11,
-        fontWeight: '600',
-        marginTop: 1,
-    },
-    followersText: {
-        fontSize: 11,
-        color: '#666',
-        marginTop: 1,
-    },
-    priceSection: {
-        alignItems: 'center',
-        marginRight: 8,
-    },
-    price: {
-        fontSize: 14,
-        fontWeight: "700",
-        marginBottom: 4,
-    },
-    followBtn: {
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderRadius: 6,
-        borderWidth: 1,
-    },
-    unfollowBtn: {
-        backgroundColor: '#fff',
-    },
-    followBtnText: {
-        fontSize: 10,
-        fontWeight: '600',
-    },
-    followBtnActiveText: {
-        color: '#fff',
-    },
-    newTag: {
-        backgroundColor: "#f3e9ff",
-        borderRadius: 5,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        marginRight: 10,
-    },
-    verifiedTag: {
-        backgroundColor: '#e8f5e8',
-    },
-    verifiedText: {
-        color: '#2d8f2d',
-    },
-    creatorDashboard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 16,
-        padding: 16,
-        marginVertical: 8,
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-        elevation: 2,
-    },
-    creatorHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    creatorInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    creatorAvatar: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        marginRight: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    creatorName: {
+    cardTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#111',
+        marginLeft: 10,
+        letterSpacing: -0.2,
     },
     statsRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 16,
+        gap: 12,
+        marginTop: 14,
+        marginBottom: 14,
+    },
+    statBox: {
+        flex: 1,
+        borderRadius: 14,
+        paddingVertical: 14,
         paddingHorizontal: 8,
-    },
-    statItem: {
         alignItems: 'center',
-    },
-    statValue: {
-        fontSize: 16,
-        fontWeight: '700',
+        justifyContent: 'center',
     },
     statLabel: {
-        fontSize: 11,
-        color: '#666',
+        fontSize: 12.5,
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    statValue: {
+        fontSize: 26,
+        fontWeight: '800',
+        marginTop: 4,
+        textAlign: 'center',
+    },
+    buyButton: {
+        borderRadius: 14,
+        paddingVertical: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+    },
+    buyButtonDisabled: {
+        opacity: 0.45,
+    },
+    buyButtonText: {
+        color: '#FFFFFF',
+        fontSize: 15.5,
+        fontWeight: '700',
+        letterSpacing: -0.2,
+    },
+    bodyDescription: {
+        fontSize: 13.5,
+        lineHeight: 20,
+        marginTop: 10,
+        fontWeight: '400',
+    },
+    rulesList: {
+        marginTop: 12,
+    },
+    ruleItem: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+    },
+    ruleIconBadge: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
         marginTop: 2,
     },
-    tradeButtons: {
-        flexDirection: 'row',
-        gap: 10,
-    },
-    tradeBtn: {
+    ruleContent: {
         flex: 1,
-        paddingVertical: 10,
-        borderRadius: 8,
-        alignItems: 'center',
     },
-    sellBtn: {
-        backgroundColor: '#000',
-        borderWidth: 1,
+    ruleTitle: {
+        fontSize: 14.5,
+        fontWeight: '700',
     },
-    tradeBtnText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#fff',
+    ruleDesc: {
+        fontSize: 13,
+        lineHeight: 18,
+        marginTop: 2,
+        fontWeight: '400',
     },
-    holdingItem: {
-        marginHorizontal: 15,
+    ruleDivider: {
+        height: 1,
+        width: '100%',
+        marginVertical: 12,
     },
 });

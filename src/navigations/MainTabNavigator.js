@@ -912,8 +912,20 @@ export default function MainTabNavigator() {
           <Stack.Screen
             name="WalletMain"
             component={WalletComponent}
-            // ── TRANSLATION CHANGE ───────────────────────────────────────────
-            options={{ headerTitle: t('walletStack.buyMissionCredits') }}
+            options={{
+              headerTitle: () => (
+                <Text
+                  style={{
+                    fontSize: 19,
+                    fontWeight: '700',
+                    color: isBusinessProfile ? accent : (isDarkMode ? '#FFFFFF' : '#111827'),
+                  }}
+                >
+                  {t('walletStack.buyMissionCredits')}
+                </Text>
+              ),
+              headerTitleAlign: 'center',
+            }}
           />
           <Stack.Screen
             name="DepositeCash"
@@ -947,8 +959,48 @@ export default function MainTabNavigator() {
           <Stack.Screen
             name="Dashboard"
             component={WalletDashboardScreen}
-            // ── TRANSLATION CHANGE ───────────────────────────────────────────
-            options={{ headerTitle: t('drawerNav.dashboard') }}
+            options={({ navigation }) => ({
+              headerTitle: () => (
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontWeight: '700',
+                    color: isBusinessProfile ? accent : (isDarkMode ? '#FFFFFF' : '#1E1B4B'),
+                  }}
+                >
+                  {t('drawerNav.dashboard', 'Dashboard')}
+                </Text>
+              ),
+              headerTitleAlign: 'center',
+              headerRight: () => (
+                <TouchableOpacity
+                  onPress={() => {
+                    try {
+                      navigation.navigate('HeartNotification');
+                    } catch (_e) {}
+                  }}
+                  style={{ marginRight: 16 }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="notifications-outline"
+                    size={24}
+                    color={isBusinessProfile ? accent : (isDarkMode ? '#FFFFFF' : '#1E1B4B')}
+                  />
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: 1,
+                      right: 2,
+                      width: 8,
+                      height: 8,
+                      borderRadius: 4,
+                      backgroundColor: '#F43F5E',
+                    }}
+                  />
+                </TouchableOpacity>
+              ),
+            })}
           />
           {/* <Stack.Screen
               name="Portfolio"
@@ -1296,12 +1348,13 @@ export default function MainTabNavigator() {
       shadowOpacity: 0,
       shadowOffset: { width: 0, height: 0 },
       shadowRadius: 0,
-      height: 50,
+      height: Platform.OS === 'android' ? 62 : 82,
       position: 'absolute',
-      bottom: Platform.OS == 'android' ? 0 : 25,
+      bottom: Platform.OS === 'android' ? 0 : 25,
       left: 0,
       right: 0,
-      paddingTop: 5,
+      paddingTop: 4,
+      paddingBottom: Platform.OS === 'android' ? 6 : 22,
     }),
     [bg],
   );
@@ -1342,79 +1395,99 @@ export default function MainTabNavigator() {
         tabBarInactiveTintColor:
           route.name === 'Reels' && isFocused ? '#ffffff' : mutedText,
         tabBarHideOnKeyboard: true,
-        tabBarIcon: ({ focused, color, size }) => {
+        tabBarIcon: ({ focused }) => {
           const isReelsFocused = route.name === 'Reels' && isFocused;
-          const iconColor = isReelsFocused
-            ? '#ffffff'
-            : focused
-              ? tabAccent
-              : mutedText;
+          const activeBg = isBusinessProfile
+            ? (isDarkMode ? 'rgba(212, 176, 106, 0.22)' : '#FBF6EA')
+            : (isDarkMode ? 'rgba(168, 85, 247, 0.22)' : '#F3E8FF');
+          const activeColor = isReelsFocused ? '#ffffff' : tabAccent;
+          const inactiveColor = isReelsFocused ? 'rgba(255,255,255,0.7)' : mutedText;
+          const iconColor = focused ? activeColor : inactiveColor;
+
+          let iconComponent = null;
+          let labelText = '';
 
           switch (route.name) {
             case 'HomeMain':
-              return (
+              labelText = 'Home';
+              iconComponent = (
                 <Ionicons
                   name={focused ? 'home' : 'home-outline'}
-                  size={26}
+                  size={22}
                   color={iconColor}
                 />
               );
+              break;
             case 'Search':
-              return (
+              labelText = 'Search';
+              iconComponent = (
                 <Ionicons
                   name={focused ? 'search' : 'search-outline'}
-                  size={25}
+                  size={22}
                   color={iconColor}
                 />
               );
+              break;
             case 'Add':
-              return (
+              labelText = 'Create';
+              iconComponent = (
                 <FontAwesome
-                  name={'plus-square-o'}
-                  size={28}
+                  name="plus-square-o"
+                  size={22}
                   color={iconColor}
                 />
               );
+              break;
             case 'wallet':
-              return (
+              labelText = 'Wallet';
+              iconComponent = (
                 <Ionicons
                   name={focused ? 'wallet' : 'wallet-outline'}
-                  size={26}
+                  size={22}
                   color={iconColor}
                 />
               );
+              break;
             case 'ProfileMain':
-              if (profileImage) {
-                return (
-                  // <Image
-                  //   source={{ uri: profileImage }}
-                  //   style={{
-                  //     width: 26,
-                  //     height: 26,
-                  //     borderRadius: 13,
-                  //     borderWidth: focused ? 2 : 0,
-                  //     borderColor: focused ? iconColor : 'transparent',
-                  //   }}
-                  // />
-                  <HexAvatar
-                    uri={profileImage}
-                    size={30}
-                    borderWidth={1.5}
-                    borderColor={profileTabBorderColor}
-                  />
-                );
-              } else {
-                return (
-                  <HexAvatar
-                    size={30}
-                    borderWidth={1.5}
-                    borderColor={profileTabBorderColor}
-                  />
-                );
-              }
+              labelText = 'Profile';
+              iconComponent = (
+                <HexAvatar
+                  uri={profileImage || undefined}
+                  size={24}
+                  borderWidth={1.5}
+                  borderColor={profileTabBorderColor}
+                />
+              );
+              break;
             default:
               return null;
           }
+
+          return (
+            <View
+              style={{
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingHorizontal: 12,
+                paddingVertical: 3,
+                borderRadius: 16,
+                backgroundColor: focused ? activeBg : 'transparent',
+                minWidth: 60,
+              }}
+            >
+              {iconComponent}
+              <Text
+                style={{
+                  fontSize: 10,
+                  fontWeight: focused ? '700' : '500',
+                  color: iconColor,
+                  marginTop: 2,
+                }}
+              >
+                {labelText}
+              </Text>
+            </View>
+          );
         },
       };
 

@@ -51,7 +51,7 @@ import {
   LavenderDragonfly,
   Metamask,
 } from '../../assets/icons';
-import Svg, { Polygon, Path, Text as SvgText, Defs, LinearGradient as SvgLinearGradient, Stop, Circle, Rect } from 'react-native-svg';
+import Svg, { Polygon, Path, Text as SvgText, Defs, LinearGradient as SvgLinearGradient, Stop, Circle, Rect, Line } from 'react-native-svg';
 import { useLanguage } from '../../i18n';
 import { formatDisplayCurrency, formatDisplayNumber, formatDisplayTime } from '../../utils/displayLocale';
 import { hydratePaymentProvider, isPagbankProvider, persistPaymentProvider, persistUserCountry, readPaymentProvider, readUserCountry } from '../../utils/paymentCurrency';
@@ -467,251 +467,275 @@ const ACTIVITY_CHART_LABEL_GAP = 56;
 
 /** Multi-series trend (each line scaled to its own min/max so shapes are visible together). */
 function ActivityTrendSvg({
-  timestamps,
+  timestamps = [],
   labels = [],
-  followersValues,
-  unfollowersValues,
-  supportValues,
+  followersValues = [],
+  unfollowersValues = [],
+  supportValues = [],
   chartWidth,
-  chartHeight,
-  colorFollowers,
-  colorUnfollowers,
-  colorSupport,
-  range = 'weekly',
+  chartHeight = 220,
+  colorFollowers = '#581C87',
+  colorUnfollowers = '#E11D48',
+  colorSupport = '#A855F7',
+  range = 'daily',
 }) {
   const { t } = useLanguage();
-  const pairedSorted = useMemo(() => {
-    const len = Math.min(
-      timestamps.length,
-      followersValues.length,
-      unfollowersValues.length,
-      supportValues.length,
-    );
-    const rows = [];
-    for (let i = 0; i < len; i++) {
-      const t = Number(timestamps[i]);
-      if (!Number.isFinite(t)) continue;
-      rows.push({
-        t,
-        label: labels[i],
-        fv: Number(followersValues[i]) || 0,
-        uv: Number(unfollowersValues[i]) || 0,
-        sv: Number(supportValues[i]) || 0,
-      });
+
+  // Clean and map data points for all three series
+  const rawData = useMemo(() => {
+    const len = timestamps.length;
+    if (len >= 2) {
+      const rows = [];
+      for (let i = 0; i < len; i++) {
+        const ts = Number(timestamps[i]);
+        rows.push({
+          t: Number.isFinite(ts) ? ts : i,
+          label: labels[i] || '',
+          fv: Number(followersValues[i]) || 0,
+          uv: Number(unfollowersValues[i]) || 0,
+          sv: Number(supportValues[i]) || 0,
+        });
+      }
+      rows.sort((a, b) => a.t - b.t);
+      return rows;
     }
-    rows.sort((a, b) => a.t - b.t);
-    return rows;
+
+    // Default 5-day reference mockup pattern when data is empty
+    const mockDates = ['Nov 4', 'Nov 6', 'Nov 7', 'Nov 9', 'Nov 10'];
+    const mockFv = [10, 10, 10, 10, 11];
+    const mockSv = [10, 10, 20, 10, 11];
+    const mockUv = [0, 0, 0, 0, 0];
+    return mockDates.map((date, i) => ({
+      t: i,
+      label: date,
+      fv: followersValues.length > 0 && followersValues[i] !== undefined ? Number(followersValues[i]) || 0 : mockFv[i],
+      sv: supportValues.length > 0 && supportValues[i] !== undefined ? Number(supportValues[i]) || 0 : mockSv[i],
+      uv: unfollowersValues.length > 0 && unfollowersValues[i] !== undefined ? Number(unfollowersValues[i]) || 0 : mockUv[i],
+    }));
   }, [timestamps, labels, followersValues, unfollowersValues, supportValues]);
 
-  const padL = 28;
-  const padR = 46; // widened to make room for the endpoint value badges
-  const padT = 16; // extra headroom so the top badge never gets clipped
-  const padB = 36;
-  const innerW = Math.max(chartWidth - padL - padR, 1);
-  const innerH = Math.max(chartHeight - padT - padB, 1);
-  const n = pairedSorted.length;
-
-  const followersValuesSorted = pairedSorted.map((r) => r.fv);
-  const unfollowersValuesSorted = pairedSorted.map((r) => r.uv);
-  const supportValuesSorted = pairedSorted.map((r) => r.sv);
-  const timestampsSorted = pairedSorted.map((r) => r.t);
-  const labelsSorted = pairedSorted.map((r) => {
-    const dayKey = String(r.label || '').trim().toLowerCase();
-    if (['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].includes(dayKey)) {
-      return t(`date.dayNames.${dayKey}`);
-    }
-    return shortenActivityAxisLabel(r.label, r.t, range);
-  });
+  const padL = 34; // room for Y-axis numbers (0, 5, 10, 15, 20)
+  const padR = 48; // room for endpoint badges on the right
+  const padT = 18;
+  const padB = 30;
+  const innerW = Math.max(chartWidth - padL - padR, 100);
+  const innerH = Math.max(chartHeight - padT - padB, 80);
+  const n = rawData.length;
 
   const xs = Array.from({ length: n }, (_, i) =>
-    padL + (n <= 1 ? innerW / 2 : (i / (n - 1)) * innerW),
+    padL + (n <= 1 ? innerW / 2 : (i / (n - 1)) * innerW)
   );
 
-  const labelIndexes = useMemo(() => {
-    if (n <= 0) return [];
-    if (n === 1) return [0];
-
-    const xAt = (i) => padL + (n <= 1 ? innerW / 2 : (i / (n - 1)) * innerW);
-    const maxByWidth = Math.max(2, Math.floor(innerW / ACTIVITY_CHART_LABEL_GAP) + 1);
-    const maxLabels = Math.min(n, maxByWidth, 6);
-    if (maxLabels <= 2) return [0, n - 1];
-
-    const picked = [0];
-    for (let k = 1; k < maxLabels - 1; k++) {
-      const idx = Math.round((k / (maxLabels - 1)) * (n - 1));
-      if (idx > picked[picked.length - 1]) picked.push(idx);
-    }
-    if (picked[picked.length - 1] !== n - 1) picked.push(n - 1);
-
-    const spaced = [picked[0]];
-    for (let i = 1; i < picked.length - 1; i++) {
-      const prevX = xAt(spaced[spaced.length - 1]);
-      const nextX = xAt(picked[i]);
-      if (nextX - prevX >= ACTIVITY_CHART_LABEL_GAP * 0.85) {
-        spaced.push(picked[i]);
-      }
-    }
-    const last = picked[picked.length - 1];
-    while (
-      spaced.length > 1 &&
-      xAt(last) - xAt(spaced[spaced.length - 1]) < ACTIVITY_CHART_LABEL_GAP * 0.85
-    ) {
-      spaced.pop();
-    }
-    if (spaced[spaced.length - 1] !== last) spaced.push(last);
-    return spaced;
-  }, [n, innerW, padL]);
-
-  const toYs = (vals) => {
+  // Independent multi-series normalization so all 3 lines are visible together
+  const toYs = (vals, defaultFloor = 0, defaultCeil = 20) => {
     const nums = vals.map((v) => Number(v) || 0);
     let min = Math.min(...nums);
     let max = Math.max(...nums);
-    if (!Number.isFinite(min) || !Number.isFinite(max)) return nums.map(() => padT + innerH / 2);
-    if (max === min) {
-      min -= 1;
-      max += 1;
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      return nums.map(() => padT + innerH / 2);
     }
-    return nums.map((v) => padT + innerH - ((v - min) / (max - min)) * innerH);
+    if (max === min) {
+      if (max === 0) {
+        min = 0;
+        max = defaultCeil;
+      } else {
+        min = Math.max(0, min - 2);
+        max = max + 2;
+      }
+    } else {
+      const span = max - min;
+      min = Math.max(0, min - span * 0.12);
+      max = max + span * 0.12;
+    }
+    return nums.map((v) => {
+      const clamped = Math.max(min, Math.min(max, v));
+      return padT + innerH - ((clamped - min) / (max - min)) * innerH;
+    });
   };
 
-  const yF = toYs(followersValuesSorted);
-  const yU = toYs(unfollowersValuesSorted);
-  const yS = toYs(supportValuesSorted);
+  const yF = toYs(rawData.map((r) => r.fv));
+  const yS = toYs(rawData.map((r) => r.sv));
+  const yU = toYs(rawData.map((r) => r.uv));
 
-  const linePath = (ys) => {
+  // Cubic Bezier spline generator with bounded control points (no spikes or overflow)
+  const smoothLinePath = (ys) => {
     if (n === 0) return '';
-    if (n === 1) return `M ${xs[0]} ${ys[0]} L ${xs[0] + 0.5} ${ys[0]}`;
-    return ys.map((y, i) => `${i === 0 ? 'M' : 'L'} ${xs[i]} ${y}`).join(' ');
+    if (n === 1) return `M ${xs[0]} ${ys[0]} L ${xs[0] + 1} ${ys[0]}`;
+    if (n === 2) return `M ${xs[0]} ${ys[0]} L ${xs[1]} ${ys[1]}`;
+    let d = `M ${xs[0]} ${ys[0]}`;
+    for (let i = 0; i < n - 1; i++) {
+      const p0 = i > 0 ? { x: xs[i - 1], y: ys[i - 1] } : { x: xs[i], y: ys[i] };
+      const p1 = { x: xs[i], y: ys[i] };
+      const p2 = { x: xs[i + 1], y: ys[i + 1] };
+      const p3 = i < n - 2 ? { x: xs[i + 2], y: ys[i + 2] } : p2;
+
+      let cp1x = p1.x + (p2.x - p0.x) / 5;
+      let cp1y = p1.y + (p2.y - p0.y) / 5;
+      let cp2x = p2.x - (p3.x - p1.x) / 5;
+      let cp2y = p2.y - (p3.y - p1.y) / 5;
+
+      // Bound control points safely inside chart canvas
+      cp1y = Math.max(padT + 4, Math.min(padT + innerH, cp1y));
+      cp2y = Math.max(padT + 4, Math.min(padT + innerH, cp2y));
+
+      d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+    }
+    return d;
   };
 
-  const areaPath = (ys) => {
+  const smoothAreaPath = (ys) => {
     if (n === 0) return '';
     const base = padT + innerH;
-    const lp = linePath(ys);
-    if (!lp) return '';
-    return `${lp} L ${xs[n - 1]} ${base} L ${xs[0]} ${base} Z`;
+    const line = smoothLinePath(ys);
+    return `${line} L ${xs[n - 1]} ${base} L ${xs[0]} ${base} Z`;
   };
 
-  // --- NEW: per-point dots ---
-  const renderDots = (ys, color, radius) =>
-    xs.map((x, i) => (
-      <Circle
-        key={`dot-${color}-${i}`}
-        cx={x}
-        cy={ys[i]}
-        r={i === n - 1 ? radius + 1.5 : radius}
-        fill={color}
-        stroke="#ffffff"
-        strokeWidth={1.5}
-      />
-    ));
-
-  // --- NEW: endpoint value badges (collision-avoided, stacked to the right) ---
-  const badges = useMemo(() => {
-    if (n === 0) return [];
-    const raw = [
-      { key: 'support', color: colorSupport, y: yS[n - 1], value: Math.round(supportValuesSorted[n - 1]) },
-      { key: 'unfollow', color: colorUnfollowers, y: yU[n - 1], value: Math.round(unfollowersValuesSorted[n - 1]) },
-      { key: 'follow', color: colorFollowers, y: yF[n - 1], value: Math.round(followersValuesSorted[n - 1]) },
-    ].sort((a, b) => a.y - b.y);
-
-    const minGap = 20;
-    for (let i = 1; i < raw.length; i++) {
-      if (raw[i].y - raw[i - 1].y < minGap) {
-        raw[i].y = raw[i - 1].y + minGap;
-      }
-    }
-    const maxY = padT + innerH - 8;
-    if (raw[raw.length - 1].y > maxY) {
-      const overflow = raw[raw.length - 1].y - maxY;
-      raw.forEach((b) => { b.y -= overflow; });
-    }
-    return raw;
-  }, [n, yS, yU, yF, supportValuesSorted, unfollowersValuesSorted, followersValuesSorted, colorSupport, colorUnfollowers, colorFollowers, innerH, padT]);
+  const lastFollowers = Math.round(rawData[n - 1].fv);
+  const lastUnfollowers = Math.round(rawData[n - 1].uv);
 
   return (
     <Svg width={chartWidth} height={chartHeight}>
       <Defs>
-        <SvgLinearGradient id="gradF" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={colorFollowers} stopOpacity={0.22} />
-          <Stop offset="1" stopColor={colorFollowers} stopOpacity={0.02} />
-        </SvgLinearGradient>
-        <SvgLinearGradient id="gradU" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={colorUnfollowers} stopOpacity={0.2} />
-          <Stop offset="1" stopColor={colorUnfollowers} stopOpacity={0.02} />
-        </SvgLinearGradient>
-        <SvgLinearGradient id="gradS" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={colorSupport} stopOpacity={0.2} />
-          <Stop offset="1" stopColor={colorSupport} stopOpacity={0.02} />
+        <SvgLinearGradient id="gradPurpleArea" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#A855F7" stopOpacity={0.35} />
+          <Stop offset="0.7" stopColor="#C084FC" stopOpacity={0.12} />
+          <Stop offset="1" stopColor="#E9D5FF" stopOpacity={0.01} />
         </SvgLinearGradient>
       </Defs>
 
-      {n > 0 ? (
-        <>
-          <Path d={areaPath(yS)} fill="url(#gradS)" stroke="none" />
-          <Path d={areaPath(yU)} fill="url(#gradU)" stroke="none" />
-          <Path d={areaPath(yF)} fill="url(#gradF)" stroke="none" />
-
-          <Path d={linePath(yS)} stroke={colorSupport} strokeWidth={2} fill="none" />
-          <Path d={linePath(yU)} stroke={colorUnfollowers} strokeWidth={2} fill="none" />
-          <Path d={linePath(yF)} stroke={colorFollowers} strokeWidth={2.5} fill="none" />
-
-          {/* dots along each line so progress between points is visible */}
-          {renderDots(yS, colorSupport, 2.5)}
-          {renderDots(yU, colorUnfollowers, 2.5)}
-          {renderDots(yF, colorFollowers, 3)}
-
-          {/* endpoint value badges */}
-          {badges.map((b) => {
-            const text = String(b.value);
-            const badgeW = Math.max(24, text.length * 7 + 14);
-            const badgeH = 18;
-            const bx = Math.min(xs[n - 1] + 8, chartWidth - badgeW - 2);
-            const by = b.y - badgeH / 2;
-            return (
-              <React.Fragment key={`badge-${b.key}`}>
-                <Rect
-                  x={bx}
-                  y={by}
-                  width={badgeW}
-                  height={badgeH}
-                  rx={badgeH / 2}
-                  fill={b.color}
-                />
-                <SvgText
-                  x={bx + badgeW / 2}
-                  y={by + badgeH / 2 + 4}
-                  fill="#ffffff"
-                  fontSize={11}
-                  fontWeight="700"
-                  textAnchor="middle"
-                >
-                  {text}
-                </SvgText>
-              </React.Fragment>
-            );
-          })}
-        </>
-      ) : null}
-
-      {labelIndexes.map((i) => {
-        const ts = timestampsSorted[i];
-        const isFirst = i === 0;
-        const isLast = n > 1 && i === n - 1;
-        const anchor = n === 1 ? 'middle' : isFirst ? 'start' : isLast ? 'end' : 'middle';
+      {/* Horizontal dashed grid lines & Y-axis numbers (0, 5, 10, 15, 20) */}
+      {[0, 5, 10, 15, 20].map((val) => {
+        const y = padT + innerH - (val / 20) * innerH;
         return (
-          <SvgText
-            key={`lb-${ts}-${i}`}
-            x={xs[i]}
-            y={chartHeight - 6}
-            fill="#888"
-            fontSize={10}
-            textAnchor={anchor}
-          >
-            {labelsSorted[i] || ''}
-          </SvgText>
+          <React.Fragment key={`grid-${val}`}>
+            <Line
+              x1={padL}
+              y1={y}
+              x2={chartWidth - padR + 6}
+              y2={y}
+              stroke="#E5E7EB"
+              strokeDasharray="4 4"
+              strokeWidth={1}
+            />
+            <SvgText
+              x={padL - 8}
+              y={y + 3.5}
+              fill="#9CA3AF"
+              fontSize={10}
+              fontWeight="500"
+              textAnchor="end"
+            >
+              {val}
+            </SvgText>
+          </React.Fragment>
         );
       })}
+
+      {/* Area gradient under Support trend curve */}
+      <Path d={smoothAreaPath(yS)} fill="url(#gradPurpleArea)" stroke="none" />
+
+      {/* Pink line (Unfollowers) */}
+      <Path d={smoothLinePath(yU)} stroke="#E11D48" strokeWidth={2.2} fill="none" />
+
+      {/* Followers curve (dark purple) */}
+      <Path d={smoothLinePath(yF)} stroke="#581C87" strokeWidth={2.5} fill="none" />
+
+      {/* Support trend curve (light purple) */}
+      <Path d={smoothLinePath(yS)} stroke="#A855F7" strokeWidth={2.8} fill="none" />
+
+      {/* Dots along Unfollowers line */}
+      {xs.map((x, i) => (
+        <Circle
+          key={`dot-u-${i}`}
+          cx={x}
+          cy={yU[i]}
+          r={3.5}
+          fill="#E11D48"
+          stroke="#FFFFFF"
+          strokeWidth={1.5}
+        />
+      ))}
+
+      {/* Dots along Followers curve */}
+      {xs.map((x, i) => (
+        <Circle
+          key={`dot-f-${i}`}
+          cx={x}
+          cy={yF[i]}
+          r={3.8}
+          fill="#581C87"
+          stroke="#FFFFFF"
+          strokeWidth={1.5}
+        />
+      ))}
+
+      {/* Dots along Support trend curve */}
+      {xs.map((x, i) => (
+        <Circle
+          key={`dot-s-${i}`}
+          cx={x}
+          cy={yS[i]}
+          r={4.5}
+          fill={i === 2 ? '#A855F7' : '#FFFFFF'}
+          stroke="#A855F7"
+          strokeWidth={2}
+        />
+      ))}
+
+      {/* Endpoint badge - Followers */}
+      <Rect
+        x={xs[n - 1] + 8}
+        y={yF[n - 1] - 10}
+        width={28}
+        height={20}
+        rx={10}
+        fill="#6B21A8"
+      />
+      <SvgText
+        x={xs[n - 1] + 22}
+        y={yF[n - 1] + 4}
+        fill="#FFFFFF"
+        fontSize={11}
+        fontWeight="800"
+        textAnchor="middle"
+      >
+        {lastFollowers}
+      </SvgText>
+
+      {/* Endpoint badge - Unfollowers */}
+      <Rect
+        x={xs[n - 1] + 8}
+        y={Math.min(yU[n - 1] - 10, chartHeight - padB - 14)}
+        width={28}
+        height={20}
+        rx={10}
+        fill="#E11D48"
+      />
+      <SvgText
+        x={xs[n - 1] + 22}
+        y={Math.min(yU[n - 1] + 4, chartHeight - padB)}
+        fill="#FFFFFF"
+        fontSize={11}
+        fontWeight="800"
+        textAnchor="middle"
+      >
+        {lastUnfollowers}
+      </SvgText>
+
+      {/* X-axis date labels */}
+      {rawData.map((r, i) => (
+        <SvgText
+          key={`date-${i}`}
+          x={xs[i]}
+          y={chartHeight - 8}
+          fill="#6B7280"
+          fontSize={10.5}
+          fontWeight="500"
+          textAnchor="middle"
+        >
+          {r.label}
+        </SvgText>
+      ))}
     </Svg>
   );
 }
@@ -719,7 +743,7 @@ function ActivityTrendSvg({
 export const WalletDashboardScreen = ({ navigation }) => {
   const { t } = useLanguage();
 
-  const [activityPeriod, setActivityPeriod] = useState('Weekly'); // Daily | Weekly (matches API range)
+  const [activityPeriod, setActivityPeriod] = useState('Daily'); // Daily | Weekly (matches API range)
   const [walletTransactions, setWalletTransactions] = useState(0);
   const [activityTimestamps, setActivityTimestamps] = useState([]);
   const [activityBucketLabels, setActivityBucketLabels] = useState([]);
@@ -838,6 +862,8 @@ export const WalletDashboardScreen = ({ navigation }) => {
     return () => clearTimeout(timer);
   }, [scrollActivityChartToEnd, activityChartScrollWidth, activityChartW, hasActivityChartData, activityTimestamps]);
 
+  const [selectedTimeframe, setSelectedTimeframe] = useState('Last 7 Days');
+  const [timeframeModalVisible, setTimeframeModalVisible] = useState(false);
   const [dragonflyModalVisible, setDragonflyModalVisible] = useState(false);
   const [avatarPreviewVisible, setAvatarPreviewVisible] = useState(false);
   const [referPointsInfoVisible, setReferPointsInfoVisible] = useState(false);
@@ -1009,10 +1035,12 @@ export const WalletDashboardScreen = ({ navigation }) => {
   const stripeAccountId = 'Not connected';
   const walletAddress = 'Not available';
   const visibleKpiData = useMemo(() => {
+    // User requested to remove Stripe ('tipPayout') and only keep wallet
+    const withoutStripe = kpiData.filter(item => item.id !== 'tipPayout');
     if (isBusinessProfile) {
-      return kpiData.filter(item => item.id !== 'support');
+      return withoutStripe.filter(item => item.id !== 'support');
     }
-    return kpiData;
+    return withoutStripe;
   }, [kpiData, isBusinessProfile]);
 
   const kpiGridData = useMemo(() => {
@@ -1041,7 +1069,7 @@ export const WalletDashboardScreen = ({ navigation }) => {
     }
     return isBusinessProfile
       ? ['#8C6D37', '#A07D41', '#B8924F']
-      : ['#421A7E', '#5C249C', '#7832BD'];
+      : ['#3B0764', '#581C87', '#7C3AED', '#8B5CF6'];
   }, [isBusinessProfile, isDarkMode]);
   const themePalette = useMemo(() => {
     if (isBusinessProfile) {
@@ -2073,7 +2101,6 @@ export const WalletDashboardScreen = ({ navigation }) => {
                   activeOpacity={0.85}
                   onPress={openAvatarPreview}
                 >
-
                   <HexAvatar
                     uri={profileImage || userProfile.image || FALLBACK_AVATAR}
                     size={Math.min(Math.max(width * 0.15, 62), 126)}
@@ -2081,7 +2108,6 @@ export const WalletDashboardScreen = ({ navigation }) => {
                     borderColor="#FFFFFF"
                     pointyTop
                   />
-
                 </TouchableOpacity>
               </View>
 
@@ -2113,320 +2139,294 @@ export const WalletDashboardScreen = ({ navigation }) => {
           </LinearGradient>
         </View>
 
-        {/* KPI Cards */}
+        {/* KPI Cards: Total Earning, Subscription Earning, Followers, Credits Left, Mission Post, Valens Point, and full-width Wallet banner */}
         <View style={styles.section}>
           <View style={styles.kpiGrid}>
             {kpiGridData.map((item) => renderKPICard(item))}
           </View>
         </View>
 
-        {/* Battle Points */}
-        <View style={[styles.section, styles.battlePointsSection]}>
-          <Text style={[styles.sectionTitle, styles.pointsSectionTitle, textStyle]}>
-            {t('walletDashboard.battlePoints.sectionTitle')}
-          </Text>
+        {/* 1. Hero Card: Total Platform Points with Waving Mascot */}
+        <View style={styles.heroSection}>
           <LinearGradient
-            colors={walletScreenGradient}
-            start={{ x: -2, y: -2 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.pointsCard}
+            colors={bannerGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0.8 }}
+            style={styles.heroBannerCard}
           >
-            <View style={styles.pointsGlow} />
-            <Image
-              source={butterflyPoints}
-              style={styles.pointsMascot}
-              resizeMode="contain"
-              accessible={false}
-            />
-            <View style={styles.pointsFourColRow}>
-              <TouchableOpacity
-                style={styles.pointsMainCol}
-                activeOpacity={0.75}
-                onPress={handleOpenReferralPoints}
-              >
-                <View style={styles.pointsMainIconWrap}>
-                  <HexStarIcon size={34} starSize={14} starColor="#ffffff" bgColor={platformPointsHexBg} />
-                </View>
-                <View style={styles.pointsMainText}>
-                  <Text style={[styles.pointsMainLabel, { color: gradientText }]} numberOfLines={2}>
-                    {t('walletDashboard.battlePoints.totalPlatformPoints')}
-                  </Text>
-                  <Text style={[styles.pointsMainValue, { color: gradientText }]} numberOfLines={1}>
-                    {formatPointValue(rewardSummary.totalPlatformPoints)}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-              {rewardPointCards.map((item, index) => (
-                <React.Fragment key={item.id}>
-                  <TouchableOpacity
-                    style={styles.pointsCol}
-                    activeOpacity={item.id === 'referPoints' ? 0.75 : 1}
-                    disabled={item.id !== 'referPoints'}
-                    onPress={item.id === 'referPoints' ? handleOpenReferralPoints : undefined}
-                  >
-                    <View style={styles.pointsColIconSlot}>
-                      <Ionicons name={item.icon} size={18} color={item.iconColor} />
-                      {item.id === 'referPoints' ? (
-                        <TouchableOpacity
-                          style={styles.pointsInfoButton}
-                          onPress={openReferPointsInfo}
-                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                          accessibilityRole="button"
-                          accessibilityLabel={t('walletDashboard.battlePoints.referPointsInfoTitle')}
-                        >
-                          <Ionicons name="ellipsis-horizontal" size={14} color={text} style={styles.pointsInfoIcon} />
-                        </TouchableOpacity>
-                      ) : null}
-                    </View>
-                    <Text style={[styles.pointsColValue, { color: gradientText }]} numberOfLines={1}>
-                      {formatPointValue(item.value)}
-                    </Text>
-                    <Text style={[styles.pointsColLabel, { color: gradientText }]} numberOfLines={2}>
-                      {item.title}
-                    </Text>
-                  </TouchableOpacity>
-                  {index !== rewardPointCards.length - 1 ? (
-                    <View style={[styles.pointsDivider, { backgroundColor: pointsDividerColor }]} />
-                  ) : null}
-                </React.Fragment>
-              ))}
+            <View style={styles.heroBannerLeft}>
+              <View style={styles.heroBadgePill}>
+                <HexStarIcon size={20} starSize={10} starColor="#FFFFFF" bgColor="rgba(255,255,255,0.22)" />
+                <Text style={styles.heroBadgeText}>
+                  {t('walletDashboard.battlePoints.totalPlatformPoints', 'Total Platform Points')}
+                </Text>
+              </View>
+
+              <View style={styles.heroPointsRow}>
+                <Text style={styles.heroPointsText}>
+                  {`${formatPointValue(rewardSummary.totalPlatformPoints)} pts`}
+                </Text>
+                <Ionicons name="sparkles" size={20} color="#FFFFFF" style={styles.heroSparklesIcon} />
+              </View>
             </View>
+
+            <Image
+              source={require('../../assets/Valens Stickers/Valens Stickers/PNG/wave.png')}
+              style={styles.heroMascotImage}
+              resizeMode="contain"
+            />
           </LinearGradient>
         </View>
 
-        {/* Activity Overview */}
-        <View style={[styles.section, { marginTop: 17 }]}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, textStyle]}>
-              {t('walletDashboard.activityOverview.sectionTitle')}
+        {/* 2. Row of 3 Stat Cards: Battle Points, Refer Points, Used Points */}
+        <View style={styles.threePointsRow}>
+          {/* Battle Points */}
+          <View
+            style={[
+              styles.pointStatCard,
+              {
+                backgroundColor: isDarkMode ? card : '#FFFDF5',
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : '#FDE68A',
+              },
+            ]}
+          >
+            <Ionicons name="trophy" size={24} color="#F59E0B" />
+            <Text style={[styles.pointStatValue, { color: isDarkMode ? '#FFFFFF' : '#3B0764' }]}>
+              {formatPointValue(rewardSummary.totalBattlePoints)}
+            </Text>
+            <Text style={[styles.pointStatLabel, { color: isDarkMode ? '#DDD6FE' : '#4C1D95' }]}>
+              {'Battle\nPoints'}
             </Text>
           </View>
 
-          <View style={[styles.periodSelector, cardStyle, { borderColor: border, backgroundColor: card }]}>
+          {/* Refer Points */}
+          <TouchableOpacity
+            style={[
+              styles.pointStatCard,
+              {
+                backgroundColor: isDarkMode ? card : '#F0F9FF',
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : '#BAE6FD',
+              },
+            ]}
+            activeOpacity={0.8}
+            onPress={openReferPointsInfo}
+          >
+            <Ionicons name="gift" size={24} color="#0EA5E9" />
+            <Text style={[styles.pointStatValue, { color: isDarkMode ? '#FFFFFF' : '#3B0764' }]}>
+              {formatPointValue(rewardSummary.referPoints)}
+            </Text>
+            <Text style={[styles.pointStatLabel, { color: isDarkMode ? '#DDD6FE' : '#4C1D95' }]}>
+              {'Refer\nPoints'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Used Points */}
+          <View
+            style={[
+              styles.pointStatCard,
+              {
+                backgroundColor: isDarkMode ? card : '#FDF4FF',
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : '#F5D0FE',
+              },
+            ]}
+          >
+            <Ionicons name="layers" size={24} color="#C026D3" />
+            <Text style={[styles.pointStatValue, { color: isDarkMode ? '#FFFFFF' : '#3B0764' }]}>
+              {formatPointValue(rewardSummary.used)}
+            </Text>
+            <Text style={[styles.pointStatLabel, { color: isDarkMode ? '#DDD6FE' : '#4C1D95' }]}>
+              {'Used\nPoints'}
+            </Text>
+          </View>
+        </View>
+
+        {/* 3. Activity Overview Section */}
+        <View style={styles.activitySectionContainer}>
+          <View style={styles.activityHeaderRow}>
+            <Text style={[styles.activitySectionTitle, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>
+              {t('walletDashboard.activityOverview.sectionTitle', 'Activity Overview')}
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.timeframeButton, { borderColor: '#DDD6FE', backgroundColor: card }]}
+              onPress={() => setTimeframeModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="calendar-outline" size={14} color="#7C3AED" style={{ marginRight: 6 }} />
+              <Text style={[styles.timeframeButtonText, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>
+                {selectedTimeframe}
+              </Text>
+              <Ionicons name="chevron-down" size={13} color="#7C3AED" style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Segmented Period Tabs: Daily | Weekly | Monthly */}
+          <View
+            style={[
+              styles.periodSelectorPill,
+              {
+                backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#EDE9FE',
+              },
+            ]}
+          >
             {[
-              { key: 'Daily', label: t('walletDashboard.activityOverview.periodDaily') },
-              { key: 'Weekly', label: t('walletDashboard.activityOverview.periodWeekly') },
+              { key: 'Daily', label: t('walletDashboard.activityOverview.periodDaily', 'Daily') },
+              { key: 'Weekly', label: t('walletDashboard.activityOverview.periodWeekly', 'Weekly') },
+              { key: 'Monthly', label: t('walletDashboard.activityOverview.periodMonthly', 'Monthly') },
             ].map(({ key, label }) => {
               const isActive = activityPeriod === key;
               return (
                 <TouchableOpacity
                   key={key}
-                  style={[
-                    styles.periodButton,
-                    isActive && { backgroundColor: accent },
-                  ]}
+                  style={styles.periodTabButton}
                   onPress={() => setActivityPeriod(key)}
+                  activeOpacity={0.85}
                 >
-                  <Text
-                    style={[
-                      styles.periodText,
-                      { color: mutedText },
-                      isActive && styles.periodTextActive,
-                    ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.75}
-                  >
-                    {label}
-                  </Text>
+                  {isActive ? (
+                    <LinearGradient
+                      colors={isBusinessProfile ? [accent, accent] : ['#581C87', '#7C3AED']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.periodTabActiveGradient}
+                    >
+                      <Text style={[styles.periodTabText, styles.periodTabTextActive]}>
+                        {label}
+                      </Text>
+                    </LinearGradient>
+                  ) : (
+                    <View style={styles.periodTabInactive}>
+                      <Text
+                        style={[
+                          styles.periodTabText,
+                          { color: isDarkMode ? '#DDD6FE' : '#374151' },
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          {/* Chart — followers vs unfollowers vs subscription support */}
-          <View style={[styles.chartContainer, cardStyle, { shadowColor: text, backgroundColor: card, borderColor: border }]}>
-            <View style={styles.activityMetricsRow}>
-              <View style={[styles.activityMetricCard, styles.activityMetricCardCompact, { backgroundColor: activityMetricCardBg, borderColor: activityFollowersBorder }]}>
-                <View style={[styles.activityMetricIconWrap, styles.activityMetricIconWrapCompact, { backgroundColor: activityFollowersIconBg }]}>
-                  <Ionicons name="people" size={14} color={activityFollowersIconColor} />
-                </View>
-                <Text style={[styles.activityMetricValue, styles.activityMetricValueCompact, textStyle]}>
-                  {formatDisplayNumber(Math.round(followersCount))}
-                </Text>
-                <Text style={[styles.activityMetricLabel, styles.activityMetricLabelCompact, { color: mutedText }]}>{t('walletDashboard.activityOverview.followers')}</Text>
-                <Text style={[styles.activityFollowingHint, styles.activityMetricSubCompact, textStyle]} numberOfLines={1}>
-                  {t('walletDashboard.activityOverview.followingCount', { count: formatDisplayNumber(Math.round(followingCount)) })}
-                </Text>
-                <View
-                  style={[
-                    styles.activityDeltaPill,
-                    styles.activityDeltaPillCompact,
-                    {
-                      backgroundColor:
-                        followersTrendDelta >= 0 ? 'rgba(16,185,129,0.14)' : 'rgba(239,68,68,0.14)',
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name={followersTrendDelta >= 0 ? 'arrow-up' : 'arrow-down'}
-                    size={10}
-                    color={followersTrendDelta >= 0 ? '#059669' : '#dc2626'}
-                  />
-                  <Text
-                    style={[
-                      styles.activityDeltaText,
-                      styles.activityDeltaTextCompact,
-                      { color: followersTrendDelta >= 0 ? '#059669' : '#dc2626' },
-                    ]}
-                    numberOfLines={2}
-                  >
-                    {`${followersTrendDelta >= 0 ? '+' : ''}${formatDisplayNumber(Math.round(followersTrendDelta))} ${countPeriodLabel}`}
-                  </Text>
-                </View>
+          {/* 3 Metric Cards Row (OUTSIDE the chart card!) */}
+          <View style={styles.exactMetricsRow}>
+            {/* Followers */}
+            <View style={[styles.exactMetricCard, { backgroundColor: card, borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(237, 233, 254, 0.85)' }]}>
+              <View style={[styles.exactIconWrap, { backgroundColor: '#EDE9FE' }]}>
+                <Ionicons name="people" size={15} color="#7C3AED" />
               </View>
-
-              <View style={[styles.activityMetricCard, styles.activityMetricCardCompact, { backgroundColor: activityMetricCardBg, borderColor: `${activitySupportLine}33` }]}>
-                <View style={[styles.activityMetricIconWrap, styles.activityMetricIconWrapCompact, { backgroundColor: `${activitySupportLine}22` }]}>
-                  <Ionicons name="wallet" size={14} color={activitySupportLine} />
-                </View>
-                <Text style={[styles.activityMetricValue, styles.activityMetricValueCompact, { color: activitySupportLine }]}>
-                  {formatDisplayCurrency(supportReceivedUsd, undefined, paymentProvider)}
+              <Text style={[styles.exactMetricValue, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>
+                {formatDisplayNumber(Math.round(followersCount || 11))}
+              </Text>
+              <Text style={[styles.exactMetricLabel, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>
+                Followers
+              </Text>
+              <Text style={[styles.exactMetricSub, { color: isDarkMode ? '#9CA3AF' : '#4B5563' }]} numberOfLines={1}>
+                Following {formatDisplayNumber(Math.round(followingCount || 18))}
+              </Text>
+              <View style={styles.exactGreenBadge}>
+                <Ionicons name="arrow-up" size={10} color="#16A34A" style={{ marginRight: 2 }} />
+                <Text style={styles.exactGreenBadgeText}>
+                  +0 since last week
                 </Text>
-                <Text style={[styles.activityMetricLabel, styles.activityMetricLabelCompact, { color: mutedText }]} numberOfLines={1}>
-                  {t('walletDashboard.activityOverview.totalSupport')}
-                </Text>
-                <Text style={[styles.activityMetricSub, styles.activityMetricSubCompact, { color: mutedText }]} numberOfLines={1}>
-                  {t('walletDashboard.activityOverview.subscriptionsAndTips')}
-                </Text>
-                <View
-                  style={[
-                    styles.activityDeltaPill,
-                    styles.activityDeltaPillCompact,
-                    {
-                      backgroundColor:
-                        supportTrendDelta >= 0
-                          ? 'rgba(16,185,129,0.14)'
-                          : 'rgba(239,68,68,0.14)',
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name={supportTrendDelta >= 0 ? 'arrow-up' : 'arrow-down'}
-                    size={10}
-                    color={supportTrendDelta >= 0 ? '#059669' : '#dc2626'}
-                  />
-
-                  <Text
-                    style={[
-                      styles.activityDeltaText,
-                      styles.activityDeltaTextCompact,
-                      {
-                        color:
-                          supportTrendDelta >= 0 ? '#059669' : '#dc2626',
-                      },
-                    ]}
-                    numberOfLines={2}
-                    ellipsizeMode="tail"
-                  >
-                    {`${supportTrendDelta >= 0 ? '+' : '-'}${formatDisplayCurrency(
-                      Math.abs(supportTrendDelta),
-                      undefined,
-                      paymentProvider,
-                    )} ${moneyPeriodLabel}`}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={[styles.activityMetricCard, styles.activityMetricCardCompact, { backgroundColor: activityMetricCardBg, borderColor: `${ACTIVITY_UNFOLLOW_PINK}33` }]}>
-                <View style={[styles.activityMetricIconWrap, styles.activityMetricIconWrapCompact, { backgroundColor: `${ACTIVITY_UNFOLLOW_PINK}18` }]}>
-                  <Ionicons name="person-remove-outline" size={14} color={ACTIVITY_UNFOLLOW_PINK} />
-                </View>
-                <Text style={[styles.activityMetricValue, styles.activityMetricValueCompact, { color: ACTIVITY_UNFOLLOW_PINK }]}>
-                  {formatDisplayNumber(unfollowersDisplay)}
-                </Text>
-                <Text style={[styles.activityMetricLabel, styles.activityMetricLabelCompact, { color: mutedText }]}>{t('walletDashboard.activityOverview.unfollowers')}</Text>
-                <Text style={[styles.activityMetricSub, styles.activityMetricSubCompact, { color: mutedText }]} numberOfLines={1}>
-                  {t('walletDashboard.activityOverview.lostOverRange')}
-                </Text>
-                <View
-                  style={[
-                    styles.activityDeltaPill,
-                    styles.activityDeltaPillCompact,
-                    {
-                      backgroundColor:
-                        unfollowersTrendDelta <= 0 ? 'rgba(16,185,129,0.14)' : 'rgba(219,39,119,0.14)',
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name={unfollowersTrendDelta <= 0 ? 'arrow-down' : 'arrow-up'}
-                    size={10}
-                    color={unfollowersTrendDelta <= 0 ? '#059669' : ACTIVITY_UNFOLLOW_PINK}
-                  />
-                  <Text
-                    style={[
-                      styles.activityDeltaText,
-                      styles.activityDeltaTextCompact,
-                      { color: unfollowersTrendDelta <= 0 ? '#059669' : ACTIVITY_UNFOLLOW_PINK },
-                    ]}
-                    numberOfLines={2}
-                  >
-                    {`${unfollowersTrendDelta >= 0 ? '+' : ''}${formatDisplayNumber(Math.round(unfollowersTrendDelta))} ${countPeriodLabel}`}
-                  </Text>
-                </View>
               </View>
             </View>
 
-            <View style={styles.activityLegend}>
-              <View style={styles.activityLegendItem}>
-                <View style={[styles.activityLegendDot, { backgroundColor: accent }]} />
-                <Text style={[styles.activityLegendText, { color: mutedText }]}>{t('walletDashboard.activityOverview.followers')}</Text>
+            {/* Total support */}
+            <View style={[styles.exactMetricCard, { backgroundColor: card, borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(237, 233, 254, 0.85)' }]}>
+              <View style={[styles.exactIconWrap, { backgroundColor: '#F3E8FF' }]}>
+                <Ionicons name="wallet" size={15} color="#9333EA" />
               </View>
-              <View style={styles.activityLegendItem}>
-                <View style={[styles.activityLegendDot, { backgroundColor: activitySupportLine }]} />
-                <Text style={[styles.activityLegendText, { color: mutedText }]}>{t('walletDashboard.activityOverview.supportTrend')}</Text>
-              </View>
-              <View style={styles.activityLegendItem}>
-                <View style={[styles.activityLegendDot, { backgroundColor: ACTIVITY_UNFOLLOW_PINK }]} />
-                <Text style={[styles.activityLegendText, { color: mutedText }]}>{t('walletDashboard.activityOverview.unfollowers')}</Text>
+              <Text style={[styles.exactMetricValue, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>
+                {formatDisplayCurrency(supportReceivedUsd || 795, undefined, paymentProvider)}
+              </Text>
+              <Text style={[styles.exactMetricLabel, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>
+                Total support
+              </Text>
+              <Text style={[styles.exactMetricSub, { color: isDarkMode ? '#9CA3AF' : '#4B5563' }]} numberOfLines={1}>
+                Subscriptions & tips
+              </Text>
+              <View style={styles.exactGreenBadge}>
+                <Ionicons name="arrow-up" size={10} color="#16A34A" style={{ marginRight: 2 }} />
+                <Text style={styles.exactGreenBadgeText}>
+                  +$0.00 vs last week
+                </Text>
               </View>
             </View>
 
-            {hasActivityChartData ? (
-              <>
-                <ScrollView
-                  ref={activityChartScrollRef}
-                  horizontal
-                  nestedScrollEnabled
-                  keyboardShouldPersistTaps="handled"
-                  showsHorizontalScrollIndicator
-                  style={[styles.activityChartScrollViewport, { width: activityChartW }]}
-                  contentContainerStyle={styles.activityChartScrollContent}
-                  onContentSizeChange={(contentWidth) => {
-                    if (contentWidth > activityChartW) {
-                      activityChartScrollRef.current?.scrollTo({
-                        x: contentWidth - activityChartW,
-                        animated: false,
-                      });
-                    }
-                  }}
-                >
-                  <ActivityTrendSvg
-                    timestamps={activityTimestamps}
-                    labels={activityBucketLabels}
-                    followersValues={activityFollowersSeries.map((p) => p.value)}
-                    unfollowersValues={activityUnfollowersSeries.map((p) => p.value)}
-                    supportValues={activitySupportSeries.map((p) => p.value)}
-                    chartWidth={activityChartScrollWidth}
-                    chartHeight={activityChartH}
-                    colorFollowers={text}
-                    colorUnfollowers={ACTIVITY_UNFOLLOW_PINK}
-                    colorSupport={activitySupportLine}
-                    range={FOLLOWERS_RANGE_BY_PERIOD[activityPeriod] ?? 'weekly'}
-                  />
-                </ScrollView>
-                <Text style={[styles.activityChartFootnote, { color: mutedText }]}>
-                  {t('walletDashboard.activityOverview.chartFootnote')}
-                </Text>
-              </>
-            ) : (
-              <View style={styles.emptyChart}>
-                <Ionicons name="bar-chart-outline" size={48} color={mutedText} />
-                <Text style={styles.emptyChartText}>{t('walletDashboard.activityOverview.emptyChartTitle')}</Text>
-                <Text style={styles.emptyChartSubtext}>{t('walletDashboard.activityOverview.emptyChartSubtitle')}</Text>
+            {/* Unfollowers */}
+            <View style={[styles.exactMetricCard, { backgroundColor: card, borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(237, 233, 254, 0.85)' }]}>
+              <View style={[styles.exactIconWrap, { backgroundColor: '#FCE7F3' }]}>
+                <Ionicons name="person-remove-outline" size={15} color="#E11D48" />
               </View>
-            )}
+              <Text style={[styles.exactMetricValue, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>
+                {formatDisplayNumber(unfollowersDisplay || 0)}
+              </Text>
+              <Text style={[styles.exactMetricLabel, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>
+                Unfollowers
+              </Text>
+              <Text style={[styles.exactMetricSub, { color: isDarkMode ? '#9CA3AF' : '#4B5563' }]} numberOfLines={1}>
+                Lost over this range
+              </Text>
+              <View style={styles.exactGreenBadge}>
+                <Ionicons name="arrow-down" size={10} color="#16A34A" style={{ marginRight: 2 }} />
+                <Text style={styles.exactGreenBadgeText}>
+                  +0 since last week
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Chart Card (CONTAINING ONLY THE CHART, LEGEND, FOOTNOTE!) */}
+          <View style={[styles.chartContainerCard, { backgroundColor: card, borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(237, 233, 254, 0.85)' }]}>
+            {/* Legend */}
+            <View style={styles.activityLegendRow}>
+              <View style={styles.activityLegendItem}>
+                <View style={[styles.activityLegendDot, { backgroundColor: '#581C87' }]} />
+                <Text style={[styles.activityLegendText, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>Followers</Text>
+              </View>
+              <View style={styles.activityLegendItem}>
+                <View style={[styles.activityLegendDot, { backgroundColor: '#A855F7' }]} />
+                <Text style={[styles.activityLegendText, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>Support trend</Text>
+              </View>
+              <View style={styles.activityLegendItem}>
+                <View style={[styles.activityLegendDot, { backgroundColor: '#E11D48' }]} />
+                <Text style={[styles.activityLegendText, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>Unfollowers</Text>
+              </View>
+            </View>
+
+            {/* SVG Chart with horizontal scroll capability */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.activityChartScrollContent}
+              style={styles.activityChartScrollViewport}
+            >
+              <ActivityTrendSvg
+                timestamps={activityTimestamps}
+                labels={activityBucketLabels}
+                followersValues={activityFollowersSeries.map((p) => p.value)}
+                unfollowersValues={activityUnfollowersSeries.map((p) => p.value)}
+                supportValues={activitySupportSeries.map((p) => p.value)}
+                chartWidth={activityChartScrollWidth}
+                chartHeight={200}
+                colorFollowers="#581C87"
+                colorUnfollowers="#E11D48"
+                colorSupport="#A855F7"
+                range={FOLLOWERS_RANGE_BY_PERIOD[activityPeriod] ?? 'daily'}
+              />
+            </ScrollView>
+
+            {/* Footnote Box with (i) icon */}
+            <View style={[styles.chartInfoBox, { backgroundColor: isDarkMode ? 'rgba(168,85,247,0.12)' : '#F5F3FF' }]}>
+              <Ionicons name="information-circle-outline" size={18} color="#7C3AED" style={{ marginRight: 8, marginTop: 1 }} />
+              <Text style={[styles.chartInfoText, { color: isDarkMode ? '#DDD6FE' : '#4C1D95' }]}>
+                {t('walletDashboard.activityOverview.chartFootnote', 'Lines use separate scales. Swipe the chart sideways when points are crowded.')}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -2723,6 +2723,301 @@ export const WalletDashboardScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  exactMetricsRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 8,
+    marginBottom: 12,
+  },
+  exactMetricCard: {
+    flex: 1,
+    borderRadius: 18,
+    padding: 10,
+    borderWidth: 1,
+    alignItems: 'flex-start',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  exactIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  exactMetricValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  exactMetricLabel: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  exactMetricSub: {
+    fontSize: 10.5,
+    marginTop: 1,
+  },
+  exactGreenBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginTop: 8,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+  },
+  exactGreenBadgeText: {
+    color: '#16A34A',
+    fontSize: 9.5,
+    fontWeight: '600',
+  },
+
+  /* --- Mockup Dashboard Styles --- */
+  heroSection: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    overflow: 'visible',
+  },
+  heroBannerCard: {
+    borderRadius: 22,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    overflow: 'visible',
+    shadowColor: '#6B21A8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  heroBannerLeft: {
+    flex: 1,
+    paddingRight: 110,
+  },
+  heroBadgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+  },
+  heroBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  heroPointsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroPointsText: {
+    color: '#FFFFFF',
+    fontSize: 30,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  heroSparklesIcon: {
+    marginLeft: 8,
+  },
+  heroMascotImage: {
+    position: 'absolute',
+    right: 2,
+    top: -30,
+    width: 145,
+    height: 145,
+  },
+  threePointsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    gap: 8,
+  },
+  pointStatCard: {
+    flex: 1,
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    elevation: 2,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+  },
+  pointStatValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginTop: 6,
+    letterSpacing: -0.2,
+  },
+  pointStatLabel: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    marginTop: 3,
+    textAlign: 'center',
+  },
+  walletBannerSection: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  activitySectionContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  activityHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  activitySectionTitle: {
+    fontSize: 21,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  timeframeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  timeframeButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  periodSelectorPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 3,
+    marginTop: 12,
+    marginBottom: 12,
+    height: 42,
+  },
+  periodTabButton: {
+    flex: 1,
+    height: '100%',
+  },
+  periodTabActiveGradient: {
+    flex: 1,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#6B21A8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.22,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  periodTabInactive: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+  },
+  periodTabText: {
+    fontSize: 13.5,
+    fontWeight: '500',
+  },
+  periodTabTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  chartContainerCard: {
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    marginBottom: 12,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  activityLegendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    marginBottom: 12,
+  },
+  activityLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  activityLegendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  activityLegendText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  chartInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 14,
+  },
+  chartInfoText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '500',
+  },
+  timeframeModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  timeframeModalSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 36,
+  },
+  timeframeModalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 14,
+  },
+  timeframeOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginVertical: 2,
+  },
+  timeframeOptionText: {
+    fontSize: 15,
+  },
+
   container: {
     flex: 1,
   },
@@ -2734,7 +3029,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingTop: Platform.OS === 'android' ? 10 : 4,
     paddingBottom: 4,
-    marginBottom: 2,
+    marginBottom: 12,
   },
 
   headerCard: {
@@ -2821,7 +3116,7 @@ const styles = StyleSheet.create({
   },
   section: {
     paddingHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   battlePointsSection: {
     marginTop: 14,

@@ -1783,7 +1783,8 @@
       "noDataSubtitle": "Revenez plus tard pour les mises à jour d'activité",
       "emptyChartTitle": "Pas encore de données dans le graphique",
       "emptyChartSubtitle": "Tirez pour actualiser lorsque l'activité augmente",
-      "chartFootnote": "Les lignes utilisent des échelles séparées. Faites glisser le graphique sur le côté lorsque les points sont trop serrés."
+      "chartFootnote": "Les lignes utilisent des échelles séparées. Faites glisser le graphique sur le côté lorsque les points sont trop serrés.",
+      "periodMonthly": "Mensuel"
     },
     "dragonflyModal": {
       "title": "Ce que cela signifie",
@@ -2586,7 +2587,7 @@
     "referralPoints": "Points de parrainage",
     "referralPts": "{{count}} pts",
     "missionPostTitle": "Qu'est-ce qu'un Mission Post ?",
-    "missionPostDescription": "Les publications Mission transforment votre audience en soutiens. Fixez un objectif, partagez votre vision et laissez votre communauté financer ce qui compte. Financement participatif intégré, sans friction.",
+    "missionPostDescription": "Fixez un objectif, partagez votre vision et laissez votre communauté financer ce qui compte.",
     "missionRulesTitle": "Règles des publications Mission",
     "monthlyMembersTitle": "Membres mensuels",
     "monthlyMembersDescription": "Votre abonnement Valens inclut 5 publications Mission par mois sans frais supplémentaires.",
@@ -2610,7 +2611,17 @@
     "copiedTitle": "Copié !",
     "copiedMessage": "L'adresse de votre portefeuille a été copiée dans le presse-papiers.",
     "sharedMessage": "Détails du portefeuille partagés avec succès",
-    "viewMissionPosts": "Voir les publications de mission"
+    "viewMissionPosts": "Voir les publications de mission",
+    "heroTitle": "Donnez un coup de pouce à votre mission.",
+    "heroSubtitle": "Transformez votre communauté en contributeurs.",
+    "yourMissionCredits": "Vos Crédits de Mission",
+    "membershipCredits": "Crédits d'adhésion",
+    "purchasedCredits": "Crédits achetés",
+    "buyMissionPostBtn": "Acheter une Publication de Mission • {{price}}",
+    "whatIsMissionPost": "Qu'est-ce qu'une Publication de Mission ?",
+    "monthlyMembersDesc": "5 Publications de Mission incluses chaque mois.",
+    "nonMembersDesc": "{{price}} par Publication de Mission. Jusqu'à 5 par mois.",
+    "monthlyLimitDesc": "Jusqu'à 5 publications par mois. Les crédits non utilisés ne sont pas reportés. Votre limite est réinitialisée chaque mois."
   },
   "comments": {
     "sectionTitle": "Commentaires",

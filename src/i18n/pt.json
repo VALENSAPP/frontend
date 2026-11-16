@@ -1783,7 +1783,8 @@
       "noDataSubtitle": "Volte mais tarde para atualizações de atividade",
       "emptyChartTitle": "Ainda não há dados no gráfico",
       "emptyChartSubtitle": "Deslize para atualizar quando houver atividade",
-      "chartFootnote": "As linhas usam escalas separadas. Deslize o gráfico para o lado quando os pontos estiverem aglomerados."
+      "chartFootnote": "As linhas usam escalas separadas. Deslize o gráfico para o lado quando os pontos estiverem aglomerados.",
+      "periodMonthly": "Mensal"
     },
     "dragonflyModal": {
       "title": "O Que Isso Significa",
@@ -2586,7 +2587,7 @@
     "referralPoints": "Pontos de indicação",
     "referralPts": "{{count}} pts",
     "missionPostTitle": "O que é Mission Post?",
-    "missionPostDescription": "O Mission Post funciona como uma vaquinha virtual, permitindo arrecadar doações para apoiar uma causa, um projeto, ou uma missão específica.",
+    "missionPostDescription": "Defina uma meta, compartilhe sua visão e deixe sua comunidade ajudar a financiar o que importa.",
     "missionRulesTitle": "Regras dos posts de missão",
     "monthlyMembersTitle": "Membros mensais",
     "monthlyMembersDescription": "Sua assinatura Valens inclui 5 posts de missão por mês sem custo adicional.",
@@ -2610,7 +2611,17 @@
     "copiedTitle": "Copiado!",
     "copiedMessage": "Seu endereço da carteira foi copiado para a área de transferência.",
     "sharedMessage": "Detalhes da carteira compartilhados com sucesso",
-    "viewMissionPosts": "Ver posts de missão"
+    "viewMissionPosts": "Ver posts de missão",
+    "heroTitle": "Dê um impulso à sua missão.",
+    "heroSubtitle": "Transforme sua comunidade em apoiadores.",
+    "yourMissionCredits": "Seus Créditos de Missão",
+    "membershipCredits": "Créditos de assinatura",
+    "purchasedCredits": "Créditos comprados",
+    "buyMissionPostBtn": "Comprar Post de Missão • {{price}}",
+    "whatIsMissionPost": "O que é um Post de Missão?",
+    "monthlyMembersDesc": "5 Posts de Missão incluídos a cada mês.",
+    "nonMembersDesc": "{{price}} por Post de Missão. Até 5 por mês.",
+    "monthlyLimitDesc": "Até 5 posts por mês. Os créditos não utilizados não acumulam. Seu limite é redefinido a cada mês."
   },
   "comments": {
     "sectionTitle": "Comentários",

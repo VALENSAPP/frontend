@@ -1786,7 +1786,8 @@
       "noDataSubtitle": "Check back later for activity updates",
       "emptyChartTitle": "No chart data yet",
       "emptyChartSubtitle": "Pull to refresh after activity builds up",
-      "chartFootnote": "Lines use separate scales. Swipe the chart sideways when points are crowded."
+      "chartFootnote": "Lines use separate scales. Swipe the chart sideways when points are crowded.",
+      "periodMonthly": "Monthly"
     },
     "dragonflyModal": {
       "title": "What This Means",
@@ -2589,7 +2590,7 @@
     "referralPoints": "Referral Points",
     "referralPts": "{{count}} pts",
     "missionPostTitle": "What is Mission Post?",
-    "missionPostDescription": "Mission Posts turn your audience into backers. Set a goal, share your vision, and let your community fund what matters. Built-in crowdfunding, zero friction.",
+    "missionPostDescription": "Set a goal, share your vision, and let your community help fund what matters.",
     "missionRulesTitle": "Mission Post Rules",
     "monthlyMembersTitle": "Monthly Members",
     "monthlyMembersDescription": "Your Valens membership includes 5 Mission Posts per month at no additional cost.",
@@ -2613,7 +2614,17 @@
     "copiedTitle": "Copied!",
     "copiedMessage": "Your wallet address is copied to clipboard.",
     "sharedMessage": "Wallet details shared successfully",
-    "viewMissionPosts": "View Mission Posts"
+    "viewMissionPosts": "View Mission Posts",
+    "heroTitle": "Give your mission a lift.",
+    "heroSubtitle": "Turn your community into backers.",
+    "yourMissionCredits": "Your Mission Credits",
+    "membershipCredits": "Membership credits",
+    "purchasedCredits": "Purchased credits",
+    "buyMissionPostBtn": "Buy Mission Post • {{price}}",
+    "whatIsMissionPost": "What is a Mission Post?",
+    "monthlyMembersDesc": "5 Mission Posts included each month.",
+    "nonMembersDesc": "{{price}} per Mission Post. Up to 5 per month.",
+    "monthlyLimitDesc": "Up to 5 posts per month. Unused credits do not roll over. Your limit resets each month."
   },
   "comments": {
     "sectionTitle": "Comments",
