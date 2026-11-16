@@ -2200,47 +2200,9 @@ const makeStyles = ({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 18,
-    paddingHorizontal: 4,
-  },
-  rootStepItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  rootStepTopRow: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-    marginLeft: '50%'
-  },
-  rootStepCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: card,
-  },
-  rootStepCircleText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: mutedText,
-  },
-  rootStepLine: {
-    flex: 1,
-    height: 2,
-    marginHorizontal: 4,
-    borderRadius: 999,
-    opacity: 0.35,
-  },
-  rootStepLabel: {
-    fontSize: 12,
-    color: mutedText,
-    fontWeight: '700',
-    marginLeft: -10
+    marginBottom: 20,
+    marginTop: 4,
+    paddingHorizontal: 8,
   },
   rootPricingWrap: {
     gap: 14,
@@ -2521,7 +2483,7 @@ const makeStyles = ({
   },
   stepperLine: {
     flex: 1,
-    height: 2,
+    height: 1.5,
     backgroundColor: isDarkMode ? '#332947' : '#E2E8F0',
   },
   stepperLineActive: {
@@ -2529,6 +2491,16 @@ const makeStyles = ({
   },
   stepperLineHidden: {
     opacity: 0,
+  },
+  stepperCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: isDarkMode ? '#475569' : '#CBD5E1',
+    backgroundColor: isDarkMode ? '#1e1430' : '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   stepperCircleActive: {
     backgroundColor: '#581C87',
@@ -2538,9 +2510,24 @@ const makeStyles = ({
     backgroundColor: '#581C87',
     borderColor: '#581C87',
   },
+  stepperCircleText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: isDarkMode ? '#CBD5E1' : '#334155',
+    textAlign: 'center',
+    includeFontPadding: false,
+    lineHeight: 14,
+  },
   stepperCircleTextActive: {
     color: '#FFFFFF',
     fontWeight: '800',
+  },
+  stepperLabel: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: '600',
+    color: isDarkMode ? '#94A3B8' : '#64748B',
+    textAlign: 'center',
   },
   stepperLabelActive: {
     color: '#581C87',

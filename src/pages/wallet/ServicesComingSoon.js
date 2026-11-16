@@ -144,95 +144,95 @@ export default function ServicesComingSoon() {
     if (isBusiness) {
       return isDarkMode
         ? {
-            bg: ['#1A1713', '#251F18', '#1A1713'],
-            surface: '#241E16',
-            card: '#2A2319',
-            cardBorder: '#4D3E28',
-            cardInner: '#1F1A13',
-            launch: '#33291B',
-            title: '#FBF5E8',
-            body: '#DDD0B8',
-            muted: '#B8A688',
-            iconBg: '#3D311F',
-            wave: '#8C6D37',
-            wave2: '#5C441D',
-            headerIcon: '#FDF7EB',
-            accent: '#C9A15A',
-            accentDark: '#A88038',
-            btnGradient: ['#B8923E', '#C9A15A', '#DFBA74'],
-            pillBg: 'rgba(201, 161, 90, 0.22)',
-            inputBg: '#1F1A13',
-            divider: '#3D3220',
-            isBusiness: true,
-          }
+          bg: ['#1A1713', '#251F18', '#1A1713'],
+          surface: '#241E16',
+          card: '#2A2319',
+          cardBorder: '#4D3E28',
+          cardInner: '#1F1A13',
+          launch: '#33291B',
+          title: '#FBF5E8',
+          body: '#DDD0B8',
+          muted: '#B8A688',
+          iconBg: '#3D311F',
+          wave: '#8C6D37',
+          wave2: '#5C441D',
+          headerIcon: '#FDF7EB',
+          accent: '#C9A15A',
+          accentDark: '#A88038',
+          btnGradient: ['#B8923E', '#C9A15A', '#DFBA74'],
+          pillBg: 'rgba(201, 161, 90, 0.22)',
+          inputBg: '#1F1A13',
+          divider: '#3D3220',
+          isBusiness: true,
+        }
         : {
-            bg: ['#FCFBFA', '#FBF6ED', '#F5ECE0'],
-            surface: '#FFFFFF',
-            card: '#FFFFFF',
-            cardBorder: '#F0E2C8',
-            cardInner: '#FCF8F2',
-            launch: '#F8EEDD',
-            title: '#4A3B18',
-            body: '#6E5D34',
-            muted: '#8C7A55',
-            iconBg: '#FAF1E2',
-            wave: '#ECD9B7',
-            wave2: '#DFC496',
-            headerIcon: '#4A3B18',
-            accent: '#C9A15A',
-            accentDark: '#A88038',
-            btnGradient: ['#B8923E', '#C9A15A', '#DFBA74'],
-            pillBg: 'rgba(201, 161, 90, 0.12)',
-            inputBg: '#FFFFFF',
-            divider: '#F0E2C8',
-            isBusiness: true,
-          };
+          bg: ['#FCFBFA', '#FBF6ED', '#F5ECE0'],
+          surface: '#FFFFFF',
+          card: '#FFFFFF',
+          cardBorder: '#F0E2C8',
+          cardInner: '#FCF8F2',
+          launch: '#F8EEDD',
+          title: '#4A3B18',
+          body: '#6E5D34',
+          muted: '#8C7A55',
+          iconBg: '#FAF1E2',
+          wave: '#ECD9B7',
+          wave2: '#DFC496',
+          headerIcon: '#4A3B18',
+          accent: '#C9A15A',
+          accentDark: '#A88038',
+          btnGradient: ['#B8923E', '#C9A15A', '#DFBA74'],
+          pillBg: 'rgba(201, 161, 90, 0.12)',
+          inputBg: '#FFFFFF',
+          divider: '#F0E2C8',
+          isBusiness: true,
+        };
     }
     return isDarkMode
       ? {
-          bg: ['#1A1228', '#241536', '#1A1228'],
-          surface: '#2A1C40',
-          card: '#2C2044',
-          cardBorder: '#3F2C61',
-          cardInner: '#201533',
-          launch: '#32224C',
-          title: '#F3E8FF',
-          body: '#C4B5D6',
-          muted: '#A78BBE',
-          iconBg: '#3B2760',
-          wave: '#4C1D95',
-          wave2: '#2E1064',
-          headerIcon: '#EDE4FF',
-          accent: '#8B5CF6',
-          accentDark: '#6D28D9',
-          btnGradient: ['#7C3AED', '#A855F7', '#C026D3'],
-          pillBg: 'rgba(139, 92, 246, 0.2)',
-          inputBg: '#1E1430',
-          divider: '#362354',
-          isBusiness: false,
-        }
+        bg: ['#1A1228', '#241536', '#1A1228'],
+        surface: '#2A1C40',
+        card: '#2C2044',
+        cardBorder: '#3F2C61',
+        cardInner: '#201533',
+        launch: '#32224C',
+        title: '#F3E8FF',
+        body: '#C4B5D6',
+        muted: '#A78BBE',
+        iconBg: '#3B2760',
+        wave: '#4C1D95',
+        wave2: '#2E1064',
+        headerIcon: '#EDE4FF',
+        accent: '#8B5CF6',
+        accentDark: '#6D28D9',
+        btnGradient: ['#7C3AED', '#A855F7', '#C026D3'],
+        pillBg: 'rgba(139, 92, 246, 0.2)',
+        inputBg: '#1E1430',
+        divider: '#362354',
+        isBusiness: false,
+      }
       : {
-          bg: ['#FBFAFF', '#F4ECFF', '#EDE4FE'],
-          surface: '#FFFFFF',
-          card: '#FFFFFF',
-          cardBorder: '#E9D7FD',
-          cardInner: '#F8F3FF',
-          launch: '#F3EAFF',
-          title: '#2A1258',
-          body: '#5B4A7A',
-          muted: '#7A6A94',
-          iconBg: '#EFE6FF',
-          wave: '#D8C4F6',
-          wave2: '#C4A7F0',
-          headerIcon: '#2A1258',
-          accent: '#7C3AED',
-          accentDark: '#5B21B6',
-          btnGradient: ['#6D28D9', '#9333EA', '#C026D3'],
-          pillBg: 'rgba(124, 58, 237, 0.08)',
-          inputBg: '#FFFFFF',
-          divider: '#EBDCFD',
-          isBusiness: false,
-        };
+        bg: ['#FBFAFF', '#F4ECFF', '#EDE4FE'],
+        surface: '#FFFFFF',
+        card: '#FFFFFF',
+        cardBorder: '#E9D7FD',
+        cardInner: '#F8F3FF',
+        launch: '#F3EAFF',
+        title: '#2A1258',
+        body: '#5B4A7A',
+        muted: '#7A6A94',
+        iconBg: '#EFE6FF',
+        wave: '#D8C4F6',
+        wave2: '#C4A7F0',
+        headerIcon: '#2A1258',
+        accent: '#7C3AED',
+        accentDark: '#5B21B6',
+        btnGradient: ['#6D28D9', '#9333EA', '#C026D3'],
+        pillBg: 'rgba(124, 58, 237, 0.08)',
+        inputBg: '#FFFFFF',
+        divider: '#EBDCFD',
+        isBusiness: false,
+      };
   }, [isDarkMode, isBusiness]);
 
   useEffect(() => {
@@ -687,150 +687,190 @@ export default function ServicesComingSoon() {
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.accent} />
               </TouchableOpacity>
-            {/* Hero Row: Left (Headline & Subtitle), Right (3D Bag Art + Vertical Floating Cards) */}
-            <View style={styles.heroRow}>
-              <View style={styles.heroCopy}>
-                <Text style={[styles.heroTitleMain, { color: colors.title }]}>
-                  {line1}
-                  {'\n'}
-                  <Text style={[styles.heroTitleHighlight, { color: isBusiness ? colors.accent : '#C026D3' }]}>
-                    {line2}
+              {/* Hero Row: Left (Headline & Subtitle), Right (3D Bag Art + Vertical Floating Cards) */}
+
+              <View style={styles.heroRow}>
+                <View style={styles.heroCopy}>
+                  <Text style={[styles.heroTitleMain, { color: colors.title }]}>
+                    {line1}
+                    {'\n'}
+                    <Text
+                      style={[
+                        styles.heroTitleHighlight,
+                        { color: isBusiness ? colors.accent : '#C026D3' },
+                      ]}
+                    >
+                      {line2}
+                    </Text>
+                    {line3 ? `\n${line3}` : ''}
                   </Text>
-                  {line3 ? `\n${line3}` : ''}
-                </Text>
-
-                <Text style={[styles.heroSubtitleText, { color: colors.body }]}>
-                  {t(
-                    'serviceActivation.heroSubtitle',
-                    'Start selling your services on Valens. Offer mentorships, consultations, appointments, events, and monthly packages directly from your profile.',
-                  )}
-                </Text>
-              </View>
-
-              <View style={[styles.heroArt, { width: Math.round(154 * scale), height: Math.round(186 * scale) }]}>
-                <Sparkle style={styles.heroSparkleTop} size={13} color={isBusiness ? '#E8D49E' : '#C4B5FD'} />
-
-                <View style={styles.bagWrap}>
-                  <View style={[styles.bagHandle, { borderColor: isBusiness ? '#DFBA74' : '#A78BFA' }]} />
-                  <LinearGradient
-                    colors={isBusiness ? ['#F5E6C8', '#DFBA74', '#C9A15A'] : ['#DDD6FE', '#A78BFA', '#7C3AED']}
-                    start={{ x: 0.15, y: 0 }}
-                    end={{ x: 0.9, y: 1 }}
-                    style={[styles.bag, { width: Math.round(92 * scale), height: Math.round(100 * scale) }]}
-                  >
-                    <View style={styles.bagFlap} />
-                    <View style={styles.bagShine} />
-                    <Image
-                      source={isBusiness ? HERO_FLY_BUSINESS : HERO_FLY}
-                      style={styles.bagFly}
-                      resizeMode="contain"
-                    />
-                  </LinearGradient>
                 </View>
 
-                {VERTICAL_HERO_CARDS.map(c => (
-                  <View
-                    key={c.icon}
-                    style={[
-                      styles.verticalHeroCard,
-                      {
-                        top: Math.round(c.top * scale),
-                        backgroundColor: colors.surface,
-                        shadowColor: colors.accent,
-                      },
-                    ]}
-                  >
-                    <Ionicons name={c.icon} size={18} color={colors.accent} />
-                  </View>
-                ))}
+                <View
+                  style={[
+                    styles.heroArt,
+                    {
+                      width: Math.round(154 * scale),
+                      height: Math.round(186 * scale),
+                    },
+                  ]}
+                >
+                  <Sparkle
+                    style={styles.heroSparkleTop}
+                    size={13}
+                    color={isBusiness ? '#E8D49E' : '#C4B5FD'}
+                  />
 
-                <Sparkle style={styles.heroSparkleBottom} size={12} color={isBusiness ? '#DFBA74' : '#E879F9'} />
-              </View>
-            </View>
+                  <View style={styles.bagWrap}>
+                    <View
+                      style={[
+                        styles.bagHandle,
+                        { borderColor: isBusiness ? '#DFBA74' : '#A78BFA' },
+                      ]}
+                    />
 
-            {/* Activate Services Button with Explicit Radius & Gradient */}
-            <TouchableOpacity
-              onPress={() => handleActivateServicesPress()}
-              activeOpacity={0.85}
-              style={[styles.activateBtnWrap, { shadowColor: colors.accent }]}
-            >
-              <LinearGradient
-                colors={colors.btnGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[styles.activateBtn, { borderRadius: 18 }]}
-              >
-                <Text style={styles.activateBtnText}>
-                  {t('serviceActivation.activateBtn', 'Activate Services')}
-                </Text>
-                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 8 }} />
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* Trust Badge: 100% secure • You're in control */}
-            <View style={styles.trustBadgeRow}>
-              <Ionicons name="lock-closed-outline" size={13} color={colors.muted} />
-              <Text style={[styles.trustBadgeText, { color: colors.muted }]}>
-                {t('serviceActivation.secureNote', "100% secure • You're in control")}
-              </Text>
-            </View>
-
-            {/* Section Divider & Title: What you can sell */}
-            <View style={styles.sectionHeaderRow}>
-              <View style={[styles.sectionDividerLine, { backgroundColor: colors.divider }]} />
-              <Text style={[styles.sectionTitle, { color: colors.title }]}>
-                {t('serviceActivation.whatYouCanSell', 'What you can sell')}
-              </Text>
-              <View style={[styles.sectionDividerLine, { backgroundColor: colors.divider }]} />
-            </View>
-
-            {/* 5 Offering Items */}
-            <View style={styles.offerRow}>
-              {OFFERINGS.map(item => {
-                const itemWidth = Math.floor((width - 44) / OFFERINGS.length);
-                const label = t(`servicesComingSoon.offer.${item.key}`);
-                const numLines = label.includes(' ') ? 2 : 1;
-                return (
-                  <TouchableOpacity
-                    key={item.key}
-                    onPress={() => handleActivateServicesPress(item.key)}
-                    activeOpacity={0.75}
-                    style={[styles.offerItem, { width: itemWidth, maxWidth: itemWidth }]}
-                  >
-                    <View style={[styles.offerIcon, { backgroundColor: colors.surface, shadowColor: colors.accent }]}>
-                      <Ionicons name={item.icon} size={22} color={colors.accent} />
-                    </View>
-                    <Text
-                      style={[styles.offerLabel, { color: colors.body }]}
-                      numberOfLines={numLines}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.65}
+                    <LinearGradient
+                      colors={
+                        isBusiness
+                          ? ['#F5E6C8', '#DFBA74', '#C9A15A']
+                          : ['#DDD6FE', '#A78BFA', '#7C3AED']
+                      }
+                      start={{ x: 0.15, y: 0 }}
+                      end={{ x: 0.9, y: 1 }}
+                      style={[
+                        styles.bag,
+                        {
+                          width: Math.round(92 * scale),
+                          height: Math.round(100 * scale),
+                        },
+                      ]}
                     >
-                      {label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                      <View style={styles.bagFlap} />
+                      <View style={styles.bagShine} />
+                      <Image
+                        source={isBusiness ? HERO_FLY_BUSINESS : HERO_FLY}
+                        style={styles.bagFly}
+                        resizeMode="contain"
+                      />
+                    </LinearGradient>
+                  </View>
 
-            {/* Built for creators and experts Card */}
-            <View style={[styles.builtCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder, shadowColor: colors.accent }]}>
-              <View style={[styles.shieldWrap, { backgroundColor: colors.iconBg }]}>
-                <Ionicons name="shield-checkmark-outline" size={26} color={colors.accent} />
+                  {VERTICAL_HERO_CARDS.map(c => (
+                    <View
+                      key={c.icon}
+                      style={[
+                        styles.verticalHeroCard,
+                        {
+                          top: Math.round(c.top * scale),
+                          backgroundColor: colors.surface,
+                          shadowColor: colors.accent,
+                        },
+                      ]}
+                    >
+                      <Ionicons name={c.icon} size={18} color={colors.accent} />
+                    </View>
+                  ))}
+
+                  <Sparkle
+                    style={styles.heroSparkleBottom}
+                    size={12}
+                    color={isBusiness ? '#DFBA74' : '#E879F9'}
+                  />
+                </View>
               </View>
-              <View style={styles.builtCopy}>
-                <Text style={[styles.builtTitle, { color: colors.title }]}>
-                  {t('serviceActivation.builtTitle', 'Built for creators and experts')}
-                </Text>
-                <Text style={[styles.builtBody, { color: colors.muted }]}>
-                  {t(
-                    'serviceActivation.builtDesc',
-                    'Grow your business, get paid securely, and build lasting relationships with your community.',
-                  )}
+
+              {/* Full-width subtitle */}
+              <Text style={[styles.heroSubtitleText, { color: colors.body }]}>
+                {t(
+                  'serviceActivation.heroSubtitle',
+                  'Start selling your services on Valens. Offer mentorships, consultations, appointments, events, and monthly packages directly from your profile.',
+                )}
+              </Text>
+
+
+              {/* Activate Services Button with Explicit Radius & Gradient */}
+              <TouchableOpacity
+                onPress={() => handleActivateServicesPress()}
+                activeOpacity={0.85}
+                style={[styles.activateBtnWrap, { shadowColor: colors.accent }]}
+              >
+                <LinearGradient
+                  colors={colors.btnGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.activateBtn, { borderRadius: 18 }]}
+                >
+                  <Text style={styles.activateBtnText}>
+                    {t('serviceActivation.activateBtn', 'Activate Services')}
+                  </Text>
+                  <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 8 }} />
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {/* Trust Badge: 100% secure • You're in control */}
+              <View style={styles.trustBadgeRow}>
+                <Ionicons name="lock-closed-outline" size={13} color={colors.muted} />
+                <Text style={[styles.trustBadgeText, { color: colors.muted }]}>
+                  {t('serviceActivation.secureNote', "100% secure • You're in control")}
                 </Text>
               </View>
-            </View>
-          </ScrollView>
+
+              {/* Section Divider & Title: What you can sell */}
+              <View style={styles.sectionHeaderRow}>
+                <View style={[styles.sectionDividerLine, { backgroundColor: colors.divider }]} />
+                <Text style={[styles.sectionTitle, { color: colors.title }]}>
+                  {t('serviceActivation.whatYouCanSell', 'What you can sell')}
+                </Text>
+                <View style={[styles.sectionDividerLine, { backgroundColor: colors.divider }]} />
+              </View>
+
+              {/* 5 Offering Items */}
+              <View style={styles.offerRow}>
+                {OFFERINGS.map(item => {
+                  const itemWidth = Math.floor((width - 44) / OFFERINGS.length);
+                  const label = t(`servicesComingSoon.offer.${item.key}`);
+                  const numLines = label.includes(' ') ? 2 : 1;
+                  return (
+                    <TouchableOpacity
+                      key={item.key}
+                      onPress={() => handleActivateServicesPress(item.key)}
+                      activeOpacity={0.75}
+                      style={[styles.offerItem, { width: itemWidth, maxWidth: itemWidth }]}
+                    >
+                      <View style={[styles.offerIcon, { backgroundColor: colors.surface, shadowColor: colors.accent }]}>
+                        <Ionicons name={item.icon} size={22} color={colors.accent} />
+                      </View>
+                      <Text
+                        style={[styles.offerLabel, { color: colors.body }]}
+                        numberOfLines={numLines}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.65}
+                      >
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Built for creators and experts Card */}
+              <View style={[styles.builtCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder, shadowColor: colors.accent }]}>
+                <View style={[styles.shieldWrap, { backgroundColor: colors.iconBg }]}>
+                  <Ionicons name="shield-checkmark-outline" size={26} color={colors.accent} />
+                </View>
+                <View style={styles.builtCopy}>
+                  <Text style={[styles.builtTitle, { color: colors.title }]}>
+                    {t('serviceActivation.builtTitle', 'Built for creators and experts')}
+                  </Text>
+                  <Text style={[styles.builtBody, { color: colors.muted }]}>
+                    {t(
+                      'serviceActivation.builtDesc',
+                      'Grow your business, get paid securely, and build lasting relationships with your community.',
+                    )}
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
           )}
 
           {/* Valens Membership Required Modal */}
@@ -1358,16 +1398,16 @@ export default function ServicesComingSoon() {
                         {dayId === 'Mon'
                           ? 'Monday'
                           : dayId === 'Tue'
-                          ? 'Tuesday'
-                          : dayId === 'Wed'
-                          ? 'Wednesday'
-                          : dayId === 'Thu'
-                          ? 'Thursday'
-                          : dayId === 'Fri'
-                          ? 'Friday'
-                          : dayId === 'Sat'
-                          ? 'Saturday'
-                          : 'Sunday'}
+                            ? 'Tuesday'
+                            : dayId === 'Wed'
+                              ? 'Wednesday'
+                              : dayId === 'Thu'
+                                ? 'Thursday'
+                                : dayId === 'Fri'
+                                  ? 'Friday'
+                                  : dayId === 'Sat'
+                                    ? 'Saturday'
+                                    : 'Sunday'}
                       </Text>
                       <Switch
                         value={Boolean(dayData.enabled)}
@@ -1782,7 +1822,7 @@ export default function ServicesComingSoon() {
                     message: 'Book Business Growth Mentorship with me on Valens! https://valens.app/services/mentorship',
                     title: 'Business Growth Mentorship',
                   });
-                } catch (_) {}
+                } catch (_) { }
               }}
               activeOpacity={0.8}
               style={[styles.shareServiceBtn, { borderColor: colors.accent, backgroundColor: colors.surface }]}
@@ -1860,11 +1900,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginTop: 8,
-    marginBottom: 6,
+    marginBottom: 0,
+    position: 'relative',
+    minHeight: 95,
   },
   heroCopy: {
     flex: 1,
-    paddingRight: 6,
+    paddingRight: 110,
   },
   heroTitleMain: {
     fontSize: 32,
@@ -1881,12 +1923,16 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: '500',
     marginTop: 12,
+    width: '80%',
+    paddingTop:10
   },
   heroArt: {
     width: 154,
     height: 186,
     flexShrink: 0,
-    position: 'relative',
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   heroSparkleTop: {
     position: 'absolute',

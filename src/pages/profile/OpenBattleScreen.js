@@ -38,6 +38,7 @@ import { useAppTheme } from '../../theme/useApptheme';
 import { useThemeContext } from '../../theme/ThemeContext';
 import PredictionCategoryScreen from './PredictionCategoryScreen';
 import PredictionQuestionsScreen from './PredictionQuestionsScreen';
+import GoogleImageSearchModal from '../../components/modals/GoogleImageSearchModal';
 
 const PRIMARY_GRADIENT = ['#513189bd', '#e54ba0']; // user
 const COMPANY_GRADIENT = ['#C9A15a', '#C9A15a'];   // company
@@ -182,6 +183,8 @@ export default function OpenBattleScreen() {
   const [inviteSearchLoading, setInviteSearchLoading] = useState(false);
   const [selectedInviteUser, setSelectedInviteUser] = useState(null);
   const [imagePickerIndex, setImagePickerIndex] = useState(null);
+  const [googleSearchModalVisible, setGoogleSearchModalVisible] = useState(false);
+  const [googleSearchInitialQuery, setGoogleSearchInitialQuery] = useState('');
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [predictionPickerCategory, setPredictionPickerCategory] = useState(null);
   const inviteSearchTimeoutRef = useRef(null);
@@ -584,6 +587,28 @@ export default function OpenBattleScreen() {
         },
       );
     });
+  };
+
+  const handlePickFromGoogle = () => {
+    const currentOption = form.options[imagePickerIndex];
+    const initialQuery = currentOption?.text?.trim() || form.question?.trim() || '';
+    setGoogleSearchInitialQuery(initialQuery);
+    closeSheetBeforeOpeningPicker(() => {
+      setGoogleSearchModalVisible(true);
+    });
+  };
+
+  const handleSelectGoogleImage = imageUrl => {
+    if (imageUrl && imagePickerIndex !== null) {
+      updateOptionImage(imagePickerIndex, imageUrl);
+    }
+    setGoogleSearchModalVisible(false);
+    setImagePickerIndex(null);
+  };
+
+  const handleCloseGoogleSearchModal = () => {
+    setGoogleSearchModalVisible(false);
+    setImagePickerIndex(null);
   };
 
   const updateOptionImage = (index, imageUri) => {
@@ -1681,7 +1706,7 @@ export default function OpenBattleScreen() {
 
         <RBSheet
           ref={imagePickerSheetRef}
-          height={310}
+          height={380}
           draggable={true}
           customModalProps={{
             statusBarTranslucent: true,
@@ -1742,6 +1767,24 @@ export default function OpenBattleScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={styles.imagePickerOptionBtn}
+            onPress={handlePickFromGoogle}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.imagePickerOptionIcon, bgStyle]}>
+              <Ionicons name="globe-outline" size={28} color={accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.imagePickerOptionTitle, { color: labelColor }]}>
+                {t('openBattle.searchGoogleImages')}
+              </Text>
+              <Text style={styles.imagePickerOptionSubtitle}>
+                {t('openBattle.searchGoogleImagesSubtitle')}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.imagePickerCancelBtn}
             onPress={() => imagePickerSheetRef.current?.close()}
             activeOpacity={0.7}
@@ -1749,6 +1792,13 @@ export default function OpenBattleScreen() {
             <Text style={styles.imagePickerCancelText}>{t('openBattle.cancel')}</Text>
           </TouchableOpacity>
         </RBSheet>
+
+        <GoogleImageSearchModal
+          visible={googleSearchModalVisible}
+          initialQuery={googleSearchInitialQuery}
+          onSelectImage={handleSelectGoogleImage}
+          onClose={handleCloseGoogleSearchModal}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

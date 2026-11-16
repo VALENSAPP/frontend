@@ -57,6 +57,7 @@ import ShareProfile from '../pages/profile/ShareProfile';
 import SavedPosts from '../pages/settings/SavedPosts';
 import InviteScreen from '../pages/profile/InviteScreen';
 import SearchScreen from '../pages/search';
+import MarketplaceScreen from '../pages/marketplace';
 import QuickBuy from '../pages/settings/QuickBuy';
 import CashOutScreen from '../pages/settings/CashOutScreen';
 import Usersprofile from '../pages/home/Usersprofile';
@@ -81,6 +82,7 @@ import PortfolioScreen from '../pages/wallet/PortfolioScreen';
 import MarketScreen from '../pages/wallet/MarketScreen';
 import WalletDashboardScreen from '../pages/wallet';
 import ActivityScreen from '../pages/wallet/ActivityScreen';
+import BillingPaymentsScreen from '../pages/wallet/BillingPaymentsScreen';
 import CreatorsScreen from '../pages/wallet/CreatorsScreen';
 import SettingsScreen from '../pages/wallet/SettingScreen';
 import ShopSettingsScreen from '../pages/wallet/ShopSettingsScreen';
@@ -1013,6 +1015,11 @@ export default function MainTabNavigator() {
             options={{ headerShown: false }}
           />
           <Stack.Screen
+            name="BillingPayments"
+            component={BillingPaymentsScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
             name="MyCloset"
             component={MyClosetScreen}
             options={{ headerShown: false }}
@@ -1338,6 +1345,64 @@ export default function MainTabNavigator() {
     );
   }, [bg, headerTitleColor, headerMenuColor, t, Date.now()]);
 
+  const MarketplaceStack = useMemo(() => {
+    return () => (
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: bg },
+        }}
+        initialRouteName="MarketplaceHome"
+      >
+        <Stack.Screen name="MarketplaceHome" component={MarketplaceScreen} />
+        <Stack.Screen
+          name="MyClosetBuyerItemDetail"
+          component={MyClosetBuyerItemDetailScreen}
+        />
+        <Stack.Screen
+          name="MyClosetBuyerCart"
+          component={MyClosetBuyerCartScreen}
+        />
+        <Stack.Screen
+          name="MyClosetBuyerCheckout"
+          component={MyClosetBuyerCheckoutScreen}
+        />
+        <Stack.Screen
+          name="MyClosetBuyerShipping"
+          component={MyClosetBuyerShippingScreen}
+        />
+        <Stack.Screen
+          name="MyClosetBuyerPayment"
+          component={MyClosetBuyerPaymentScreen}
+        />
+        <Stack.Screen
+          name="MyClosetBuyerReview"
+          component={MyClosetBuyerReviewScreen}
+        />
+        <Stack.Screen
+          name="MyClosetBuyerOrderReceived"
+          component={MyClosetBuyerOrderReceivedScreen}
+        />
+        <Stack.Screen
+          name="EbookDetail"
+          component={EbookDetailScreen}
+        />
+        <Stack.Screen
+          name="EbookBuyDetails"
+          component={EbookBuyDetailsScreen}
+        />
+        <Stack.Screen
+          name="Usersprofile"
+          component={Usersprofile}
+        />
+        <Stack.Screen
+          name="UserClosetChat"
+          component={UserClosetChat}
+        />
+      </Stack.Navigator>
+    );
+  }, [bg]);
+
   // Memoize tab bar styles
   const defaultTabBarStyle = useMemo(
     () => ({
@@ -1348,13 +1413,13 @@ export default function MainTabNavigator() {
       shadowOpacity: 0,
       shadowOffset: { width: 0, height: 0 },
       shadowRadius: 0,
-      height: Platform.OS === 'android' ? 62 : 82,
+      height: Platform.OS === 'android' ? 62 : 60,
       position: 'absolute',
-      bottom: Platform.OS === 'android' ? 0 : 25,
+      bottom: Platform.OS === 'android' ? 0 : 20,
       left: 0,
       right: 0,
       paddingTop: 4,
-      paddingBottom: Platform.OS === 'android' ? 6 : 22,
+      paddingBottom: 6,
     }),
     [bg],
   );
@@ -1388,14 +1453,64 @@ export default function MainTabNavigator() {
 
       const baseOptions = {
         headerShown: false,
-        tabBarShowLabel: false,
+        tabBarShowLabel: true,
+        tabBarItemStyle: {
+          paddingBottom: 4,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        tabBarLabelStyle: {
+          fontSize: 9,
+          fontWeight: '600',
+        },
         tabBarStyle: defaultTabBarStyle,
         tabBarActiveTintColor:
           route.name === 'Reels' && isFocused ? '#ffffff' : tabAccent,
         tabBarInactiveTintColor:
           route.name === 'Reels' && isFocused ? '#ffffff' : mutedText,
         tabBarHideOnKeyboard: true,
-        tabBarIcon: ({ focused }) => {
+        tabBarLabel: ({ focused }) => {
+          let labelText = '';
+          switch (route.name) {
+            case 'HomeMain':
+              labelText = t('bottomTab.home', 'Home');
+              break;
+            case 'Search':
+              labelText = t('bottomTab.search', 'Search');
+              break;
+            case 'Add':
+              labelText = t('bottomTab.create', 'Create');
+              break;
+            case 'wallet':
+              labelText = t('bottomTab.wallet', 'Wallet');
+              break;
+            case 'Marketplace':
+              labelText = t('bottomTab.marketplace', 'Marketplace');
+              break;
+            case 'ProfileMain':
+              labelText = t('bottomTab.profile', 'Profile');
+              break;
+            default:
+              labelText = route.name;
+          }
+          return (
+            <Text
+              style={{
+                fontSize: 9,
+                fontWeight: focused ? '700' : '500',
+                color: focused ? tabAccent : mutedText,
+                textAlign: 'center',
+                paddingBottom: 2,
+              }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            >
+              {labelText}
+            </Text>
+          );
+        },
+        tabBarIcon: ({ focused, color, size }) => {
           const isReelsFocused = route.name === 'Reels' && isFocused;
           const activeBg = isBusinessProfile
             ? (isDarkMode ? 'rgba(212, 176, 106, 0.22)' : '#FBF6EA')
@@ -1432,8 +1547,8 @@ export default function MainTabNavigator() {
               labelText = 'Create';
               iconComponent = (
                 <FontAwesome
-                  name="plus-square-o"
-                  size={22}
+                  name={'plus-square-o'}
+                  size={23}
                   color={iconColor}
                 />
               );
@@ -1447,18 +1562,34 @@ export default function MainTabNavigator() {
                   color={iconColor}
                 />
               );
-              break;
-            case 'ProfileMain':
-              labelText = 'Profile';
-              iconComponent = (
-                <HexAvatar
-                  uri={profileImage || undefined}
-                  size={24}
-                  borderWidth={1.5}
-                  borderColor={profileTabBorderColor}
+            case 'Marketplace':
+              return (
+                <Ionicons
+                  name={focused ? 'storefront' : 'storefront-outline'}
+                  size={22}
+                  color={iconColor}
                 />
               );
               break;
+            case 'ProfileMain':
+              if (profileImage) {
+                return (
+                  <HexAvatar
+                    uri={profileImage}
+                    size={24}
+                    borderWidth={1.5}
+                    borderColor={profileTabBorderColor}
+                  />
+                );
+              } else {
+                return (
+                  <HexAvatar
+                    size={24}
+                    borderWidth={1.5}
+                    borderColor={profileTabBorderColor}
+                  />
+                );
+              }
             default:
               return null;
           }
@@ -1491,7 +1622,7 @@ export default function MainTabNavigator() {
         },
       };
 
-      if (route.name === 'Search' || route.name === 'wallet') {
+      if (route.name === 'Search' || route.name === 'wallet' || route.name === 'Marketplace') {
         return {
           ...baseOptions,
           tabBarStyle: defaultTabBarStyle,
@@ -1500,7 +1631,7 @@ export default function MainTabNavigator() {
 
       return baseOptions;
     },
-    [profileImage, defaultTabBarStyle, reelsTabBarStyle, tabAccent, mutedText, profileTabBorderColor, isBusinessProfile],
+    [profileImage, defaultTabBarStyle, reelsTabBarStyle, tabAccent, mutedText, profileTabBorderColor, isBusinessProfile, t],
   );
 
   // Memoize HomeMain options function
@@ -1513,6 +1644,7 @@ export default function MainTabNavigator() {
         'BattleReward',
         'ProfileBattleScreen',
         'OpenBattle',
+        'MarketplaceHome',
       ];
 
       const hideTabBarRoutes = [
@@ -1752,6 +1884,17 @@ export default function MainTabNavigator() {
             tabPress: e => {
               e.preventDefault();
               navigation.navigate('wallet', { screen: 'Dashboard' });
+            },
+          })}
+        />
+        <Tab.Screen
+          name="Marketplace"
+          component={MarketplaceStack}
+          options={getHomeMainOptions}
+          listeners={({ navigation }) => ({
+            tabPress: e => {
+              e.preventDefault();
+              navigation.navigate('Marketplace', { screen: 'MarketplaceHome' });
             },
           })}
         />
