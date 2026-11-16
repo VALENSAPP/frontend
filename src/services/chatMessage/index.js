@@ -46,3 +46,7 @@ export const markClosetChatMessageSeenApi = async (messageId) => {
 export const getClosetChatThreadsApi = async () => {
     return axiosInstance.get(`closet-chat/threads`);
 }
+
+export const markAllMessagesAsReadApi = async (type = 'NORMAL') => {
+    return axiosInstance.post('post/readMessages', { type });
+};
