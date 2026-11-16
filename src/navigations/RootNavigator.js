@@ -259,6 +259,7 @@ const CustomDrawerContent = (props) => {
           if (route.name === 'DrawerDashboard') navigateToWalletScreen('Dashboard');
           else if (route.name === 'DrawerWallet') navigateToWalletScreen('WalletMain');
           else if (route.name === 'DrawerActivity') navigateToWalletScreen('Activity');
+          else if (route.name === 'DrawerBillingPayments') navigateToWalletScreen('BillingPayments');
           else if (route.name === 'Valens Wallet') navigateToWalletScreen('ValensWallet');
         };
 
@@ -266,6 +267,7 @@ const CustomDrawerContent = (props) => {
           if (route.name === 'DrawerDashboard') return <Feather name="grid" size={20} color={drawerColors.inactive} style={{ marginRight: 16 }} />;
           if (route.name === 'DrawerWallet') return <Feather name="credit-card" size={20} color={drawerColors.inactive} style={{ marginRight: 16 }} />;
           if (route.name === 'DrawerActivity') return <Feather name="activity" size={20} color={drawerColors.inactive} style={{ marginRight: 16 }} />;
+          if (route.name === 'DrawerBillingPayments') return <MaterialCommunityIcons name="credit-card-outline" size={20} color={drawerColors.inactive} style={{ marginRight: 16 }} />;
           if (route.name === 'Valens Wallet') return <Ionicons name="wallet-outline" size={20} color={drawerColors.inactive} style={{ marginRight: 16 }} />;
           return <Feather name="circle" size={20} color={drawerColors.inactive} style={{ marginRight: 16 }} />;
         };
@@ -715,6 +717,24 @@ const GlobalDrawerNavigator = () => {
             navigation.navigate('MainApp', {
               screen: 'wallet',
               params: { screen: 'Activity' }
+            });
+          },
+        })}
+      />
+      <Drawer.Screen
+        name="DrawerBillingPayments"
+        component={DummyComponent}
+        options={{
+          drawerLabel: t('drawerNav.billingPayments', 'Billing & Payments'),
+          headerShown: false,
+        }}
+        listeners={({ navigation }) => ({
+          drawerItemPress: (e) => {
+            e.preventDefault();
+            navigation.closeDrawer();
+            navigation.navigate('MainApp', {
+              screen: 'wallet',
+              params: { screen: 'BillingPayments' }
             });
           },
         })}

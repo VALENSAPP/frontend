@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
-import { getAllConversations, sendMessage as sendMessageAPI, getClosetChatThreadsApi, getCachedMessagesUnread, setCachedMessagesUnread, sumConversationUnread } from '../../../services/chatMessage';
+import { getAllConversations, sendMessage as sendMessageAPI, getClosetChatThreadsApi, getCachedMessagesUnread, setCachedMessagesUnread, sumConversationUnread, markAllMessagesAsReadApi } from '../../../services/chatMessage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useAppTheme } from '../../../theme/useApptheme';
@@ -131,6 +131,7 @@ export default function ChatMessages() {
   const moreBtnRef = useRef(null);
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false);
   const [isBatchDeleting, setIsBatchDeleting] = useState(false);
+  const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -1287,6 +1288,67 @@ export default function ChatMessages() {
     }
   };
 
+  const handleMarkAllAsRead = async () => {
+    setMoreMenuVisible(false);
+    if (isMarkingAllRead) return;
+
+    const targetType = activeTab === CHAT_TABS.CLOSET ? 'CLOSET' : 'NORMAL';
+
+    // Optimistically clear unread indicators for active tab
+    if (activeTab === CHAT_TABS.CLOSET) {
+      setClosetThreads(prev => (prev || []).map(thread => ({
+        ...thread,
+        unreadCount: 0,
+        unreadcount: 0,
+      })));
+      setClosetUnreadTotal(0);
+    } else {
+      setConversations(prev => (prev || []).map(conv => ({
+        ...conv,
+        unreadCount: 0,
+      })));
+      setCachedMessagesUnread(0);
+      setMessagesUnreadPreview(0);
+    }
+
+    setIsMarkingAllRead(true);
+    try {
+      console.log(`🚀 [ChatMessages:handleMarkAllAsRead] Calling /post/readMessages with type: ${targetType}`);
+      const response = await markAllMessagesAsReadApi(targetType);
+      console.log('✅ [ChatMessages:handleMarkAllAsRead] API Response:', response);
+
+      const msg = response?.data?.message || response?.message || t('chatMessages.allMarkedRead') || 'All messages marked as read';
+      showToastMessage(toast, 'success', msg, 2000);
+
+      // Background sync with server
+      if (activeTab === CHAT_TABS.CLOSET) {
+        const socket = getSocket();
+        if (socket?.connected && currentUserId) {
+          getClosetChatThreads(currentUserId);
+        }
+        fetchClosetConversations();
+      } else {
+        const socket = getSocket();
+        if (socket?.connected && currentUserId) {
+          socket.emit('getUserChatBox', { userId: currentUserId });
+        }
+        fetchConversations();
+      }
+    } catch (err) {
+      console.error('❌ [ChatMessages:handleMarkAllAsRead] Error:', err);
+      const errorMsg = err?.response?.data?.message || err?.message || 'Failed to mark all messages as read';
+      showToastMessage(toast, 'error', errorMsg, 2000);
+      // Re-fetch to sync actual server state on failure
+      if (activeTab === CHAT_TABS.CLOSET) {
+        fetchClosetConversations();
+      } else {
+        fetchConversations();
+      }
+    } finally {
+      setIsMarkingAllRead(false);
+    }
+  };
+
   const handleTabChange = (newTab) => {
     if (activeTab !== newTab) {
       if (isSelectionMode) {
@@ -1762,6 +1824,21 @@ export default function ChatMessages() {
                 }
               ]}
             >
+              {/* Mark all as read */}
+              <TouchableOpacity
+                style={styles.popoverMenuItem}
+                onPress={handleMarkAllAsRead}
+                activeOpacity={0.7}
+                disabled={isMarkingAllRead}
+              >
+                <SafeIcon name="checkmark-done-outline" size={19} color={accent} style={styles.popoverMenuIcon} />
+                <Text style={[styles.popoverMenuText, textStyle]}>
+                  {t('chatMessages.readAll')}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={[styles.popoverDivider, { backgroundColor: border || '#F1E8FB' }]} />
+
               {/* Select */}
               <TouchableOpacity
                 style={styles.popoverMenuItem}
@@ -1824,6 +1901,19 @@ export default function ChatMessages() {
               filteredConversations.every(c => selectedIds.has(String(c.id || c.chatId || c.threadId)))
                 ? t('chatMessages.deselectAll')
                 : t('chatMessages.selectAll')}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Read All */}
+          <TouchableOpacity
+            style={styles.bottomActionBtn}
+            onPress={handleMarkAllAsRead}
+            activeOpacity={0.7}
+            disabled={isMarkingAllRead}
+          >
+            <SafeIcon name="checkmark-done-outline" size={20} color={accent} />
+            <Text style={[styles.bottomActionText, { color: accent }]}>
+              {t('chatMessages.readAll')}
             </Text>
           </TouchableOpacity>
 
@@ -2068,7 +2158,7 @@ const styles = StyleSheet.create({
   popoverMenu: {
     position: 'absolute',
     right: 16,
-    width: 170,
+    minWidth: 180,
     borderRadius: 16,
     paddingVertical: 6,
     shadowColor: '#000',
