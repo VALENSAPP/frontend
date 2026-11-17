@@ -1512,50 +1512,37 @@ export default function MainTabNavigator() {
         },
         tabBarIcon: ({ focused, color, size }) => {
           const isReelsFocused = route.name === 'Reels' && isFocused;
-          const activeBg = isBusinessProfile
-            ? (isDarkMode ? 'rgba(212, 176, 106, 0.22)' : '#FBF6EA')
-            : (isDarkMode ? 'rgba(168, 85, 247, 0.22)' : '#F3E8FF');
           const activeColor = isReelsFocused ? '#ffffff' : tabAccent;
           const inactiveColor = isReelsFocused ? 'rgba(255,255,255,0.7)' : mutedText;
           const iconColor = focused ? activeColor : inactiveColor;
 
-          let iconComponent = null;
-          let labelText = '';
-
           switch (route.name) {
             case 'HomeMain':
-              labelText = 'Home';
-              iconComponent = (
+              return (
                 <Ionicons
                   name={focused ? 'home' : 'home-outline'}
                   size={22}
                   color={iconColor}
                 />
               );
-              break;
             case 'Search':
-              labelText = 'Search';
-              iconComponent = (
+              return (
                 <Ionicons
                   name={focused ? 'search' : 'search-outline'}
                   size={22}
                   color={iconColor}
                 />
               );
-              break;
             case 'Add':
-              labelText = 'Create';
-              iconComponent = (
+              return (
                 <FontAwesome
                   name={'plus-square-o'}
                   size={23}
                   color={iconColor}
                 />
               );
-              break;
             case 'wallet':
-              labelText = 'Wallet';
-              iconComponent = (
+              return (
                 <Ionicons
                   name={focused ? 'wallet' : 'wallet-outline'}
                   size={22}
@@ -1570,55 +1557,18 @@ export default function MainTabNavigator() {
                   color={iconColor}
                 />
               );
-              break;
             case 'ProfileMain':
-              if (profileImage) {
-                return (
-                  <HexAvatar
-                    uri={profileImage}
-                    size={24}
-                    borderWidth={1.5}
-                    borderColor={profileTabBorderColor}
-                  />
-                );
-              } else {
-                return (
-                  <HexAvatar
-                    size={24}
-                    borderWidth={1.5}
-                    borderColor={profileTabBorderColor}
-                  />
-                );
-              }
+              return (
+                <HexAvatar
+                  uri={profileImage || undefined}
+                  size={24}
+                  borderWidth={1.5}
+                  borderColor={profileTabBorderColor}
+                />
+              );
             default:
               return null;
           }
-
-          return (
-            <View
-              style={{
-                alignItems: 'center',
-                justifyContent: 'center',
-                paddingHorizontal: 12,
-                paddingVertical: 3,
-                borderRadius: 16,
-                backgroundColor: focused ? activeBg : 'transparent',
-                minWidth: 60,
-              }}
-            >
-              {iconComponent}
-              <Text
-                style={{
-                  fontSize: 10,
-                  fontWeight: focused ? '700' : '500',
-                  color: iconColor,
-                  marginTop: 2,
-                }}
-              >
-                {labelText}
-              </Text>
-            </View>
-          );
         },
       };
 
