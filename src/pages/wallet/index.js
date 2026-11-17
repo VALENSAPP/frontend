@@ -275,6 +275,21 @@ const HexStarIcon = ({ size = 36, starSize = 16, starColor = '#ffffff', bgColor 
   );
 };
 
+const DiamondSparkleIcon = ({ size = 20, color = '#FFFFFF' }) => {
+  const s = size;
+  const center = s / 2;
+  const arm = center * 0.78;
+  return (
+    <Svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
+      <Path
+        d={`M ${center} 1 Q ${center} ${arm} 1 ${center} Q ${center} ${s - arm} ${center} ${s - 1} Q ${center} ${s - arm} ${s - 1} ${center} Q ${center} ${arm} ${center} 1 Z`}
+        fill={color}
+      />
+      <Circle cx={s * 0.88} cy={s * 0.84} r={s * 0.08} fill={color} opacity={0.9} />
+    </Svg>
+  );
+};
+
 /** Subscription / support earnings graph → `{ timestamp, value }[]` */
 const mapSubscriptionGraphPoints = (response, range = 'weekly') => {
   const root = response?.data?.data ?? response?.data ?? response;
@@ -2147,36 +2162,81 @@ export const WalletDashboardScreen = ({ navigation }) => {
         </View>
 
         {/* 1. Hero Card: Total Platform Points with Waving Mascot */}
-        <View style={styles.heroSection}>
-          <LinearGradient
-            colors={bannerGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0.8 }}
-            style={styles.heroBannerCard}
-          >
-            <View style={styles.heroBannerLeft}>
-              <View style={styles.heroBadgePill}>
-                <HexStarIcon size={20} starSize={10} starColor="#FFFFFF" bgColor="rgba(255,255,255,0.22)" />
-                <Text style={styles.heroBadgeText}>
-                  {t('walletDashboard.battlePoints.totalPlatformPoints', 'Total Platform Points')}
-                </Text>
+        <TouchableOpacity
+          style={styles.heroSection}
+          activeOpacity={0.88}
+          onPress={handleOpenReferralPoints}
+        >
+          <View style={styles.heroCardOuter}>
+            {/* Inner clipped card for background and waves on both iOS & Android */}
+            <View style={styles.heroCardInner}>
+              <LinearGradient
+                colors={bannerGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0.85 }}
+                style={StyleSheet.absoluteFill}
+              />
+
+              {/* Bottom decorative waves */}
+              <View style={styles.heroWavesWrap} pointerEvents="none">
+                <Svg width="100%" height={44} viewBox="0 0 400 44" preserveAspectRatio="none">
+                  <Path
+                    d="M0,22 C90,8 180,30 270,16 C330,8 370,22 400,16 L400,44 L0,44 Z"
+                    fill={isDarkMode ? 'rgba(0, 0, 0, 0.28)' : 'rgba(59, 7, 100, 0.35)'}
+                  />
+                  <Path
+                    d="M0,30 C110,16 200,36 290,24 C340,16 375,28 400,22 L400,44 L0,44 Z"
+                    fill={isDarkMode ? 'rgba(0, 0, 0, 0.45)' : 'rgba(46, 16, 101, 0.55)'}
+                  />
+                </Svg>
               </View>
 
-              <View style={styles.heroPointsRow}>
-                <Text style={styles.heroPointsText}>
-                  {`${formatPointValue(rewardSummary.totalPlatformPoints)} pts`}
-                </Text>
-                <Ionicons name="sparkles" size={20} color="#FFFFFF" style={styles.heroSparklesIcon} />
+              {/* Left Content */}
+              <View style={styles.heroBannerLeft}>
+                <View style={styles.heroBadgeRow}>
+                  <HexStarIcon size={24} starSize={12} starColor="#FFFFFF" bgColor="rgba(255,255,255,0.28)" />
+                  <Text style={styles.heroBadgeText} numberOfLines={1}>
+                    {t('walletDashboard.battlePoints.totalPlatformPoints', 'Total Platform Points')}
+                  </Text>
+                </View>
+
+                <View style={styles.heroPointsRow}>
+                  <Text
+                    style={styles.heroPointsText}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
+                    {`${formatPointValue(rewardSummary.totalPlatformPoints)} pts`}
+                  </Text>
+                  <View style={styles.heroSparklesIconWrap}>
+                    <DiamondSparkleIcon size={22} color="#FFFFFF" />
+                  </View>
+                </View>
               </View>
             </View>
 
-            <Image
-              source={require('../../assets/Valens Stickers/Valens Stickers/PNG/wave.png')}
-              style={styles.heroMascotImage}
-              resizeMode="contain"
-            />
-          </LinearGradient>
-        </View>
+            {/* Mascot Wrapper: Overflows card top edge cleanly without breaking card corner radii */}
+            <View style={styles.heroMascotWrap} pointerEvents="none">
+              {/* Soft circular halo glow behind bee's head */}
+              <View style={styles.heroMascotGlow} />
+
+              {/* 3 Yellow radiant bursts above bee's waving hand */}
+              <View style={styles.heroHandBursts}>
+                <View style={[styles.heroHandBurstRay, { transform: [{ rotate: '-32deg' }], height: 6 }]} />
+                <View style={[styles.heroHandBurstRay, { transform: [{ rotate: '0deg' }], height: 8, marginTop: -2 }]} />
+                <View style={[styles.heroHandBurstRay, { transform: [{ rotate: '32deg' }], height: 6 }]} />
+              </View>
+
+              {/* Horizontally flipped bee sticker matching the mockup */}
+              <Image
+                source={require('../../assets/Valens Stickers/Valens Stickers/PNG/wave.png')}
+                style={styles.heroMascotImage}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
+        </TouchableOpacity>
 
         {/* 2. Row of 3 Stat Cards: Battle Points, Refer Points, Used Points */}
         <View style={styles.threePointsRow}>
@@ -2784,41 +2844,55 @@ const styles = StyleSheet.create({
   heroSection: {
     paddingHorizontal: 16,
     marginBottom: 12,
+    marginTop: 6,
     overflow: 'visible',
   },
-  heroBannerCard: {
-    borderRadius: 22,
+  heroCardOuter: {
+    borderRadius: 24,
+    position: 'relative',
+    overflow: 'visible',
+    shadowColor: '#581C87',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 6,
+    backgroundColor: 'transparent',
+  },
+  heroCardInner: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    minHeight: 124,
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 22,
     paddingBottom: 22,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    overflow: 'visible',
-    shadowColor: '#6B21A8',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    position: 'relative',
+  },
+  heroWavesWrap: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 44,
   },
   heroBannerLeft: {
     flex: 1,
     paddingRight: 110,
+    zIndex: 2,
   },
-  heroBadgePill: {
+  heroBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
-    alignSelf: 'flex-start',
     marginBottom: 10,
   },
   heroBadgeText: {
     color: '#FFFFFF',
-    fontSize: 12.5,
+    fontSize: 14,
     fontWeight: '600',
+    marginLeft: 8,
+    letterSpacing: 0.1,
   },
   heroPointsRow: {
     flexDirection: 'row',
@@ -2826,19 +2900,49 @@ const styles = StyleSheet.create({
   },
   heroPointsText: {
     color: '#FFFFFF',
-    fontSize: 30,
+    fontSize: 32,
     fontWeight: '800',
     letterSpacing: -0.5,
   },
-  heroSparklesIcon: {
+  heroSparklesIconWrap: {
     marginLeft: 8,
+    marginTop: 2,
+  },
+  heroMascotWrap: {
+    position: 'absolute',
+    right: -4,
+    top: -24,
+    width: 142,
+    height: 142,
+    zIndex: 10,
+  },
+  heroMascotGlow: {
+    position: 'absolute',
+    top: 14,
+    right: 18,
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  heroHandBursts: {
+    position: 'absolute',
+    top: 18,
+    left: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2.5,
+    zIndex: 12,
+  },
+  heroHandBurstRay: {
+    width: 2.4,
+    backgroundColor: '#FBBF24',
+    borderRadius: 2,
   },
   heroMascotImage: {
-    position: 'absolute',
-    right: 2,
-    top: -30,
-    width: 145,
-    height: 145,
+    width: 142,
+    height: 142,
+    transform: [{ scaleX: -1 }],
   },
   threePointsRow: {
     flexDirection: 'row',
