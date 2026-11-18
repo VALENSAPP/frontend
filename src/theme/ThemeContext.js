@@ -105,8 +105,6 @@ export const ThemeProvider = ({ children, activeProfile: propActiveProfile }) =>
     void profileType;
   }, []);
 
-  const isBusinessProfile = activeProfile === 'company';
-
   const contextValue = useMemo(
     () => ({
       theme,
