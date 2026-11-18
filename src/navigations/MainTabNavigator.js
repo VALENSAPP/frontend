@@ -979,10 +979,13 @@ export default function MainTabNavigator() {
                   onPress={() => {
                     try {
                       navigation.navigate('HeartNotification');
-                    } catch (_e) {}
+                    } catch (_e) {
+                      navigation.navigate('HomeMain', { screen: 'HeartNotification' });
+                    }
                   }}
                   style={{ marginRight: 16 }}
                   activeOpacity={0.7}
+                  accessibilityLabel="Notifications"
                 >
                   <Ionicons
                     name="notifications-outline"
@@ -1003,6 +1006,11 @@ export default function MainTabNavigator() {
                 </TouchableOpacity>
               ),
             })}
+          />
+          <Stack.Screen
+            name="HeartNotification"
+            component={heartNotification}
+            options={{ headerShown: false }}
           />
           {/* <Stack.Screen
               name="Portfolio"
@@ -1456,11 +1464,13 @@ export default function MainTabNavigator() {
         tabBarShowLabel: true,
         tabBarItemStyle: {
           paddingBottom: 4,
+          paddingHorizontal: 0,
+          marginHorizontal: 0,
           justifyContent: 'center',
           alignItems: 'center',
         },
         tabBarLabelStyle: {
-          fontSize: 9,
+          fontSize: 8.5,
           fontWeight: '600',
         },
         tabBarStyle: defaultTabBarStyle,
@@ -1495,12 +1505,15 @@ export default function MainTabNavigator() {
           }
           return (
             <Text
+              allowFontScaling={false}
               style={{
-                fontSize: 9,
+                fontSize: 8.5,
+                letterSpacing: -0.2,
                 fontWeight: focused ? '700' : '500',
                 color: focused ? tabAccent : mutedText,
                 textAlign: 'center',
                 paddingBottom: 2,
+                width: '100%',
               }}
               numberOfLines={1}
               adjustsFontSizeToFit

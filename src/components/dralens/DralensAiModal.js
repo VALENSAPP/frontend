@@ -62,7 +62,10 @@ export default function DralensAiModal() {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [quickPromptsList, setQuickPromptsList] = useState(QUICK_PROMPTS);
-  const { isDarkMode } = useThemeContext();
+  const { isDarkMode, isBusinessProfile } = useThemeContext();
+  const dralensAvatar = isBusinessProfile
+    ? require('../../assets/icons/pngicons/Goldenfly.png')
+    : require('../../assets/icons/pngicons/flying.png');
   const scrollViewRef = useRef(null);
 
   const [messages, setMessages] = useState([
@@ -174,22 +177,40 @@ export default function DralensAiModal() {
   };
 
   const colors = {
-    bg: isDarkMode ? '#171120' : '#FFFFFF',
+    bg: isDarkMode ? (isBusinessProfile ? '#18140D' : '#171120') : '#FFFFFF',
     overlay: 'rgba(0, 0, 0, 0.45)',
-    card: isDarkMode ? '#221930' : '#FFFFFF',
-    cardBorder: isDarkMode ? '#392C4D' : '#F1E8FD',
-    chipBg: isDarkMode ? '#241838' : '#FAF5FF',
-    chipBorder: isDarkMode ? '#4C3575' : '#E9D5FF',
+    card: isDarkMode ? (isBusinessProfile ? '#241D12' : '#221930') : '#FFFFFF',
+    cardBorder: isDarkMode
+      ? (isBusinessProfile ? '#4A3B1F' : '#392C4D')
+      : (isBusinessProfile ? '#F5EBD7' : '#F1E8FD'),
+    chipBg: isDarkMode
+      ? (isBusinessProfile ? '#2C2213' : '#241838')
+      : (isBusinessProfile ? '#FAF6ED' : '#FAF5FF'),
+    chipBorder: isDarkMode
+      ? (isBusinessProfile ? '#5C4722' : '#4C3575')
+      : (isBusinessProfile ? '#E8D2A8' : '#E9D5FF'),
     text: isDarkMode ? '#FFFFFF' : '#111827',
-    subText: isDarkMode ? '#A78BFA' : '#6B7280',
-    primary: '#7C3AED',
-    primaryDark: '#6D28D9',
-    userBubble: '#6D28D9',
-    botBubble: isDarkMode ? '#281E3B' : '#F4F4F6',
-    stepCardBg: isDarkMode ? '#1E162B' : '#FBF9FE',
-    stepCardBorder: isDarkMode ? '#3B2D54' : '#EDE4F9',
-    inputBg: isDarkMode ? '#221930' : '#FFFFFF',
-    inputBorder: isDarkMode ? '#3F3158' : '#E5E7EB',
+    subText: isDarkMode
+      ? (isBusinessProfile ? '#E5C98A' : '#A78BFA')
+      : (isBusinessProfile ? '#8C6D32' : '#6B7280'),
+    primary: isBusinessProfile ? '#C9A15A' : '#7C3AED',
+    primaryDark: isBusinessProfile ? '#B38B42' : '#6D28D9',
+    userBubble: isBusinessProfile ? '#C9A15A' : '#6D28D9',
+    botBubble: isDarkMode
+      ? (isBusinessProfile ? '#2B2113' : '#281E3B')
+      : (isBusinessProfile ? '#FAF6EE' : '#F4F4F6'),
+    stepCardBg: isDarkMode
+      ? (isBusinessProfile ? '#221A0F' : '#1E162B')
+      : (isBusinessProfile ? '#FDFBF7' : '#FBF9FE'),
+    stepCardBorder: isDarkMode
+      ? (isBusinessProfile ? '#4A3A1F' : '#3B2D54')
+      : (isBusinessProfile ? '#EFE4CD' : '#EDE4F9'),
+    inputBg: isDarkMode
+      ? (isBusinessProfile ? '#241D12' : '#221930')
+      : '#FFFFFF',
+    inputBorder: isDarkMode
+      ? (isBusinessProfile ? '#4A3A1F' : '#3F3158')
+      : (isBusinessProfile ? '#EADBC3' : '#E5E7EB'),
   };
 
   return (
@@ -244,13 +265,13 @@ export default function DralensAiModal() {
                 {/* 3D Mascot Header */}
                 <View style={styles.mascotWrapper}>
                   <Image
-                    source={require('../../assets/icons/pngicons/dralens_mascot.png')}
+                    source={dralensAvatar}
                     style={styles.mascotImage}
                     resizeMode="contain"
                   />
                   <View style={styles.titleRow}>
                     <Text style={[styles.welcomeGreeting, { color: colors.text }]}>
-                      Hi, I'm <Text style={styles.gradientDralens}>Dralens</Text>
+                      Hi, I'm <Text style={[styles.gradientDralens, isBusinessProfile && { color: '#C9A15A' }]}>Dralens</Text>
                     </Text>
                   </View>
                   <Text style={[styles.welcomeSubtitle, { color: colors.text }]}>
@@ -360,7 +381,7 @@ export default function DralensAiModal() {
                 >
                   <View style={styles.chatHeaderProfile}>
                     <Image
-                      source={require('../../assets/icons/pngicons/dralens_avatar.png')}
+                      source={dralensAvatar}
                       style={styles.chatHeaderAvatar}
                       resizeMode="contain"
                     />
@@ -408,7 +429,7 @@ export default function DralensAiModal() {
                     >
                       {msg.role === 'assistant' && (
                         <Image
-                          source={require('../../assets/icons/pngicons/dralens_avatar.png')}
+                          source={dralensAvatar}
                           style={styles.botAvatar}
                           resizeMode="contain"
                         />
@@ -516,7 +537,7 @@ export default function DralensAiModal() {
                   {isLoading && (
                     <View style={[styles.messageRow, styles.messageRowBot]}>
                       <Image
-                        source={require('../../assets/icons/pngicons/dralens_avatar.png')}
+                        source={dralensAvatar}
                         style={styles.botAvatar}
                         resizeMode="contain"
                       />

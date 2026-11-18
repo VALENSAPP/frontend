@@ -45,6 +45,10 @@ export const getMyClosetItems = async userId => {
   return axiosInstance.get(`mycloset/items${suffix}`);
 };
 
+export const getMyClosetExploreItems = async (params = {}) => {
+  return axiosInstance.get('mycloset/items/explore', { params });
+};
+
 const appendItemField = (formData, key, value) => {
   if (value == null) return;
   const stringValue = String(value).trim();

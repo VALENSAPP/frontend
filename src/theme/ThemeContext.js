@@ -102,6 +102,8 @@ export const ThemeProvider = ({ children }) => {
     void profileType;
   }, []);
 
+  const isBusinessProfile = activeProfile === 'company';
+
   const contextValue = useMemo(
     () => ({
       theme,
@@ -109,9 +111,10 @@ export const ThemeProvider = ({ children }) => {
       toggleDarkMode,
       isThemeLoaded,
       activeProfile,
+      isBusinessProfile,
       switchTheme,
     }),
-    [theme, isDarkMode, toggleDarkMode, isThemeLoaded, activeProfile, switchTheme],
+    [theme, isDarkMode, toggleDarkMode, isThemeLoaded, activeProfile, isBusinessProfile, switchTheme],
   );
 
   return (

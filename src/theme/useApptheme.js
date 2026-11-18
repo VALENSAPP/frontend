@@ -23,7 +23,7 @@ const resolveTheme = (profileType, isDarkMode) => {
 };
 
 export const useAppTheme = profileTypeOverride => {
-  const { isDarkMode, theme: contextTheme } = useThemeContext();
+  const { isDarkMode, theme: contextTheme, activeProfile } = useThemeContext();
 
   const normalizedProfileType =
     typeof profileTypeOverride === 'string'
@@ -35,13 +35,18 @@ export const useAppTheme = profileTypeOverride => {
       ? 'user'
       : normalizedProfileType === 'business'
         ? 'company'
-        : normalizedProfileType;
+        : (normalizedProfileType || activeProfile || 'user');
 
   const resolvedTheme =
     resolveTheme(resolvedProfileType, isDarkMode) ?? contextTheme;
 
+  const isBusinessProfile = resolvedProfileType === 'company';
+
   return {
     ...resolvedTheme,
+    isDarkMode: !!isDarkMode,
+    activeProfile: resolvedProfileType,
+    isBusinessProfile,
     bgStyle: {
       backgroundColor: resolvedTheme.bg,
     },

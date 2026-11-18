@@ -514,21 +514,31 @@ const CustomDrawerContent = (props) => {
           paddingVertical: 12,
           paddingHorizontal: 14,
           borderRadius: 14,
-          backgroundColor: isDarkMode ? '#241738' : '#FAF5FF',
+          backgroundColor: isCompanyProfile
+            ? (isDarkMode ? '#2B2313' : '#FAF6ED')
+            : (isDarkMode ? '#241738' : '#FAF5FF'),
           borderWidth: 1.5,
-          borderColor: isDarkMode ? '#7C3AED' : '#C084FC',
+          borderColor: isCompanyProfile
+            ? (isDarkMode ? '#D4AF37' : '#C9A15A')
+            : (isDarkMode ? '#7C3AED' : '#C084FC'),
         }}
       >
         <Image
-          source={require('../assets/icons/pngicons/dralens_drawer_icon.png')}
-          style={{ width: 30, height: 30, marginRight: 12 }}
+          source={
+            isCompanyProfile
+              ? require('../assets/icons/pngicons/Goldenfly.png')
+              : require('../assets/icons/pngicons/flying.png')
+          }
+          style={{ width: 32, height: 32, marginRight: 12 }}
           resizeMode="contain"
         />
         <Text
           style={{
             fontSize: 15,
             fontWeight: '700',
-            color: isDarkMode ? '#F3E8FF' : '#581C87',
+            color: isCompanyProfile
+              ? (isDarkMode ? '#F5E6C4' : '#946E24')
+              : (isDarkMode ? '#F3E8FF' : '#581C87'),
           }}
         >
           {t('drawerNav.dralensAi', 'Dralens AI')}

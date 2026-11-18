@@ -119,22 +119,89 @@ const AccountCard = ({ isPurple, onPress }) => {
     const styles = createStyles();
 
     const personaFeatures = [
-        { icon: "heart-outline", label: t('selectAccountType.personaFeatures.support') },
-        { icon: "flash-outline", label: t('selectAccountType.personaFeatures.battles') },
-        { icon: "shield-checkmark-outline", label: t('selectAccountType.personaFeatures.verified') },
-        { icon: "storefront-outline", label: t('selectAccountType.personaFeatures.storefront') },
-        { icon: "people-outline", label: t('selectAccountType.personaFeatures.subscriptions') },
-        { icon: "flag-outline", label: t('selectAccountType.personaFeatures.missions') },
-        { icon: "lock-closed-outline", label: t('selectAccountType.personaFeatures.privateCircle') },
+        {
+            icon: "heart-outline",
+            title: t('selectAccountType.personaFeatures.support', 'Support & Be Support'),
+            subtitle: t('selectAccountType.personaFeatures.supportDesc', 'Tip creators, support friends'),
+        },
+        {
+            icon: "flash-outline",
+            title: t('selectAccountType.personaFeatures.battles', 'Join Battles'),
+            subtitle: t('selectAccountType.personaFeatures.battlesDesc', 'Share your opinion and earn credibility'),
+        },
+        {
+            icon: "shield-checkmark-outline",
+            title: t('selectAccountType.personaFeatures.verified', 'Verified User'),
+            subtitle: t('selectAccountType.personaFeatures.verifiedDesc', 'Build your reputation'),
+        },
+        {
+            icon: "storefront-outline",
+            title: t('selectAccountType.personaFeatures.storefront', 'Creator Storefront'),
+            subtitle: t('selectAccountType.personaFeatures.storefrontDesc', 'Sell in My Closet'),
+        },
+        {
+            icon: "people-outline",
+            title: t('selectAccountType.personaFeatures.subscriptions', 'Fan Subscriptions'),
+            subtitle: t('selectAccountType.personaFeatures.subscriptionsDesc', 'Subscribe to your favorite creators'),
+        },
+        {
+            icon: "flag-outline",
+            title: t('selectAccountType.personaFeatures.missions', 'Mission Posts'),
+            subtitle: t('selectAccountType.personaFeatures.missionsDesc', 'Support and launch missions'),
+        },
+        {
+            icon: "lock-closed-outline",
+            title: t('selectAccountType.personaFeatures.privateCircle', 'Private Circle Posts'),
+            subtitle: t('selectAccountType.personaFeatures.privateCircleDesc', 'Share with your close circle'),
+        },
+        {
+            icon: "calendar-outline",
+            title: t('selectAccountType.personaFeatures.services', 'Services'),
+            subtitle: t('selectAccountType.personaFeatures.servicesDesc', 'Book or offer services (mentorship, consultation, appointments and more)'),
+        },
     ];
 
     const businessFeatures = [
-        { icon: "storefront-outline", label: t('selectAccountType.businessFeatures.shop') },
-        { icon: "people-outline", label: t('selectAccountType.businessFeatures.community') },
-        { icon: "rocket-outline", label: t('selectAccountType.businessFeatures.missions') },
-        { icon: "flash-outline", label: t('selectAccountType.businessFeatures.battles') },
-        { icon: "shield-checkmark-outline", label: t('selectAccountType.businessFeatures.verified') },
-        { icon: "lock-closed-outline", label: t('selectAccountType.businessFeatures.vip') },
+        {
+            icon: "storefront-outline",
+            title: t('selectAccountType.businessFeatures.shop', 'Create Shop'),
+            subtitle: t('selectAccountType.businessFeatures.shopDesc', 'Sell products and services'),
+        },
+        {
+            icon: "people-outline",
+            title: t('selectAccountType.businessFeatures.community', 'Support Community'),
+            subtitle: t('selectAccountType.businessFeatures.communityDesc', 'Engage and grow your audience'),
+        },
+        {
+            icon: "rocket-outline",
+            title: t('selectAccountType.businessFeatures.missions', 'Launch Missions'),
+            subtitle: t('selectAccountType.businessFeatures.missionsDesc', 'Raise funds and bring ideas to life'),
+        },
+        {
+            icon: "flash-outline",
+            title: t('selectAccountType.businessFeatures.battles', 'Run Battles'),
+            subtitle: t('selectAccountType.businessFeatures.battlesDesc', 'Promote your products and get feedback'),
+        },
+        {
+            icon: "shield-checkmark-outline",
+            title: t('selectAccountType.businessFeatures.verified', 'Get Verified - KYB'),
+            subtitle: t('selectAccountType.businessFeatures.verifiedDesc', 'Build trust with the community'),
+        },
+        {
+            icon: "lock-closed-outline",
+            title: t('selectAccountType.businessFeatures.vip', 'VIP Private Posts'),
+            subtitle: t('selectAccountType.businessFeatures.vipDesc', 'Share exclusive content'),
+        },
+        {
+            icon: "calendar-outline",
+            title: t('selectAccountType.businessFeatures.services', 'Services'),
+            subtitle: t('selectAccountType.businessFeatures.servicesDesc', 'Offer or manage services (mentorship, consultation, appointments, events and more)'),
+        },
+        {
+            icon: "stats-chart-outline",
+            title: t('selectAccountType.businessFeatures.analytics', 'Analytics'),
+            subtitle: t('selectAccountType.businessFeatures.analyticsDesc', 'Track your growth and earnings'),
+        },
     ];
 
     const features = isPurple ? personaFeatures : businessFeatures;
@@ -162,26 +229,31 @@ const AccountCard = ({ isPurple, onPress }) => {
 
                 <Text style={isPurple ? styles.cardTitlePurple : styles.cardTitleGold}>
                     {isPurple
-                        ? t('selectAccountType.personaTitle')
-                        : t('selectAccountType.businessTitle')}
+                        ? t('selectAccountType.personaTitle', "I'm a Persona")
+                        : t('selectAccountType.businessTitle', "I'm a Business")}
                 </Text>
 
                 <Text style={styles.cardDesc}>
                     {isPurple
-                        ? t('selectAccountType.personaDesc')
-                        : t('selectAccountType.businessDesc')}
+                        ? t('selectAccountType.personaDesc', 'Connect, support, join battles & missions')
+                        : t('selectAccountType.businessDesc', 'Sell, launch, grow and get verified')}
                 </Text>
 
                 {/* Features List */}
-                <View style={{ marginTop: 0 }}>
+                <View style={styles.featuresList}>
                     {features.map((item, index) => (
                         <View key={index} style={styles.listItem}>
-                            <Icon
-                                name={item.icon}
-                                size={16}
-                                color={isPurple ? "#5a2d82" : "#B7791F"}
-                            />
-                            <Text style={styles.listText}>{item.label}</Text>
+                            <View style={styles.listIconWrap}>
+                                <Icon
+                                    name={item.icon}
+                                    size={16}
+                                    color={isPurple ? "#5a2d82" : "#B7791F"}
+                                />
+                            </View>
+                            <View style={styles.listTextWrap}>
+                                <Text style={styles.listTitle} numberOfLines={1}>{item.title}</Text>
+                                <Text style={styles.listSubtitle}>{item.subtitle}</Text>
+                            </View>
                         </View>
                     ))}
                 </View>
@@ -193,8 +265,8 @@ const AccountCard = ({ isPurple, onPress }) => {
             >
                 <Text style={isPurple ? styles.purpleBtnText : styles.goldBtnText}>
                     {isPurple
-                        ? t('selectAccountType.continueAsPersona')
-                        : t('selectAccountType.continueAsBusiness')}
+                        ? t('selectAccountType.continueAsPersona', 'Continue as Persona')
+                        : t('selectAccountType.continueAsBusiness', 'Continue as Business')}
                 </Text>
             </TouchableOpacity>
         </AnimatedTouchable>
