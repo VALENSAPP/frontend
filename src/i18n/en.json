@@ -2162,6 +2162,7 @@
     "profileSettings": "Profile Settings",
     "valensMembership": "Valens Membership",
     "shopSettings": "Shop Settings",
+    "servicesSettings": "Services Settings",
     "verificationStatus": "Verification Status",
     "verifiedStatus": "Dragonfly Verified",
     "notifications": "Notifications",
@@ -2174,6 +2175,53 @@
     "loginHistory": "Login History",
     "fetchError": "Something went wrong",
     "language": "Select Language"
+  },
+  "servicesSettings": {
+    "title": "Services Settings",
+    "servicesInfo": "Services information",
+    "servicesSubtitle": "Update the details customers see when they visit your services page.",
+    "previewBadge": "Preview",
+    "defaultName": "Your Name",
+    "defaultTitle": "What's your title?",
+    "defaultBio": "Tell customers who you are and what you offer.",
+    "defaultLocation": "Where do you offer your services?",
+    "rows": {
+      "name": "Name",
+      "namePlaceholder": "Enter your display name",
+      "title": "What's your title?",
+      "titlePlaceholder": "e.g. CEO | Business Mentor | Strategist",
+      "whoAreYou": "Who are you?",
+      "whoAreYouPlaceholder": "Tell your audience about your background, journey, and expertise...",
+      "aboutServices": "About your services",
+      "aboutServicesPlaceholder": "Describe the scope and impact of what you provide...",
+      "whatWillPeopleFindHere": "What will people find here?",
+      "whatWillPeopleFindHerePlaceholder": "e.g. Mentorships, consulting sessions, bookings, and masterclasses.",
+      "servicePicture": "Service picture",
+      "servicePictureSubtitle": "Use a square image for best results.",
+      "imageUploaded": "Image uploaded",
+      "tapToUpload": "Tap to upload",
+      "location": "Location",
+      "locationSubtitle": "Where do you offer your services?",
+      "selectLocation": "Select location"
+    },
+    "buttons": {
+      "saveChanges": "Save Changes",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "save": "Save",
+      "discard": "Discard",
+      "keepEditing": "Keep Editing"
+    },
+    "modals": {
+      "unsavedTitle": "Unsaved Changes",
+      "unsavedMessage": "You have unsaved changes. Are you sure you want to discard them?"
+    },
+    "toasts": {
+      "draftSaved": "Saved as local draft. (Public profile publishing requires backend integration)",
+      "noChanges": "No changes to save",
+      "saveFailed": "Failed to save draft",
+      "photoLibraryUnavailable": "Photo library unavailable"
+    }
   },
   "regularSubscriptionPrompt": {
     "titlePrefix": "Valens is ",

@@ -86,6 +86,7 @@ import BillingPaymentsScreen from '../pages/wallet/BillingPaymentsScreen';
 import CreatorsScreen from '../pages/wallet/CreatorsScreen';
 import SettingsScreen from '../pages/wallet/SettingScreen';
 import ShopSettingsScreen from '../pages/wallet/ShopSettingsScreen';
+import ServicesSettingsScreen from '../pages/wallet/ServicesSettingsScreen';
 import ChangePassword from '../pages/wallet/ChangePassword';
 import WalletComponent from '../pages/wallet/WalletScreen';
 import ProfileSettingsScreen from '../pages/wallet/ProfileSettings';
@@ -1149,6 +1150,11 @@ export default function MainTabNavigator() {
             name="ShopSettings"
             component={ShopSettingsScreen}
             options={{ headerTitle: t('shopSettings.title') }}
+          />
+          <Stack.Screen
+            name="ServicesSettings"
+            component={ServicesSettingsScreen}
+            options={{ headerTitle: t('servicesSettings.title', 'Services Settings') }}
           />
           <Stack.Screen
             name="WalletEditProfile"
