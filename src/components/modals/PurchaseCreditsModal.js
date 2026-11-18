@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Linking, Image } from 'react-native';
 import RBSheet from 'react-native-raw-bottom-sheet';
 import { useDispatch } from 'react-redux';
 import { hideLoader, showLoader } from '../../redux/actions/LoaderAction';
@@ -32,6 +32,10 @@ const CreditPurchaseModal = ({ visible, onClose, onPurchaseComplete, currentCred
   const { bgStyle, textStyle, text, cardStyle, accent, mutedText } = useAppTheme(
     isBusinessProfile ? 'company' : undefined,
   );
+  const brandColor = isBusinessProfile ? '#CBA257' : (accent || '#402090');
+  const rocketImage = isBusinessProfile
+    ? require('../../assets/Valens Stickers/Valens Stickers/PNG/rocket_gold.png')
+    : require('../../assets/Valens Stickers/Valens Stickers/PNG/rocket.png');
   const { t } = useLanguage();
   const stripeErrorMessages = getStripeErrorMessages(t);
 
@@ -264,49 +268,56 @@ const CreditPurchaseModal = ({ visible, onClose, onPurchaseComplete, currentCred
   return (
     <RBSheet
       ref={sheetRef}
-      height={360}
+      height={380}
       draggable
       closeOnPressMask={true}
       onClose={onClose}
       customStyles={{
         container: [
           {
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
-            paddingVertical: 20,
-            paddingHorizontal: 25,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingVertical: 14,
+            paddingHorizontal: 20,
           },
           bgStyle,
         ],
         draggableIcon: {
           backgroundColor: '#ccc',
-          width: 60,
+          width: 50,
         },
       }}
     >
       <View style={styles.container}>
-        <Text style={[styles.title, textStyle]}>
-          {t('creditPurchaseModal.title')}
-        </Text>
+        {/* Compact Header with Mascot / Rocket */}
+        <View style={styles.headerRow}>
+          <Image source={rocketImage} style={styles.headerRocket} resizeMode="contain" />
+          <View style={styles.headerTextWrap}>
+            <Text style={[styles.title, { color: brandColor }]}>
+              {t('creditPurchaseModal.title', 'Buy Mission Credits')}
+            </Text>
+            <Text style={[styles.headerSubtitle, { color: mutedText }]}>
+              $1.99 per Mission Post credit
+            </Text>
+          </View>
+        </View>
 
-        <View style={[styles.currentCreditsContainer, cardStyle, { shadowColor: text }]}>
+        {/* Balance Badge */}
+        <View style={[styles.currentCreditsContainer, cardStyle, { borderColor: isBusinessProfile ? '#E8D9BD' : '#E8E0F2', borderWidth: 1 }]}>
           <Text style={[styles.currentCreditsLabel, { color: mutedText }]}>
-            {t('creditPurchaseModal.currentCreditsLabel')}
+            {t('creditPurchaseModal.currentCreditsLabel', 'Current Balance:')}
           </Text>
-          <Text style={[styles.currentCreditsValue, textStyle]}>
-            {safeCurrentCredits} / {MAX_CREDITS}
+          <Text style={[styles.currentCreditsValue, { color: brandColor }]}>
+            {safeCurrentCredits} / {MAX_CREDITS} {t('creditPurchaseModal.creditPlural', 'credits')}
           </Text>
         </View>
 
-        <Text style={[styles.subtitle, { color: mutedText }]}>
-          {t('creditPurchaseModal.selectAmountLabel')}
-        </Text>
-
+        {/* Counter Selector with Live Cost */}
         <View style={styles.selectorContainer}>
           <TouchableOpacity
             style={[
               styles.adjustBtn,
-              { backgroundColor: accent, shadowColor: accent },
+              { backgroundColor: brandColor },
               (creditsToBuy <= 1 || maxPurchasable <= 0) && styles.adjustBtnDisabled,
             ]}
             onPress={decreaseCredits}
@@ -316,18 +327,16 @@ const CreditPurchaseModal = ({ visible, onClose, onPurchaseComplete, currentCred
           </TouchableOpacity>
 
           <View style={styles.amountContainer}>
-            <Text style={[styles.amountText, textStyle]}>{creditsToBuy}</Text>
-            <Text style={[styles.creditsLabel, { color: mutedText }]}>
-              {creditsToBuy > 1
-                ? t('creditPurchaseModal.creditPlural')
-                : t('creditPurchaseModal.creditSingular')}
+            <Text style={[styles.amountText, { color: brandColor }]}>{creditsToBuy}</Text>
+            <Text style={[styles.priceTotalText, { color: mutedText }]}>
+              = ${((Number(creditsToBuy) || 0) * 1.99).toFixed(2)}
             </Text>
           </View>
 
           <TouchableOpacity
             style={[
               styles.adjustBtn,
-              { backgroundColor: accent, shadowColor: accent },
+              { backgroundColor: brandColor },
               (maxPurchasable <= 0 || creditsToBuy >= maxPurchasable) && styles.adjustBtnDisabled,
             ]}
             onPress={increaseCredits}
@@ -337,23 +346,31 @@ const CreditPurchaseModal = ({ visible, onClose, onPurchaseComplete, currentCred
           </TouchableOpacity>
         </View>
 
+        {/* Concise Policy Notice */}
+        <View style={[styles.policyPill, { backgroundColor: isBusinessProfile ? '#FAF7F0' : '#F5EEFC' }]}>
+          <Text style={[styles.policyText, { color: isBusinessProfile ? '#8C6F2D' : '#6A4595' }]}>
+            • Max 5 credits/month • Limit resets each month
+          </Text>
+        </View>
+
+        {/* Action Button */}
         <TouchableOpacity
           style={[
             styles.buyBtn,
-            { backgroundColor: accent, shadowColor: accent },
+            { backgroundColor: brandColor },
             (maxPurchasable <= 0 || creditsToBuy < 1) && { opacity: 0.6 },
           ]}
           onPress={handleConfirmPurchase}
           disabled={maxPurchasable <= 0 || creditsToBuy < 1}
         >
           <Text style={styles.buyBtnText}>
-            {t('creditPurchaseModal.continueToPayment')}
+            {t('creditPurchaseModal.continueToPayment', 'Continue to Payment')}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => sheetRef.current?.close()}>
+        <TouchableOpacity onPress={() => sheetRef.current?.close()} style={{ marginTop: 4 }}>
           <Text style={[styles.cancelText, { color: mutedText }]}>
-            {t('creditPurchaseModal.cancelButton')}
+            {t('creditPurchaseModal.cancelButton', 'Cancel')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -368,91 +385,112 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 12,
+  },
+  headerRocket: {
+    width: 40,
+    height: 40,
+  },
+  headerTextWrap: {
+    alignItems: 'flex-start',
+  },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 15,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 1,
   },
   currentCreditsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
     borderRadius: 12,
-    marginBottom: 20,
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    marginBottom: 12,
   },
   currentCreditsLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginRight: 8,
+    fontSize: 12.5,
+    fontWeight: '600',
+    marginRight: 6,
   },
   currentCreditsValue: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 15,
+    fontSize: 13,
+    fontWeight: '800',
   },
   selectorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    marginVertical: 8,
   },
   adjustBtn: {
-    borderRadius: 50,
-    width: 44,
-    height: 44,
+    borderRadius: 20,
+    width: 38,
+    height: 38,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
   adjustBtnDisabled: {
-    backgroundColor: '#ddd',
-    shadowOpacity: 0,
-    elevation: 0,
+    backgroundColor: '#DDD',
+    opacity: 0.5,
   },
   adjustText: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#FFFFFF',
+    lineHeight: 24,
   },
   amountContainer: {
     alignItems: 'center',
-    marginHorizontal: 40,
+    marginHorizontal: 32,
   },
   amountText: {
-    fontSize: 32,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '900',
   },
-  creditsLabel: {
+  priceTotalText: {
     fontSize: 12,
-    color: '#666',
-    marginTop: 4,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  policyPill: {
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginVertical: 8,
+  },
+  policyText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   buyBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 50,
-    borderRadius: 10,
-    marginBottom: 10,
-    shadowOpacity: 0.2,
+    paddingVertical: 11,
+    paddingHorizontal: 40,
+    borderRadius: 14,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
   },
   buyBtnText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14.5,
   },
   cancelText: {
-    color: '#666',
-    marginTop: 5,
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '600',
+    paddingVertical: 4,
   },
 });

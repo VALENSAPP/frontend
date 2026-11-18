@@ -30,6 +30,7 @@ export const ActivityScreen = ({ navigation }) => {
   const [activities, setActivities] = useState([]);
   const [notificationsMuted, setNotificationsMuted] = useState(false);
   const {
+    isBusinessProfile,
     bgStyle,
     text,
     accent,
@@ -39,7 +40,9 @@ export const ActivityScreen = ({ navigation }) => {
     icon,
   } = useBusinessProfileTheme();
   const { t } = useLanguage();
-  const activeLabelColor = contrastOn(accent);
+  const brandColor = isBusinessProfile ? '#CBA257' : '#402090';
+  const screenBg = isDarkMode ? '#120F1D' : (isBusinessProfile ? '#FAF7F0' : '#FAF7FD');
+  const activeLabelColor = contrastOn(accent || brandColor);
 
   const filters = [
     { key: 'all', label: t('activity.filters.all', 'All'), iconName: null },
@@ -302,7 +305,7 @@ export const ActivityScreen = ({ navigation }) => {
           styles.activityCardItem,
           {
             backgroundColor: isDarkMode ? '#1E1B2E' : '#FFFFFF',
-            borderColor: isDarkMode ? '#2D2844' : '#F3F4F6',
+            borderColor: isDarkMode ? '#2D2844' : '#EFEBF6',
           },
         ]}
       >
@@ -314,12 +317,12 @@ export const ActivityScreen = ({ navigation }) => {
               style={styles.actorAvatarImage}
             />
             <View style={[styles.miniBadgeCircle, { backgroundColor: badge.bg }]}>
-              <Ionicons name={badge.icon} size={10} color="#FFFFFF" />
+              <Ionicons name={badge.icon} size={9} color="#FFFFFF" />
             </View>
           </View>
         ) : (
           <View style={[styles.activityBadgeCircle, { backgroundColor: badge.bg }]}>
-            <Ionicons name={badge.icon} size={18} color="#FFFFFF" />
+            <Ionicons name={badge.icon} size={17} color="#FFFFFF" />
           </View>
         )}
 
@@ -327,11 +330,11 @@ export const ActivityScreen = ({ navigation }) => {
         <View style={styles.activityContentBox}>
           <Text style={styles.activityActionText} numberOfLines={2}>
             {item.userName ? (
-              <Text style={[styles.userNameBold, { color: text }]}>
+              <Text style={[styles.userNameBold, { color: brandColor }]}>
                 {item.userName}{' '}
               </Text>
             ) : null}
-            <Text style={[styles.actionNormalText, { color: isDarkMode ? '#D1D5DB' : '#374151' }]}>
+            <Text style={[styles.actionNormalText, { color: isDarkMode ? '#D1D5DB' : '#1F1435' }]}>
               {item.actionText}
             </Text>
           </Text>
@@ -344,22 +347,21 @@ export const ActivityScreen = ({ navigation }) => {
 
         {/* Right Time & Chevron */}
         <View style={styles.activityRightSide}>
-          <Text style={[styles.activityTimeText, { color: isDarkMode ? '#9CA3AF' : '#6B7280' }]}>
+          <Text style={[styles.activityTimeText, { color: isDarkMode ? '#9CA3AF' : '#8A79A8' }]}>
             {item.time}
           </Text>
-          <Feather name="chevron-right" size={16} color={isDarkMode ? '#6B7280' : '#7C3AED'} style={{ marginLeft: 6 }} />
+          <Feather name="chevron-right" size={14} color={isDarkMode ? '#6B7280' : '#8A79A8'} style={{ marginLeft: 4 }} />
         </View>
       </TouchableOpacity>
     );
   };
 
   return (
-    <SafeAreaView style={[styles.container, bgStyle]}>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={bgStyle?.backgroundColor} />
+    <SafeAreaView style={[styles.container, { backgroundColor: screenBg }]}>
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={screenBg} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Hide Notifications Banner */}
-        {/* Filter Pills */}
+        {/* Filter Pills matching image18.png */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -374,10 +376,10 @@ export const ActivityScreen = ({ navigation }) => {
                 style={[
                   styles.filterPillButton,
                   isActive
-                    ? { backgroundColor: accent, borderColor: accent }
+                    ? { backgroundColor: brandColor, borderColor: brandColor }
                     : {
-                      backgroundColor: card,
-                      borderColor: border,
+                      backgroundColor: isDarkMode ? '#1E1B2E' : '#FFFFFF',
+                      borderColor: isDarkMode ? '#2D2844' : '#E8E0F2',
                     },
                 ]}
                 onPress={() => setActiveFilter(filter.key)}
@@ -385,16 +387,16 @@ export const ActivityScreen = ({ navigation }) => {
                 {filter.iconName ? (
                   <Ionicons
                     name={filter.iconName}
-                    size={16}
-                    color={isActive ? activeLabelColor : (isDarkMode ? icon : accent)}
-                    style={{ marginRight: 6 }}
+                    size={15}
+                    color={isActive ? '#FFFFFF' : (isDarkMode ? icon : brandColor)}
+                    style={{ marginRight: 5 }}
                   />
                 ) : null}
                 <Text
                   style={[
                     styles.filterPillText,
                     isActive
-                      ? { color: activeLabelColor, fontWeight: '700' }
+                      ? { color: '#FFFFFF', fontWeight: '800' }
                       : { color: isDarkMode ? mutedText : '#374151', fontWeight: '600' },
                   ]}
                 >
@@ -407,7 +409,7 @@ export const ActivityScreen = ({ navigation }) => {
 
         {/* Activity Section */}
         <View style={styles.sectionContainer}>
-          <Text style={[styles.sectionTitleText, { color: text }]}>
+          <Text style={[styles.sectionTitleText, { color: brandColor }]}>
             {getSectionTitle()}
           </Text>
           <FlatList
@@ -415,7 +417,7 @@ export const ActivityScreen = ({ navigation }) => {
             renderItem={renderActivityItem}
             keyExtractor={(item) => item.id.toString()}
             scrollEnabled={false}
-            ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+            ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
           />
         </View>
       </ScrollView>
@@ -428,8 +430,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 12 : 6,
-    paddingBottom: 120,
+    paddingTop: Platform.OS === 'android' ? 10 : 6,
+    paddingBottom: 40,
   },
 
   // Hide Notification Banner
@@ -437,9 +439,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 18,
-    padding: 16,
+    marginTop: 6,
+    marginBottom: 14,
+    padding: 14,
     borderRadius: 18,
     borderWidth: 1,
     shadowColor: '#000',
@@ -448,41 +450,41 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   eyeIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginRight: 12,
   },
   bannerTextColumn: {
     flex: 1,
   },
   bannerTitleText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    marginBottom: 3,
+    marginBottom: 2,
   },
   bannerSubtitleText: {
-    fontSize: 13,
+    fontSize: 12,
   },
 
-  // Filter Pills
+  // Filter Pills matching image18.png
   filtersScrollContent: {
     paddingHorizontal: 16,
-    paddingBottom: 18,
+    paddingBottom: 12,
   },
   filterPillButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 24,
-    marginRight: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 20,
+    marginRight: 8,
     borderWidth: 1,
   },
   filterPillText: {
-    fontSize: 14,
+    fontSize: 13,
   },
 
   // Activity Section
@@ -490,48 +492,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   sectionTitleText: {
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '800',
-    marginBottom: 14,
+    marginBottom: 10,
+    letterSpacing: -0.2,
   },
 
-  // Activity Item Card
+  // Activity Item Card matching image18.png
   activityCardItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.02,
+    shadowColor: '#402090',
+    shadowOpacity: 0.03,
     shadowRadius: 6,
     elevation: 1,
   },
   activityBadgeCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginRight: 12,
   },
   actorAvatarContainer: {
     position: 'relative',
-    marginRight: 14,
+    marginRight: 12,
   },
   actorAvatarImage: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
   },
   miniBadgeCircle: {
     position: 'absolute',
     bottom: -2,
     right: -2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
@@ -539,11 +542,11 @@ const styles = StyleSheet.create({
   },
   activityContentBox: {
     flex: 1,
-    paddingRight: 8,
+    paddingRight: 6,
   },
   activityActionText: {
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 14,
+    lineHeight: 18,
   },
   userNameBold: {
     fontWeight: '800',
@@ -552,16 +555,16 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   activitySubtitleText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 3,
+    fontSize: 11.5,
+    fontWeight: '500',
+    marginTop: 2,
   },
   activityRightSide: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   activityTimeText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '500',
   },
 });

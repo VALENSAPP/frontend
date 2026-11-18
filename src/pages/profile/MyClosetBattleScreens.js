@@ -496,22 +496,28 @@ export const PhoneFrame = ({ children }) => {
   );
 };
 
-export const BattleCard = ({ left, right, showWinner = false, winnerPercent, accent = PURPLE, textColor = TEXT, isDarkMode = false, card, border, onLeftPress, onRightPress }) => {
+export const BattleCard = ({ left, right, showWinner = false, winnerPercent, accent = PURPLE, textColor = TEXT, isDarkMode = false, card, border, inHeroCard = false, onLeftPress, onRightPress }) => {
   const { t } = useLanguage();
   const confettiBg = isDarkMode ? (card || 'rgba(255,255,255,0.08)') : '#FBF3FF';
   const ProductTile = ({ item, onPress, iconName }) => {
     const content = (
       <>
-        <CachedImageBox
-          uri={item.image}
-          style={styles.itemThumb}
-          placeholderStyle={styles.itemThumbPlaceholder}
-          iconName={iconName}
-        />
-        <Text style={[styles.itemName, { color: textColor }]}>{item.name}</Text>
-        <Text style={[styles.itemPrice, { color: accent }]}>{item.price}</Text>
+        <View style={[styles.itemThumbWrap, inHeroCard && styles.itemThumbWrapInHero]}>
+          <CachedImageBox
+            uri={item.image}
+            style={styles.itemThumb}
+            placeholderStyle={styles.itemThumbPlaceholder}
+            iconName={iconName}
+          />
+        </View>
+        <Text style={[styles.itemName, { color: inHeroCard ? '#FFFFFF' : textColor }]} numberOfLines={1}>{item.name}</Text>
+        {Boolean(item?.price) && (
+          <View style={styles.yellowPricePill}>
+            <Text style={styles.yellowPriceText}>{item.price}</Text>
+          </View>
+        )}
         {(item.shopName || item.userName || item.sellerName) ? (
-          <Text style={[styles.itemSeller, { color: isDarkMode ? '#AAAAAA' : '#666666', fontSize: 12, marginTop: 4, textAlign: 'center' }]} numberOfLines={1}>
+          <Text style={[styles.itemSeller, { color: inHeroCard ? 'rgba(255,255,255,0.75)' : (isDarkMode ? '#AAAAAA' : '#666666'), fontSize: 11, marginTop: 2, textAlign: 'center' }]} numberOfLines={1}>
             {item.shopName || item.userName || item.sellerName}
           </Text>
         ) : null}
@@ -532,7 +538,7 @@ export const BattleCard = ({ left, right, showWinner = false, winnerPercent, acc
     ) : <View style={styles.itemTile}>{content}</View>;
   };
   return (
-    <View style={styles.cardBlock}>
+    <View style={[styles.cardBlock, inHeroCard && { marginTop: 4, marginBottom: 4 }]}>
       {showWinner ? (
         <View style={[styles.confettiCard, { backgroundColor: confettiBg, borderColor: border || BORDER }]}>
           <Text style={[styles.winnerBadge, { color: textColor }]}>🏆 {t('battle.winner')}</Text>
@@ -562,7 +568,9 @@ export const BattleCard = ({ left, right, showWinner = false, winnerPercent, acc
       ) : null}
       <View style={styles.vsGrid}>
         <ProductTile item={left} onPress={onLeftPress} iconName="bag-outline" />
-        <View style={[styles.vsBubble, { backgroundColor: accent }]}><Text style={styles.vsText}>{t('battle.vs')}</Text></View>
+        <View style={[styles.vsBubble, { backgroundColor: inHeroCard ? '#3B1768' : accent, borderColor: inHeroCard ? 'rgba(255,255,255,0.4)' : '#ede8fb', borderWidth: 1.5 }]}>
+          <Text style={styles.vsText}>{t('battle.vs')}</Text>
+        </View>
         <ProductTile item={right} onPress={onRightPress} iconName="bag-handle-outline" />
       </View>
     </View>
@@ -1819,10 +1827,10 @@ export function ChallengeShopItemsScreen({ navigation, route }) {
 }
 
 export function BattleLiveScreen({ navigation, route }) {
-  const { bgStyle, text, card, bg, border, mutedText, accent: themeAccent } = useClosetTheme(route);
+  const { bgStyle, text, card, bg, border, mutedText, accent: themeAccent, isBusinessProfile } = useClosetTheme(route);
   const { isDarkMode } = useThemeContext();
   const { t, currentLanguage } = useLanguage();
-  const brandAccent = themeAccent || PURPLE;
+  const brandAccent = themeAccent || (isBusinessProfile ? '#CBA257' : '#402090');
   // Label/price color: profile text (purple/gold in light, white/gold in dark)
   const accent = themeAccent || brandAccent;
   const primaryText = text || TEXT;
@@ -2561,48 +2569,58 @@ export function BattleLiveScreen({ navigation, route }) {
           </View>
         </TouchableOpacity>
       ) : null}
-      <Text style={[liveStyles.question, { color: primaryText }]}>{question}</Text>
-      <Text style={[liveStyles.questionSub, { color: subtleMuted }]}>{t('battle.voteSwipeHint') || 'Your vote swipe others decide'}</Text>
+      {/* Cozy Hero Card with Account-Aware Gradient (Personal #402090, Business #CBA257) */}
+      <LinearGradient
+        colors={isDarkMode
+          ? (isBusinessProfile ? ['#3A3018', '#261F0E'] : ['#351A5A', '#24103E'])
+          : (isBusinessProfile ? ['#B8924F', '#CBA257'] : ['#5B2D9D', '#402090'])}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[liveStyles.battleHeroCard, { shadowColor: brandAccent }]}
+      >
+        <Text style={liveStyles.battleHeroQuestion}>{question}</Text>
+        <Text style={liveStyles.battleHeroSub}>{t('battle.voteSwipeHint') || 'Your vote swipe others decide'}</Text>
 
-      <BattleCard
-        left={showWinnerCard ? winnerItem : leftItem}
-        right={showWinnerCard ? runnerUpItem : rightItem}
-        showWinner={showWinnerCard}
-        winnerPercent={Number.isFinite(winnerPercent) ? Math.round(winnerPercent) : null}
-        accent={accent}
-        textColor={primaryText}
-        isDarkMode={isDarkMode}
-        card={surface}
-        border={border || BORDER}
-        onLeftPress={() => openBattleProduct(showWinnerCard ? winnerItem : leftItem)}
-        onRightPress={() => openBattleProduct(showWinnerCard ? runnerUpItem : rightItem)}
-      />
+        <BattleCard
+          left={showWinnerCard ? winnerItem : leftItem}
+          right={showWinnerCard ? runnerUpItem : rightItem}
+          showWinner={showWinnerCard}
+          winnerPercent={Number.isFinite(winnerPercent) ? Math.round(winnerPercent) : null}
+          accent={accent}
+          textColor="#FFFFFF"
+          isDarkMode={isDarkMode}
+          inHeroCard={true}
+          card={surface}
+          border={border || BORDER}
+          onLeftPress={() => openBattleProduct(showWinnerCard ? winnerItem : leftItem)}
+          onRightPress={() => openBattleProduct(showWinnerCard ? runnerUpItem : rightItem)}
+        />
+      </LinearGradient>
 
       {/* About this battle section */}
       {battleDescription ? (
-        <View style={{ marginTop: 14 }}>
-          <Text style={[liveStyles.commentsTitle, { color: primaryText, marginBottom: 8 }]}>
+        <View style={{ marginTop: 8 }}>
+          <Text style={[liveStyles.commentsTitle, { color: primaryText, marginBottom: 4 }]}>
             {t('battle.aboutTitle', 'About this battle')}
           </Text>
           <View
             style={[
               styles.aboutCard,
               {
-                // backgroundColor: surface,
                 borderColor: border || BORDER,
-                paddingHorizontal: 14,
-                paddingVertical: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
               },
             ]}
           >
-            <Text style={[styles.aboutText, { color: subtleMuted, fontSize: 13, lineHeight: 19 }]}>
+            <Text style={[styles.aboutText, { color: subtleMuted, fontSize: 12, lineHeight: 17 }]}>
               {battleDescription}
             </Text>
           </View>
         </View>
       ) : null}
 
-      {/* Vote choice buttons with live counts */}
+      {/* Compact Side-by-Side Voting Buttons matching image13.png */}
       <View style={liveStyles.voteButtonsRow}>
         {[leftItem, rightItem].map((item, index) => {
           const participantKey = item?.participantId || item?.id;
@@ -2613,7 +2631,7 @@ export function BattleLiveScreen({ navigation, route }) {
           return (
             <TouchableOpacity
               key={participantKey || index}
-              activeOpacity={0.9}
+              activeOpacity={0.88}
               disabled={!canVote || isThisVoting || hasVoted}
               onPress={() => setSelectedParticipantId(participantKey)}
               style={[
@@ -2622,15 +2640,21 @@ export function BattleLiveScreen({ navigation, route }) {
                 (!canVote || isThisVoting) && { opacity: 0.7 },
               ]}
             >
-              <LinearGradient
-                colors={isThisVoted ? ['#22C55E', '#16A34A'] : isSelected ? [brandAccent, accent] : voteIdleColors}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+              <View
                 style={[
                   liveStyles.voteButtonInner,
                   {
+                    backgroundColor: isThisVoted
+                      ? '#16A34A'
+                      : isSelected
+                        ? (isDarkMode ? (isBusinessProfile ? '#8C6510' : '#5B21B6') : brandAccent)
+                        : (isDarkMode ? '#241D30' : (isBusinessProfile ? '#FAF7F0' : '#EDE6F7')),
                     borderWidth: 1,
-                    borderColor: isThisVoted ? '#16A34A' : isSelected ? brandAccent : voteIdleBorder,
+                    borderColor: isThisVoted
+                      ? '#16A34A'
+                      : isSelected
+                        ? brandAccent
+                        : (isDarkMode ? '#382A4C' : (isBusinessProfile ? '#E8D9BD' : '#E0D4F5')),
                   },
                 ]}
               >
@@ -2640,18 +2664,18 @@ export function BattleLiveScreen({ navigation, route }) {
                   <>
                     <Ionicons
                       name={isThisVoted ? 'checkmark-circle' : 'thumbs-up'}
-                      size={16}
-                      color={isThisVoted || isSelected ? '#fff' : accent}
+                      size={15}
+                      color={isThisVoted || isSelected ? '#FFFFFF' : (isDarkMode ? (isBusinessProfile ? '#F3E2B8' : '#C084FC') : brandAccent)}
                     />
-                    <Text style={[liveStyles.voteButtonText, { color: isThisVoted || isSelected ? '#fff' : primaryText }]}>
+                    <Text style={[liveStyles.voteButtonText, { color: isThisVoted || isSelected ? '#FFFFFF' : (isDarkMode ? '#EDE9FE' : brandAccent) }]}>
                       {isThisVoted ? (t('battle.voted') || 'Voted') : (t('battle.vote') || 'Vote')}
                     </Text>
-                    <Text style={[liveStyles.voteButtonCount, { color: isThisVoted || isSelected ? '#fff' : accent }]}>
+                    <Text style={[liveStyles.voteButtonCount, { color: isThisVoted || isSelected ? '#FFFFFF' : (isDarkMode ? '#EDE9FE' : brandAccent) }]}>
                       {sideLabel}
                     </Text>
                   </>
                 )}
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -3033,25 +3057,52 @@ export function BattleLiveScreen({ navigation, route }) {
 // Styles specific to the redesigned BattleLiveScreen (kept separate from the
 // legacy `styles` StyleSheet used by the other screens in this file).
 const liveStyles = StyleSheet.create({
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, marginBottom: 10 },
-  categoryPill: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2, marginBottom: 6 },
+  categoryPill: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 },
   categoryPillText: { fontSize: 12, fontWeight: '800' },
   daysLeftRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   daysLeftText: { fontSize: 12, fontWeight: '600', color: MUTED },
-  question: { fontSize: 19, fontWeight: '800', textAlign: 'center', marginBottom: 4 },
-  questionSub: { fontSize: 12, fontWeight: '600', color: MUTED, textAlign: 'center', marginBottom: 14 },
+  question: { fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 3 },
+  questionSub: { fontSize: 12, fontWeight: '600', color: MUTED, textAlign: 'center', marginBottom: 8 },
 
-  voteButtonsRow: { flexDirection: 'row', gap: 12, marginTop: 14, marginBottom: 4 },
-  voteButtonWrap: { flex: 1, borderRadius: 16, overflow: 'hidden' },
+  battleHeroCard: {
+    borderRadius: 22,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    marginTop: 4,
+    marginBottom: 6,
+    shadowColor: '#402090',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  battleHeroQuestion: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 3,
+  },
+  battleHeroSub: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.85)',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+
+  voteButtonsRow: { flexDirection: 'row', gap: 10, marginTop: 8, marginBottom: 4 },
+  voteButtonWrap: { flex: 1, borderRadius: 14, overflow: 'hidden' },
   voteButtonWrapSelected: { transform: [{ scale: 1.01 }] },
-  voteButtonInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 46, paddingHorizontal: 10 },
-  voteButtonText: { fontSize: 14, fontWeight: '800' },
-  voteButtonCount: { fontSize: 14, fontWeight: '900', marginLeft: 2 },
-  submitVoteWrap: { marginTop: 12, borderRadius: 16, overflow: 'hidden' },
-  submitVoteButton: { minHeight: 46, alignItems: 'center', justifyContent: 'center' },
-  submitVoteText: { color: '#fff', fontSize: 15, fontWeight: '900' },
+  voteButtonInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 42, paddingHorizontal: 10, borderRadius: 14 },
+  voteButtonText: { fontSize: 13, fontWeight: '800' },
+  voteButtonCount: { fontSize: 13, fontWeight: '900', marginLeft: 2 },
+  submitVoteWrap: { marginTop: 8, borderRadius: 14, overflow: 'hidden' },
+  submitVoteButton: { minHeight: 42, alignItems: 'center', justifyContent: 'center' },
+  submitVoteText: { color: '#fff', fontSize: 14, fontWeight: '900' },
 
-  progressCard: { borderRadius: 12, borderWidth: 1, borderColor: '#d3d1d1', padding: 12, marginTop: 14, marginBottom: 22, marginRight: 15, marginLeft: 5 },
+  progressCard: { borderRadius: 14, borderWidth: 1, borderColor: '#E5DFEC', padding: 10, marginTop: 8, marginBottom: 10, marginHorizontal: 2 },
   progressTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
   progressPctLeft: { fontSize: 18, fontWeight: '700' },
   progressPctRight: { fontSize: 18, fontWeight: '700', color: '#ef4444' },
@@ -4132,7 +4183,7 @@ const styles = StyleSheet.create({
   headerCenter: { flex: 1, alignItems: 'center' },
   screenTitle: { fontSize: 18, fontWeight: '800' },
   screenSubtitle: { marginTop: 2, fontSize: 12, color: MUTED, fontWeight: '600' },
-  scrollContent: { paddingHorizontal: 16, paddingBottom: 30, gap: 14 },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 20, gap: 8 },
   phone: { padding: 14, marginTop: 2 },
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   statusText: { fontSize: 12, fontWeight: '800', color: '#111' },
@@ -4186,11 +4237,28 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     minWidth: 0,
   },
+  itemThumbWrap: {
+    width: 104,
+    height: 104,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+    overflow: 'hidden',
+  },
+  itemThumbWrapInHero: {
+    backgroundColor: '#FFFFFF',
+  },
   itemThumb: {
-    width: 88,
-    height: 88,
-    borderRadius: 14,
-    marginBottom: 8,
+    width: '92%',
+    height: '92%',
+    borderRadius: 12,
     alignSelf: 'center',
   },
   itemThumbPlaceholder: {
@@ -4200,7 +4268,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   itemName: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     textAlign: 'center',
   },
@@ -4210,7 +4278,20 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
-  vsBubble: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginTop: 0 },
+  yellowPricePill: {
+    backgroundColor: '#F59E0B',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginTop: 4,
+    alignSelf: 'center',
+  },
+  yellowPriceText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  vsBubble: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 0 },
   vsText: { color: '#fff', fontWeight: '900', fontSize: 12 },
   cardBlock: { gap: 12 },
   imageLoadingOverlay: {

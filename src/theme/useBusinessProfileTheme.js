@@ -3,36 +3,61 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSelector } from 'react-redux';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAppTheme } from './useApptheme';
+import { useThemeContext } from './ThemeContext';
+import { isBusinessProfileType } from './theme';
 
-/** Wallet / settings screens: theme follows logged-in business vs personal profile. */
-export function useBusinessProfileTheme() {
-  const reduxProfile = useSelector(state => state.userProfile.userProfile);
-  const [isBusinessProfile, setIsBusinessProfile] = useState(false);
+/**
+ * Account-aware theme hook:
+ * Provides theme tokens and `isBusinessProfile` indicator, synchronized with the active account.
+ * Primary source of truth is Redux (`state.userProfile.userProfile`).
+ *
+ * @param {boolean|string|object} [override] - Optional explicit override
+ * @returns {object} { isBusinessProfile, ...themeTokens, ...styleHelpers }
+ */
+export function useBusinessProfileTheme(override) {
+  const reduxProfile = useSelector(state => state.userProfile?.userProfile);
+  const context = useThemeContext();
+  const contextIsBusiness = context?.isBusinessProfile;
+
+  const [storedProfile, setStoredProfile] = useState('');
 
   const loadProfileType = useCallback(async () => {
-    const type = await AsyncStorage.getItem('profile');
-    if (type) {
-      setIsBusinessProfile(String(type).toLowerCase() !== 'user');
-    }
+    try {
+      const type = await AsyncStorage.getItem('profile');
+      if (type) setStoredProfile(type);
+    } catch (e) {}
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      if (reduxProfile && reduxProfile !== 'normal') {
-        setIsBusinessProfile(String(reduxProfile).toLowerCase() !== 'user');
-        return;
-      }
       loadProfileType();
-    }, [loadProfileType, reduxProfile]),
+    }, [loadProfileType]),
   );
 
   useEffect(() => {
-    if (reduxProfile && reduxProfile !== 'normal') {
-      setIsBusinessProfile(String(reduxProfile).toLowerCase() !== 'user');
-    }
-  }, [reduxProfile]);
+    loadProfileType();
+  }, [loadProfileType]);
 
-  const theme = useAppTheme(isBusinessProfile ? 'company' : 'user');
+  // Determine active profile state:
+  let isBusiness = false;
 
-  return { isBusinessProfile, ...theme };
+  if (typeof override === 'boolean') {
+    isBusiness = override;
+  } else if (typeof override === 'string' || (override && typeof override === 'object')) {
+    isBusiness = isBusinessProfileType(override);
+  } else if (reduxProfile !== undefined && reduxProfile !== null && reduxProfile !== '') {
+    // Redux is primary source of truth
+    isBusiness = isBusinessProfileType(reduxProfile);
+  } else if (typeof contextIsBusiness === 'boolean') {
+    isBusiness = contextIsBusiness;
+  } else if (storedProfile) {
+    isBusiness = isBusinessProfileType(storedProfile);
+  }
+
+  const theme = useAppTheme(isBusiness ? 'company' : 'user');
+
+  return {
+    isBusinessProfile: isBusiness,
+    ...theme,
+  };
 }
