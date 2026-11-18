@@ -4286,7 +4286,8 @@
     "accountBlocked": "Tu cuenta está bloqueada",
     "blockedMessage": "Tu cuenta está bloqueada porque la verificación del perfil no se completó dentro de los 3 días.",
     "completeVerification": "Completa tu {{verificationType}} para desbloquear tu cuenta y seguir usando Valens.",
-    "completeButton": "Completar {{verificationType}}"
+    "completeButton": "Completar {{verificationType}}",
+    "loginAnotherAccount": "Iniciar sesión con otra cuenta"
   },
   "trustCommentModal": {
     "headerTitle": "¿Te gustaría explicar tu voto?",
@@ -5366,7 +5367,7 @@
     "shopLogo": "Logo de la tienda",
     "logoSubtitle": "Usa una imagen cuadrada para mejores resultados.",
     "logoUploaded": "Logo subido",
-    "addLogo": "Agregar un logo",
+    "addLogo": "Add a logo",
     "shippingReturn": "Política de envío y devoluciones",
     "shippingReturnSubtitle": "Define cómo envías y manejas las devoluciones.",
     "shippingReturnPlaceholder": "Cuéntales a los compradores cómo funcionan los envíos y devoluciones.",
@@ -5411,7 +5412,21 @@
       "shopPreferencesFallback": "Configura los valores predeterminados de tu tienda",
       "shopPreferencesSubtitle": "Audiencia, estilo y preferencias de orden.",
       "notifications": "Notificaciones",
-      "notificationsSubtitle": "Recibe actualizaciones sobre la actividad de la tienda."
+      "notificationsSubtitle": "Recibe actualizaciones sobre la actividad de la tienda.",
+      "shopNameSubtitle": "Pick a name shoppers will remember.",
+      "usernameSubtitleNew": "Your public shop link. Make it easy to share.",
+      "descriptionSubtitle": "What do you sell? Give shoppers a reason to explore.",
+      "logoSubtitleNew": "Your shop's signature look. A square image works best.",
+      "locationSubtitleNew": "Let shoppers know where you're based. Shown on your public shop page.",
+      "personalName": "Display name",
+      "personalNameSubtitle": "Your personal display name shown to others.",
+      "personalUsernameSubtitle": "Your public profile link. Make it easy to share.",
+      "personalBio": "Shop description",
+      "personalBioSubtitle": "Tell shoppers what makes your collection special.",
+      "personalPhoto": "Shop logo",
+      "personalPhotoSubtitle": "Your signature look. A square image works best.",
+      "personalPhotoUploaded": "Photo uploaded",
+      "personalLocationSubtitle": "Let shoppers know where you're based. Shown on your public page."
     },
     "modals": {
       "shopName": {
@@ -5444,13 +5459,15 @@
       "message": "Esto eliminará permanentemente tu armario y toda su configuración. Esta acción no se puede deshacer."
     },
     "toasts": {
-      "loadFailed": "No se pudo cargar la configuración de la tienda.",
-      "photoLibraryUnavailable": "No se pudo abrir la biblioteca de fotos.",
-      "saveSuccess": "La configuración de la tienda se guardó correctamente.",
-      "saveFailed": "No se pudo guardar la configuración de la tienda.",
-      "deleteSuccess": "Mi Armario se eliminó correctamente.",
-      "deleteFailed": "No se pudo eliminar Mi Armario."
-    }
+      "noChanges": "No changes to save"
+    },
+    "bannerHeading": "Small details.\nBig shop energy.",
+    "bannerDescription": "Give your shop a name, add your logo, and tell shoppers what makes it special. These are the details they'll see when they visit.",
+    "bannerTagline": "Dralens brought the cart.\nYou bring the good stuff!",
+    "shopPreviewPill": "Shop preview",
+    "previewDefaultStory": "Your shop's story starts here.",
+    "tapToDescribe": "Tap to describe your shop",
+    "tapToAddLocation": "Tap to add your location"
   },
   "battleInsights": {
     "headerTitle": "Estadísticas y acciones",
@@ -5988,5 +6005,21 @@
     "noProductsInCategory": "Aún no hay productos en esta categoría",
     "clearFilters": "Limpiar Filtros",
     "untitled": "Producto"
+  },
+  "profileVerificationReminder": {
+    "title": "Verifica tu perfil",
+    "accountBlocked": "Tu cuenta está bloqueada",
+    "message": "Completa tu {{type}} para poder tener un perfil verificado. Todos los perfiles de Valens están verificados.",
+    "blockedMessage": "Completa tu {{type}} para desbloquear tu cuenta.",
+    "subMessage": "Si no lo completas en 3 días, tu perfil se bloqueará hasta que finalice la verificación.",
+    "blockedSubMessage": "Tu cuenta está bloqueada porque la verificación del perfil no se completó en 3 días.",
+    "later": "Más tarde",
+    "doItNow": "Hacerlo ahora",
+    "confirmTitle": "Verifica tu perfil",
+    "confirmMessage": "Si no verificas tu perfil, no tendrás acceso a tu cuenta. Para continuar usando Valens, realiza tu {{type}}.",
+    "confirmSubMessage": "Si rechazas la verificación, se cerrará la sesión de tu cuenta.",
+    "deny": "Rechazar",
+    "doKyc": "Hacer {{type}}",
+    "goBack": "Volver"
   }
 }

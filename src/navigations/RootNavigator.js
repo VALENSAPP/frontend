@@ -226,7 +226,7 @@ const CustomDrawerContent = (props) => {
           <TextGradient
             style={{ fontWeight: "bold", fontSize: 23 }}
             locations={[0, 1]}
-            colors={["#513189bd", "#e54ba0"]}
+            colors={isCompanyProfile ? ["#CBA257", "#CBA257"] : ["#513189bd", "#e54ba0"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             text="VALENS"
@@ -870,12 +870,16 @@ export default function MainStack({ isFirstLaunch }) {
   const [hasStoredLogin, setHasStoredLogin] = React.useState(null);
 
   React.useEffect(() => {
+    if (!isLogin) {
+      setHasStoredLogin(false);
+      return;
+    }
     AsyncStorage.getItem('isLoggedIn').then(val => {
       setHasStoredLogin(val === 'true');
     }).catch(() => {
       setHasStoredLogin(false);
     });
-  }, []);
+  }, [isLogin]);
 
   if (!isLogin || isAddAccount) {
     // While checking storage or if stored session indicates logged in, render WhiteScreen until Redux isLogin resolves

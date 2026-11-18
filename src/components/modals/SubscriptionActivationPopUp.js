@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { useAppTheme } from "../../theme/useApptheme";
 import { useLanguage } from "../../i18n";
@@ -110,14 +111,22 @@ const SubscriptionActivationPopup = ({
     >
       <View style={styles.overlay} pointerEvents="auto">
         <View style={[styles.box, bgStyle, { backgroundColor: card }]}>
+          <View style={styles.headerRow}>
+            <View style={styles.titleContainer}>
+              <Text style={[styles.title, textStyle]}>
+                {t('subscriptionActivation.title')}
+              </Text>
+            </View>
+            <Image
+              source={require('../../assets/Valens Stickers/Valens Stickers/WEBP/Pack 3/lock.webp')}
+              style={styles.mascotImage}
+              resizeMode="contain"
+            />
+          </View>
 
-          <Text style={[styles.title, textStyle]}>
-            {t('subscriptionActivation.title')}
-          </Text>
-
-          <Text style={[styles.text, textStyle]}>
+          <Text style={[styles.introText, textStyle]}>
             {t(chargeIntroKey)}{' '}
-            <Text style={{ fontWeight: 'bold' }}>
+            <Text style={styles.boldText}>
               {formattedAmount}
             </Text>{' '}
             {t('subscriptionActivation.chargeSuffix')}
@@ -134,7 +143,7 @@ const SubscriptionActivationPopup = ({
             {t('subscriptionActivation.maintenanceFeeDesc')}
           </Text>
 
-          <Text style={[styles.bullet, textStyle]}>
+          <Text style={[styles.bullet, textStyle, { marginTop: 12 }]}>
             {t('subscriptionActivation.withdrawalFee')}
           </Text>
           <Text style={[styles.subText, textStyle]}>
@@ -145,15 +154,20 @@ const SubscriptionActivationPopup = ({
             {t('subscriptionActivation.billingAuthTitle')}
           </Text>
 
-          <Text style={[styles.text, textStyle]}>
+          <Text style={[styles.descText, textStyle]}>
             {t(billingAuthKey)}
           </Text>
 
           <View style={styles.row}>
             <TouchableOpacity
-              style={[styles.cancelBtn, { borderColor: border }, isLoading && styles.cancelBtnDisabled]}
+              style={[
+                styles.cancelBtn,
+                { borderColor: border, backgroundColor: card },
+                isLoading && styles.cancelBtnDisabled,
+              ]}
               onPress={handleCancel}
               disabled={isLoading}
+              activeOpacity={0.7}
             >
               <Text style={[styles.cancelTxt, textStyle]}>
                 {t('subscriptionActivation.cancelButton')}
@@ -161,9 +175,14 @@ const SubscriptionActivationPopup = ({
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.acceptBtn, { backgroundColor: accent }, isLoading && styles.acceptBtnDisabled]}
+              style={[
+                styles.acceptBtn,
+                { backgroundColor: accent },
+                isLoading && styles.acceptBtnDisabled,
+              ]}
               onPress={handleAccept}
               disabled={isLoading}
+              activeOpacity={0.7}
             >
               {isLoading ? (
                 <ActivityIndicator color="#ffffff" size="small" />
@@ -185,70 +204,110 @@ export default SubscriptionActivationPopup;
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
   box: {
     width: "100%",
-    borderRadius: 12,
-    padding: 20,
+    maxWidth: 420,
+    borderRadius: 16,
+    paddingHorizontal: 22,
+    paddingTop: 22,
+    paddingBottom: 22,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  titleContainer: {
+    flex: 1,
+    marginRight: 8,
   },
   title: {
-    fontSize: 20,
+    fontSize: 23,
     fontWeight: "700",
-    textAlign: "center",
-    marginBottom: 10,
+    lineHeight: 29,
+    textAlign: "left",
+  },
+  mascotImage: {
+    width: 110,
+    height: 95,
+  },
+  introText: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: "400",
+  },
+  text: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: "400",
+  },
+  boldText: {
+    fontWeight: "700",
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "700",
-    marginTop: 15,
+    marginTop: 18,
+    marginBottom: 4,
   },
   bullet: {
     fontSize: 15,
-    fontWeight: "600",
-    marginTop: 10,
-  },
-  text: {
-    fontSize: 14,
-    marginTop: 10,
+    fontWeight: "700",
+    marginTop: 6,
+    lineHeight: 21,
   },
   subText: {
     fontSize: 14,
-    marginLeft: 10,
+    lineHeight: 20,
+    marginLeft: 14,
+    marginTop: 2,
+    fontWeight: "400",
+  },
+  descText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "400",
+    marginTop: 2,
   },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 25,
+    alignItems: "center",
+    marginTop: 26,
   },
   cancelBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginRight: 10,
+    paddingVertical: 13,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    marginRight: 8,
     alignItems: "center",
+    justifyContent: "center",
   },
   cancelBtnDisabled: {
     opacity: 0.5,
   },
   acceptBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginLeft: 10,
+    paddingVertical: 13,
+    borderRadius: 12,
+    marginLeft: 8,
     alignItems: "center",
+    justifyContent: "center",
   },
   cancelTxt: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   acceptTxt: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   acceptBtnDisabled: {
     opacity: 0.7,

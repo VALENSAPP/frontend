@@ -3249,7 +3249,7 @@
     "maintenanceFeeMonthly": "• Monthly maintenance fee of {{amount}}",
     "maintenanceFeeYearly": "• Yearly maintenance fee of {{amount}}",
     "maintenanceFeeDesc": "For hosting and operating your private subscription channel.",
-    "withdrawalFee": "•  Withdrawal Fee",
+    "withdrawalFee": "• Withdrawal Fee",
     "withdrawalFeeDesc": "Applied to every payout request you make.",
     "billingAuthTitle": "Billing Authorization",
     "billingAuthDesc": "By continuing, you authorize Valens to automatically charge the monthly maintenance fee and deduct the withdrawal fee from your payouts.",
@@ -3644,7 +3644,12 @@
     "activityNewComment": "New Comment",
     "activityPostLiked": "Post Liked",
     "activityInteracted": "Interacted with a post",
-    "addMember": "Add member"
+    "addMember": "Add member",
+    "promoHeading": "Your people. Your little corner of Valens.",
+    "promoBody": "Invite friends, family, and trusted connections to share posts only your circle can see. You choose who gets in — no invitation, no peeking!",
+    "promoTagline": "Dralens is on guest-list duty.",
+    "recentActivityEmpty": "Quiet for now. Your circle's story starts here.",
+    "membersEmpty": "Invite your first member to get things started."
   },
   "privateCircleMint": {
     "setupError": "Unable to set up Private Circle. Please try again.",
@@ -4289,7 +4294,8 @@
     "accountBlocked": "Your account is blocked",
     "blockedMessage": "Your account is blocked because profile verification was not completed within 3 days.",
     "completeVerification": "Complete your {{verificationType}} to unlock your account and continue using Valens.",
-    "completeButton": "Complete {{verificationType}}"
+    "completeButton": "Complete {{verificationType}}",
+    "loginAnotherAccount": "Log in with another account"
   },
   "trustCommentModal": {
     "headerTitle": "Would you like to explain your vote?",
@@ -5414,7 +5420,21 @@
       "shopPreferencesFallback": "Set your shop defaults",
       "shopPreferencesSubtitle": "Audience, style, and ordering preferences.",
       "notifications": "Notifications",
-      "notificationsSubtitle": "Receive updates for shop activity."
+      "notificationsSubtitle": "Receive updates for shop activity.",
+      "shopNameSubtitle": "Pick a name shoppers will remember.",
+      "usernameSubtitleNew": "Your public shop link. Make it easy to share.",
+      "descriptionSubtitle": "What do you sell? Give shoppers a reason to explore.",
+      "logoSubtitleNew": "Your shop's signature look. A square image works best.",
+      "locationSubtitleNew": "Let shoppers know where you're based. Shown on your public shop page.",
+      "personalName": "Display name",
+      "personalNameSubtitle": "Your personal display name shown to others.",
+      "personalUsernameSubtitle": "Your public profile link. Make it easy to share.",
+      "personalBio": "Shop description",
+      "personalBioSubtitle": "Tell shoppers what makes your collection special.",
+      "personalPhoto": "Shop logo",
+      "personalPhotoSubtitle": "Your signature look. A square image works best.",
+      "personalPhotoUploaded": "Photo uploaded",
+      "personalLocationSubtitle": "Let shoppers know where you're based. Shown on your public page."
     },
     "modals": {
       "shopName": {
@@ -5447,13 +5467,15 @@
       "message": "This will permanently delete your closet and its settings. This action cannot be undone."
     },
     "toasts": {
-      "loadFailed": "Failed to load shop settings.",
-      "photoLibraryUnavailable": "Unable to open photo library.",
-      "saveSuccess": "Shop settings saved successfully.",
-      "saveFailed": "Unable to save shop settings.",
-      "deleteSuccess": "My Closet deleted successfully.",
-      "deleteFailed": "Unable to delete My Closet."
-    }
+      "noChanges": "No changes to save"
+    },
+    "bannerHeading": "Small details.\nBig shop energy.",
+    "bannerDescription": "Give your shop a name, add your logo, and tell shoppers what makes it special. These are the details they'll see when they visit.",
+    "bannerTagline": "Dralens brought the cart.\nYou bring the good stuff!",
+    "shopPreviewPill": "Shop preview",
+    "previewDefaultStory": "Your shop's story starts here.",
+    "tapToDescribe": "Tap to describe your shop",
+    "tapToAddLocation": "Tap to add your location"
   },
   "battleInsights": {
     "headerTitle": "Insights & Actions",
@@ -5991,5 +6013,21 @@
     "noProductsInCategory": "No products listed in this category yet",
     "clearFilters": "Clear Filters",
     "untitled": "Product"
+  },
+  "profileVerificationReminder": {
+    "title": "Verify your profile",
+    "accountBlocked": "Your account is blocked",
+    "message": "Finish your {{type}}, to be able to be a verified profile. All Valens profiles are verified.",
+    "blockedMessage": "Complete your {{type}} to unlock your account.",
+    "subMessage": "If you do not complete it within 3 days, your profile will be locked until verification is finished.",
+    "blockedSubMessage": "Your account is blocked because profile verification was not completed within 3 days.",
+    "later": "Later",
+    "doItNow": "Do it now",
+    "confirmTitle": "Verify your profile",
+    "confirmMessage": "If you do not verify your profile, you will not get access to your account. To continue using Valens, do your {{type}}.",
+    "confirmSubMessage": "If you deny verification, you will be logged out of your account.",
+    "deny": "Deny",
+    "doKyc": "Do {{type}}",
+    "goBack": "Go back"
   }
 }

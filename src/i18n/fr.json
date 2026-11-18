@@ -4286,7 +4286,8 @@
     "accountBlocked": "Votre compte est bloqué",
     "blockedMessage": "Votre compte est bloqué car la vérification du profil n'a pas été effectuée dans les 3 jours.",
     "completeVerification": "Complétez votre {{verificationType}} pour débloquer votre compte et continuer à utiliser Valens.",
-    "completeButton": "Compléter {{verificationType}}"
+    "completeButton": "Compléter {{verificationType}}",
+    "loginAnotherAccount": "Se connecter avec un autre compte"
   },
   "trustCommentModal": {
     "headerTitle": "Souhaitez-vous expliquer votre vote ?",
@@ -5411,7 +5412,21 @@
       "shopPreferencesFallback": "Définissez les préférences par défaut de votre boutique",
       "shopPreferencesSubtitle": "Audience, style et préférences d'organisation.",
       "notifications": "Notifications",
-      "notificationsSubtitle": "Recevez des mises à jour sur l'activité de la boutique."
+      "notificationsSubtitle": "Recevez des mises à jour sur l'activité de la boutique.",
+      "shopNameSubtitle": "Pick a name shoppers will remember.",
+      "usernameSubtitleNew": "Your public shop link. Make it easy to share.",
+      "descriptionSubtitle": "What do you sell? Give shoppers a reason to explore.",
+      "logoSubtitleNew": "Your shop's signature look. A square image works best.",
+      "locationSubtitleNew": "Let shoppers know where you're based. Shown on your public shop page.",
+      "personalName": "Display name",
+      "personalNameSubtitle": "Your personal display name shown to others.",
+      "personalUsernameSubtitle": "Your public profile link. Make it easy to share.",
+      "personalBio": "Shop description",
+      "personalBioSubtitle": "Tell shoppers what makes your collection special.",
+      "personalPhoto": "Shop logo",
+      "personalPhotoSubtitle": "Your signature look. A square image works best.",
+      "personalPhotoUploaded": "Photo uploaded",
+      "personalLocationSubtitle": "Let shoppers know where you're based. Shown on your public page."
     },
     "modals": {
       "shopName": {
@@ -5444,13 +5459,15 @@
       "message": "Cette action supprimera définitivement votre dressing et tous ses paramètres. Cette action est irréversible."
     },
     "toasts": {
-      "loadFailed": "Impossible de charger les paramètres de la boutique.",
-      "photoLibraryUnavailable": "Impossible d'ouvrir la photothèque.",
-      "saveSuccess": "Les paramètres de la boutique ont été enregistrés avec succès.",
-      "saveFailed": "Impossible d'enregistrer les paramètres de la boutique.",
-      "deleteSuccess": "Mon Dressing a été supprimé avec succès.",
-      "deleteFailed": "Impossible de supprimer Mon Dressing."
-    }
+      "noChanges": "No changes to save"
+    },
+    "bannerHeading": "Small details.\nBig shop energy.",
+    "bannerDescription": "Give your shop a name, add your logo, and tell shoppers what makes it special. These are the details they'll see when they visit.",
+    "bannerTagline": "Dralens brought the cart.\nYou bring the good stuff!",
+    "shopPreviewPill": "Shop preview",
+    "previewDefaultStory": "Your shop's story starts here.",
+    "tapToDescribe": "Tap to describe your shop",
+    "tapToAddLocation": "Tap to add your location"
   },
   "battleInsights": {
     "headerTitle": "Analyses et actions",
@@ -5988,5 +6005,21 @@
     "noProductsInCategory": "Aucun produit listé dans cette catégorie pour le moment",
     "clearFilters": "Effacer les filtres",
     "untitled": "Produit"
+  },
+  "profileVerificationReminder": {
+    "title": "Vérifiez votre profil",
+    "accountBlocked": "Votre compte est bloqué",
+    "message": "Terminez votre {{type}} pour pouvoir avoir un profil vérifié. Tous les profils Valens sont vérifiés.",
+    "blockedMessage": "Complétez votre {{type}} pour débloquer votre compte.",
+    "subMessage": "Si vous ne le complétez pas dans les 3 jours, votre profil sera verrouillé jusqu'à la fin de la vérification.",
+    "blockedSubMessage": "Votre compte est bloqué car la vérification du profil n'a pas été effectuée dans les 3 jours.",
+    "later": "Plus tard",
+    "doItNow": "Faire maintenant",
+    "confirmTitle": "Vérifiez votre profil",
+    "confirmMessage": "Si vous ne vérifiez pas votre profil, vous n'aurez pas accès à votre compte. Pour continuer à utiliser Valens, effectuez votre {{type}}.",
+    "confirmSubMessage": "Si vous refusez la vérification, vous serez déconnecté de votre compte.",
+    "deny": "Refuser",
+    "doKyc": "Faire {{type}}",
+    "goBack": "Retour"
   }
 }

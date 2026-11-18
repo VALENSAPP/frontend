@@ -9,13 +9,13 @@ export const normalTheme = {
 };
 
 export const businessTheme = {
-  bg: '#fcfbfaff',
-  text: '#C9A15A',
-  card: '#fff',
-  border: '#ddd',
-  mutedText: '#666',
-  accent: '#C9A15A',
-  icon: '#111111',
+  bg: '#FAF7F0',
+  text: '#CBA257',
+  card: '#FFFFFF',
+  border: '#E8D9BD',
+  mutedText: '#CBA257',
+  accent: '#CBA257',
+  icon: '#CBA257',
 };
 
 export const normalDarkTheme = {
@@ -33,10 +33,10 @@ export const normalDarkTheme = {
 export const businessDarkTheme = {
   bg: '#121212',
   // Keep brand gold for titles/icons (same as light). Only bg/card flip.
-  text: '#C9A15A',
+  text: '#CBA257',
   card: '#1E1E1E',
   border: '#333333',
   mutedText: '#aaaaaa',
-  accent: '#C9A15A',
-  icon: '#C9A15A',
+  accent: '#CBA257',
+  icon: '#CBA257',
 };
