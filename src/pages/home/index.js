@@ -979,7 +979,7 @@ const openLinkedStory = useCallback(async (sharedStoryId) => {
             <TextGradient
               style={{ fontWeight: 'bold', fontSize: 20 }}
               locations={[0, 1]}
-              colors={['#513189bd', '#e54ba0']}
+              colors={isBusinessProfile ? ['#CBA257', '#CBA257'] : ['#513189bd', '#e54ba0']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               text={t('home.appTitle')}

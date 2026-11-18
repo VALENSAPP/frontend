@@ -182,29 +182,29 @@ export default function WalletComponent() {
 
     // Dynamic color & theme definitions based on profile mode (Persona / Business)
     const brandColor = isBusinessProfile
-        ? (isDarkMode ? '#D4B06A' : '#C9A15A')
-        : (isDarkMode ? '#A855F7' : '#6B21A8');
+        ? (isDarkMode ? '#D4B06A' : '#CBA257')
+        : (isDarkMode ? '#A855F7' : '#402090');
     const cardBg = isDarkMode
         ? (isBusinessProfile ? '#1F1A13' : '#1A1226')
-        : (isBusinessProfile ? '#FFFDF9' : '#FFFFFF');
+        : (isBusinessProfile ? '#FFFFFF' : '#FFFFFF');
     const cardBorderColor = isDarkMode
         ? (isBusinessProfile ? 'rgba(212, 176, 106, 0.28)' : 'rgba(255,255,255,0.08)')
-        : (isBusinessProfile ? '#EEDCB8' : '#EDE9FE');
+        : (isBusinessProfile ? '#E8D9BD' : '#EAE4F5');
     const statBoxBg = isDarkMode
         ? (isBusinessProfile ? 'rgba(212, 176, 106, 0.12)' : 'rgba(255,255,255,0.06)')
-        : (isBusinessProfile ? '#FBF6EA' : '#F6F0FD');
+        : (isBusinessProfile ? '#FAF7F0' : '#F6F0FD');
     const statBoxBorderColor = isBusinessProfile
-        ? (isDarkMode ? 'rgba(212, 176, 106, 0.25)' : '#E8D5A5')
+        ? (isDarkMode ? 'rgba(212, 176, 106, 0.25)' : '#E8D9BD')
         : 'transparent';
     const statLabelColor = isBusinessProfile
         ? (isDarkMode ? '#F3E2B8' : '#8C6510')
-        : (isDarkMode ? '#D8B4FE' : '#4C1D95');
+        : (isDarkMode ? '#D8B4FE' : '#402090');
     const statValueColor = isBusinessProfile
         ? (isDarkMode ? '#FFFFFF' : '#8C6510')
-        : (isDarkMode ? '#F5F3FF' : '#4C1D95');
+        : (isDarkMode ? '#F5F3FF' : '#402090');
     const iconBadgeBg = isDarkMode
-        ? (isBusinessProfile ? 'rgba(212, 176, 106, 0.22)' : 'rgba(107,33,168,0.25)')
-        : (isBusinessProfile ? '#FBF6EA' : '#F3E8FF');
+        ? (isBusinessProfile ? 'rgba(212, 176, 106, 0.22)' : 'rgba(64,32,144,0.25)')
+        : (isBusinessProfile ? '#FAF7F0' : '#F3EEFB');
     const heroTitleColor = isBusinessProfile
         ? (isDarkMode ? '#F5E6C4' : '#8C6510')
         : (isDarkMode ? '#FFFFFF' : '#111827');
@@ -251,14 +251,8 @@ export default function WalletComponent() {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                {/* 1. Profile Bar */}
+                {/* 1. Profile Bar matching image6.png */}
                 <View style={styles.profileRow}>
-                    <HexAvatar
-                        uri={avatarUri}
-                        size={44}
-                        borderWidth={2}
-                        borderColor={brandColor}
-                    />
                     <View style={styles.profileTextWrapper}>
                         <Text style={[styles.profileName, { color: profileNameColor }]} numberOfLines={1}>
                             {displayName}
@@ -271,78 +265,73 @@ export default function WalletComponent() {
                         />
                         <DragonflyIcon width={18} height={18} style={styles.dragonflyIcon} />
                     </View>
-                </View>
-                <View style={[styles.divider, { backgroundColor: ruleDividerColor }]} />
-
-                {/* 2. Hero Section */}
-                <View style={styles.heroSection}>
-                    <View style={styles.heroLeft}>
-                        <Text style={[styles.heroTitle, { color: heroTitleColor }]}>
-                            {t('walletScreen.heroTitle', 'Give your mission a lift.')}
-                        </Text>
-                        <Text style={[styles.heroSubtitle, { color: heroSubtitleColor }]}>
-                            {t('walletScreen.heroSubtitle', 'Turn your community into backers.')}
-                        </Text>
-                    </View>
-                    <Image
-                        source={rocketImage}
-                        style={styles.heroRocket}
-                        resizeMode="contain"
+                    <HexAvatar
+                        uri={avatarUri}
+                        size={48}
+                        borderWidth={2}
+                        borderColor={brandColor}
                     />
                 </View>
 
-                {/* 3. Card 1: Your Mission Credits */}
-                <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorderColor, shadowColor: cardShadowColor }]}>
-                    <View style={styles.cardHeader}>
-                        <View style={[styles.iconBadge, { backgroundColor: iconBadgeBg }]}>
-                            <MaterialCommunityIcons
-                                name="credit-card-outline"
-                                size={16}
-                                color={brandColor}
+                {/* 2. Unified Hero & Mission Credits Card matching image6.png */}
+                <View style={[styles.unifiedMissionCard, { backgroundColor: brandColor }]}>
+                    <View style={styles.unifiedCardRow}>
+                        {/* Left: Mascot Bug & Rocket Illustration */}
+                        <View style={styles.unifiedRocketWrap}>
+                            <Image
+                                source={rocketImage}
+                                style={styles.unifiedRocket}
+                                resizeMode="contain"
                             />
                         </View>
-                        <Text style={[styles.cardTitle, { color: cardTitleColor }]}>
-                            {t('walletScreen.yourMissionCredits', 'Your Mission Credits')}
-                        </Text>
-                    </View>
 
-                    <View style={styles.statsRow}>
-                        <View style={[styles.statBox, { backgroundColor: statBoxBg, borderColor: statBoxBorderColor, borderWidth: isBusinessProfile ? 1 : 0 }]}>
-                            <Text style={[styles.statLabel, { color: statLabelColor }]} numberOfLines={1}>
-                                {t('walletScreen.membershipCredits', 'Membership credits')}
+                        {/* Translucent Vertical Divider */}
+                        <View style={styles.unifiedDivider} />
+
+                        {/* Right: Mission Posts & Credits */}
+                        <View style={styles.unifiedRightCol}>
+                            <Text style={styles.unifiedCardTitle}>
+                                {t('walletScreen.missionPostsTitle', 'Mission Posts')}
                             </Text>
-                            <Text style={[styles.statValue, { color: statValueColor }]}>
-                                {subscriptionHitsLeft}
-                            </Text>
+
+                            <View style={styles.unifiedBoxesRow}>
+                                <View style={styles.unifiedStatBox}>
+                                    <Text style={[styles.unifiedStatLabel, { color: brandColor }]}>
+                                        {t('walletScreen.subscriptionCreditsShort', 'Subscription\ncredits')}
+                                    </Text>
+                                    <Text style={[styles.unifiedStatValue, { color: brandColor }]}>
+                                        {subscriptionHitsLeft}
+                                    </Text>
+                                </View>
+
+                                <View style={styles.unifiedStatBox}>
+                                    <Text style={[styles.unifiedStatLabel, { color: brandColor }]}>
+                                        {t('walletScreen.purchasedCreditsShort', 'Purchased\ncredits')}
+                                    </Text>
+                                    <Text style={[styles.unifiedStatValue, { color: brandColor }]}>
+                                        {purchasedHitsLeft}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.unifiedBuyBtn,
+                                    (!canBuyHits || purchasedHitsLeft >= maxPurchasedHits) && styles.buyButtonDisabled,
+                                ]}
+                                onPress={handleBuyCredits}
+                                disabled={!canBuyHits || purchasedHitsLeft >= maxPurchasedHits}
+                                activeOpacity={0.88}
+                            >
+                                <Text style={[styles.unifiedBuyBtnText, { color: brandColor }]}>
+                                    {t('walletScreen.getMissionPostBtn', {
+                                        price: missionPostPrice,
+                                        defaultValue: `Get Mission Post (${missionPostPrice} each)`,
+                                    })}
+                                </Text>
+                            </TouchableOpacity>
                         </View>
-
-                        <View style={[styles.statBox, { backgroundColor: statBoxBg, borderColor: statBoxBorderColor, borderWidth: isBusinessProfile ? 1 : 0 }]}>
-                            <Text style={[styles.statLabel, { color: statLabelColor }]} numberOfLines={1}>
-                                {t('walletScreen.purchasedCredits', 'Purchased credits')}
-                            </Text>
-                            <Text style={[styles.statValue, { color: statValueColor }]}>
-                                {purchasedHitsLeft}
-                            </Text>
-                        </View>
                     </View>
-
-                    <TouchableOpacity
-                        style={[
-                            styles.buyButton,
-                            { backgroundColor: buttonBg },
-                            (!canBuyHits || purchasedHitsLeft >= maxPurchasedHits) && styles.buyButtonDisabled,
-                        ]}
-                        onPress={handleBuyCredits}
-                        disabled={!canBuyHits || purchasedHitsLeft >= maxPurchasedHits}
-                        activeOpacity={0.85}
-                    >
-                        <Text style={styles.buyButtonText}>
-                            {t('walletScreen.buyMissionPostBtn', {
-                                price: missionPostPrice,
-                                defaultValue: `Buy Mission Post • ${missionPostPrice}`,
-                            })}
-                        </Text>
-                    </TouchableOpacity>
                 </View>
 
                 {/* 4. Card 2: What is a Mission Post? */}
@@ -500,13 +489,96 @@ const styles = StyleSheet.create({
     profileTextWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginLeft: 12,
         flex: 1,
     },
     profileName: {
-        fontSize: 17,
-        fontWeight: '700',
+        fontSize: 18,
+        fontWeight: '800',
         letterSpacing: -0.2,
+    },
+    unifiedMissionCard: {
+        borderRadius: 22,
+        padding: 14,
+        marginTop: 6,
+        marginBottom: 10,
+        shadowColor: '#402090',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.16,
+        shadowRadius: 14,
+        elevation: 4,
+    },
+    unifiedCardRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    unifiedRocketWrap: {
+        width: 105,
+        height: 120,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    unifiedRocket: {
+        width: '100%',
+        height: '100%',
+    },
+    unifiedDivider: {
+        width: 1,
+        height: 105,
+        backgroundColor: 'rgba(255, 255, 255, 0.28)',
+        marginHorizontal: 10,
+    },
+    unifiedRightCol: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    unifiedCardTitle: {
+        fontSize: 19,
+        fontWeight: '900',
+        color: '#FFFFFF',
+        marginBottom: 8,
+        letterSpacing: -0.2,
+    },
+    unifiedBoxesRow: {
+        flexDirection: 'row',
+        gap: 8,
+        marginBottom: 10,
+    },
+    unifiedStatBox: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 14,
+        paddingVertical: 8,
+        paddingHorizontal: 4,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    unifiedStatLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        textAlign: 'center',
+        lineHeight: 12,
+    },
+    unifiedStatValue: {
+        fontSize: 20,
+        fontWeight: '900',
+        marginTop: 3,
+    },
+    unifiedBuyBtn: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        paddingVertical: 9,
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    unifiedBuyBtnText: {
+        fontSize: 12.5,
+        fontWeight: '800',
     },
     swordIcon: {
         marginLeft: 8,

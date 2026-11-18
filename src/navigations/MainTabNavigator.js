@@ -86,6 +86,7 @@ import BillingPaymentsScreen from '../pages/wallet/BillingPaymentsScreen';
 import CreatorsScreen from '../pages/wallet/CreatorsScreen';
 import SettingsScreen from '../pages/wallet/SettingScreen';
 import ShopSettingsScreen from '../pages/wallet/ShopSettingsScreen';
+import ServicesSettingsScreen from '../pages/wallet/ServicesSettingsScreen';
 import ChangePassword from '../pages/wallet/ChangePassword';
 import WalletComponent from '../pages/wallet/WalletScreen';
 import ProfileSettingsScreen from '../pages/wallet/ProfileSettings';
@@ -875,7 +876,7 @@ export default function MainTabNavigator() {
             },
             headerTitleStyle: {
               fontWeight: 'bold',
-              color: headerTitleColor,
+              color: isBusinessProfile ? '#CBA257' : headerTitleColor,
             },
             headerTintColor: headerMenuColor,
             headerLeft: () => (
@@ -896,7 +897,7 @@ export default function MainTabNavigator() {
               <TextGradient
                 style={{ fontWeight: 'bold', fontSize: 20 }}
                 locations={[0, 1]}
-                colors={['#513189bd', '#e54ba0']}
+                colors={isBusinessProfile ? ['#CBA257', '#CBA257'] : ['#513189bd', '#e54ba0']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 text="VALENS"
@@ -1052,7 +1053,13 @@ export default function MainTabNavigator() {
             name="Privatecircle"
             component={PrivateCircle}
             // ── TRANSLATION CHANGE ───────────────────────────────────────────
-            options={{ headerTitle: t('walletStack.privateCircle') }}
+            options={{
+              headerTitle: t('walletStack.privateCircle'),
+              headerTitleStyle: {
+                fontWeight: 'bold',
+                color: isBusinessProfile ? '#CBA257' : headerTitleColor,
+              },
+            }}
           />
           <Stack.Screen
             name="TransactionDetails"
@@ -1151,6 +1158,11 @@ export default function MainTabNavigator() {
             name="ShopSettings"
             component={ShopSettingsScreen}
             options={{ headerTitle: t('shopSettings.title') }}
+          />
+          <Stack.Screen
+            name="ServicesSettings"
+            component={ServicesSettingsScreen}
+            options={{ headerTitle: t('servicesSettings.title', 'Services Settings') }}
           />
           <Stack.Screen
             name="WalletEditProfile"
@@ -1351,7 +1363,7 @@ export default function MainTabNavigator() {
         />
       </Stack.Navigator>
     );
-  }, [bg, headerTitleColor, headerMenuColor, t, Date.now()]);
+  }, [bg, headerTitleColor, headerMenuColor, isBusinessProfile, t, Date.now()]);
 
   const MarketplaceStack = useMemo(() => {
     return () => (

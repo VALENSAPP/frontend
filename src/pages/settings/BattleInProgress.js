@@ -774,20 +774,21 @@ export default function BattleInProgress() {
   }, []);
 
   const palette = useMemo(() => {
-    const primary = accent || '#5a2d82';
-    const secondary = primary.toLowerCase() === '#c9a15a' ? '#b8924f' : '#8f54f7';
+    const isBusiness = resolvedProfileType === 'company';
+    const primary = accent || (isBusiness ? '#CBA257' : '#402090');
+    const secondary = isBusiness ? '#B8924F' : '#6A3EA1';
     return {
       primary,
       secondary,
       surface: card || (isDarkMode ? '#1E1E1E' : '#FFFFFF'),
       textMuted: mutedText || withAlpha(primary, '99'),
-      border: border || withAlpha(primary, '22'),
-      soft: isDarkMode ? withAlpha(primary, '24') : withAlpha(primary, '10'),
-      buttonGradient: primary.toLowerCase() === '#c9a15a'
-        ? ['#b8924f', '#C9A15a']
-        : ['#513189', '#8f54f7'],
+      border: border || (isBusiness ? '#E8D9BD' : '#EAE4F5'),
+      soft: isDarkMode ? withAlpha(primary, '24') : (isBusiness ? '#FAF7F0' : '#FAF7FD'),
+      buttonGradient: isBusiness
+        ? ['#B8924F', '#CBA257']
+        : ['#402090', '#6A3EA1'],
     };
-  }, [accent, border, card, isDarkMode, mutedText]);
+  }, [accent, border, card, isDarkMode, mutedText, resolvedProfileType]);
 
   const statusMeta = useMemo(
     () => getStatusTone(battle.status, t),
@@ -3706,7 +3707,7 @@ export default function BattleInProgress() {
           ) : null}
           {/* Comments (hide when resolved) */}
           {!canViewResults ? (
-            <View style={[styles.infoCard, cardStyle, { shadowColor: palette.primary, marginBottom: Platform.OS === 'android' ? '18%' : 0 }]}>
+            <View style={[styles.infoCard, cardStyle, { shadowColor: palette.primary, marginBottom: 16 }]}>
               {battle.comments.length > 0
                 ? battle.comments.map(comment => renderCommentItem(comment))
                 : (
@@ -3810,7 +3811,7 @@ const styles = StyleSheet.create({
   contentContainer: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 34 },
   keyboardAwareContentContainer: { flexGrow: 1 },
   keyboardOpenContentContainer: Platform.select({
-    android: { paddingBottom: 130 },
+    android: { paddingBottom: 24 },
     default: {},
   }),
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
@@ -3968,29 +3969,29 @@ const styles = StyleSheet.create({
   howToWinItemDesc: { fontSize: 10, textAlign: 'center', lineHeight: 14 },
 
   // Info card
-  infoCard: { borderRadius: 20, padding: 16, marginBottom: 14, shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
-  sectionTitle: { fontSize: 17, fontWeight: '800', marginBottom: 10 },
-  infoText: { fontSize: 14, lineHeight: 21 },
-  resultText: { fontSize: 13, fontWeight: '700', marginTop: 8 },
+  infoCard: { borderRadius: 18, padding: 14, marginBottom: 10, shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+  sectionTitle: { fontSize: 16, fontWeight: '800', marginBottom: 8 },
+  infoText: { fontSize: 13, lineHeight: 19 },
+  resultText: { fontSize: 13, fontWeight: '700', marginTop: 6 },
 
   // Option pills
-  optionGrid: { flexDirection: 'column', gap: 10, marginBottom: 6 },
-  externalMatchupRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 6 },
-  externalTeamCard: { flex: 1, minHeight: 150, borderRadius: 16, alignItems: 'center', justifyContent: 'center', padding: 12, gap: 6 },
+  optionGrid: { flexDirection: 'column', gap: 8, marginBottom: 4 },
+  externalMatchupRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 6 },
+  externalTeamCard: { flex: 1, minHeight: 130, borderRadius: 16, alignItems: 'center', justifyContent: 'center', padding: 10, gap: 6 },
   externalTeamFlag: { width: 34, height: 24 },
-  externalTeamLogo: { width: 62, height: 62 },
-  externalTeamName: { fontSize: 15, fontWeight: '700', textAlign: 'center' },
-  externalTeamPercentage: { fontSize: 23, fontWeight: '800' },
-  externalMatchupVs: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginHorizontal: -10, zIndex: 1 },
-  optionPillCard: { flexDirection: 'row', alignItems: 'center', minHeight: 56, borderRadius: 15, borderWidth: 1.5, paddingVertical: 8, paddingHorizontal: 10, gap: 8 },
+  externalTeamLogo: { width: 56, height: 56 },
+  externalTeamName: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  externalTeamPercentage: { fontSize: 22, fontWeight: '800' },
+  externalMatchupVs: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginHorizontal: -10, zIndex: 1 },
+  optionPillCard: { flexDirection: 'row', alignItems: 'center', minHeight: 48, borderRadius: 14, borderWidth: 1.5, paddingVertical: 6, paddingHorizontal: 10, gap: 8 },
   optionPillAvatarWrap: { flexShrink: 0 },
-  optionPillAvatarFallback: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  optionPillAvatarFallback: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   optionPillLabel: { flex: 1, fontSize: 13, fontWeight: '700' },
   optionPillRadio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, flexShrink: 0 },
-  argumentLabel: { fontSize: 12, fontWeight: '800', marginTop: 10, marginBottom: 6 },
+  argumentLabel: { fontSize: 12, fontWeight: '800', marginTop: 8, marginBottom: 4 },
 
   // Argument input + button
-  argumentInput: { minHeight: 90, borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, textAlignVertical: 'top', marginTop: 14, marginBottom: 14 },
+  argumentInput: { minHeight: 68, borderRadius: 14, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, textAlignVertical: 'top', marginTop: 8, marginBottom: 10 },
   primaryButton: { minHeight: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', letterSpacing: 0.3 },
 

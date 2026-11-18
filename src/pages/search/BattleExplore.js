@@ -441,11 +441,11 @@ export default function BattleExplore({ onClose, profile }) {
       </View>
 
       {/* Search */}
-      <View style={[styles.searchContainer, { backgroundColor: inputSurface, borderColor: border }]}>
+      <View style={[styles.searchContainer, { backgroundColor: card, borderColor: border }]}>
         <Icon name="search" size={20} color={mutedText} style={styles.searchIcon} />
         <TextInput
           style={[styles.searchInput, { color: labelColor }]}
-          placeholder={t('battleExplore.searchPlaceholder')}
+          placeholder={t('search.searchUsersPlaceholder', 'Search users...')}
           placeholderTextColor={mutedText}
           value={searchText}
           onChangeText={handleSearch}
@@ -459,6 +459,35 @@ export default function BattleExplore({ onClose, profile }) {
             <Icon name="close-circle" size={20} color={mutedText} />
           </TouchableOpacity>
         )}
+      </View>
+
+      {/* Explore Banner & Filter row matching mockup */}
+      <View style={styles.exploreBannerRow}>
+        <View style={[styles.exploreBannerPill, { backgroundColor: accent }]}>
+          <Text style={styles.exploreBannerEmoji}>⚔️</Text>
+          <Text style={styles.exploreBannerText}>
+            {t('search.battleExplore', 'Battle Explore')}
+          </Text>
+          <Icon name="chevron-forward" size={16} color="#FFFFFF" style={{ marginLeft: 4 }} />
+        </View>
+
+        <TouchableOpacity
+          style={[
+            styles.filterBtn,
+            {
+              backgroundColor: card,
+              borderColor: border,
+            },
+          ]}
+          activeOpacity={0.8}
+          onPress={() => {
+            showToastMessage(toastRef.current, 'normal', t('battleExplore.filtersNotice', 'Filters'));
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t('search.filter', 'Filter')}
+        >
+          <Icon name="options-outline" size={18} color={text} />
+        </TouchableOpacity>
       </View>
 
       {/* List */}
@@ -520,13 +549,59 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f2f2f2',
-    paddingHorizontal: 12,
-    marginBottom: 12,
-    borderWidth: 1.5,
+    backgroundColor: '#fff',
+    paddingHorizontal: 14,
+    marginBottom: 10,
+    borderWidth: 1,
     borderRadius: 24,
     borderColor: '#e6e6e6',
     paddingVertical: Platform.OS === 'android' ? 6 : 10,
+    elevation: 1,
+    shadowColor: '#402090',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+  },
+  exploreBannerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+    gap: 10,
+  },
+  exploreBannerPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 24,
+    elevation: 2,
+    shadowColor: '#402090',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  exploreBannerEmoji: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  exploreBannerText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  filterBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
   searchIcon: {
     marginRight: 8,
