@@ -2442,32 +2442,36 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
         ) : null}
         {battleWinner ? (
           <>
-            <LinearGradient
-              colors={accent?.toLowerCase() === '#c9a15a' ? ['#A16207', '#854D0E', '#422006'] : ['#6B21A8', '#581C87', '#3B0764']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.winnerBanner}
-            >
-              <View style={styles.winnerGlowTop} />
-              <View style={styles.winnerGlowBottom} />
+            <View style={styles.winnerBanner}>
+              <LinearGradient
+                colors={accent?.toLowerCase() === '#c9a15a' ? ['#A16207', '#854D0E', '#422006'] : ['#6B21A8', '#581C87', '#3B0764']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <View style={styles.winnerGlowTop} pointerEvents="none" />
+              <View style={styles.winnerGlowBottom} pointerEvents="none" />
 
               <View style={styles.winnerBannerTopRow}>
                 <View style={styles.winnerBannerIconWrap}>
-                  <Ionicons name="trophy-outline" size={24} color="#FFD166" />
+                  <Ionicons name="trophy" size={22} color="#FBBF24" />
                 </View>
                 <View style={styles.winnerPillBadge}>
-                  <Text style={styles.winnerPillBadgeText}>🏆 BATTLE WINNER</Text>
+                  <Ionicons name="ribbon-outline" size={13} color="#FDE047" style={{ marginRight: 4 }} />
+                  <Text style={styles.winnerPillBadgeText}>BATTLE WINNER</Text>
                 </View>
               </View>
 
-              <Text style={styles.winnerBannerHeadline}>
-                {t('myClosetBuyer.battleWinnerBannerTitle') || 'WOW, this is a winner! 🏆'}
-              </Text>
-              <Text style={styles.winnerBannerSubline}>
-                {t('myClosetBuyer.battleWinnerBannerSub', { pct: battleWinner.pct }) ||
-                  `This item won the battle with ${battleWinner.pct}% of the votes.`}
-              </Text>
-            </LinearGradient>
+              <View style={styles.winnerBannerContent}>
+                <Text style={styles.winnerBannerHeadline}>
+                  {t('myClosetBuyer.battleWinnerBannerTitle') || 'WOW, this is a winner! 🏆'}
+                </Text>
+                <Text style={styles.winnerBannerSubline}>
+                  {t('myClosetBuyer.battleWinnerBannerSub', { pct: battleWinner.pct ?? 50 }) ||
+                    `This item won the battle with ${battleWinner.pct ?? 50}% of the votes.`}
+                </Text>
+              </View>
+            </View>
 
             <View style={[styles.battleDetailsCard, themedCard(card, border)]}>
               <View style={styles.battleDetailsHeaderRow}>
@@ -2554,8 +2558,8 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
               <View style={[styles.battleResultsNote, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : '#FAF6FD', borderColor: border }]}>
                 <Ionicons name="sparkles" size={14} color="#F59E0B" style={{ marginRight: 6, marginTop: 1 }} />
                 <Text style={[styles.battleResultsNoteText, { color: mutedText }]}>
-                  {t('myClosetBuyer.battleResultsNote', { pct: route.params.battleWinner.pct }) ||
-                    `This item was the community favorite and won with ${route.params.battleWinner.pct}% of the votes.`}
+                  {t('myClosetBuyer.battleResultsNote', { pct: battleWinner?.pct ?? 50 }) ||
+                    `This item was the community favorite and won with ${battleWinner?.pct ?? 50}% of the votes.`}
                 </Text>
               </View>
             </View>
@@ -5074,72 +5078,79 @@ const styles = StyleSheet.create({
     marginTop: 14,
     marginBottom: 16,
     overflow: 'hidden',
+    position: 'relative',
     elevation: 4,
     shadowColor: '#581C87',
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.22,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
   },
   winnerGlowTop: {
     position: 'absolute',
-    top: -25,
-    right: -25,
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    top: -40,
+    right: -30,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   winnerGlowBottom: {
     position: 'absolute',
-    bottom: -30,
-    left: -25,
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: 'rgba(124,58,237,0.3)',
+    bottom: -40,
+    left: -30,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(168,85,247,0.22)',
   },
   winnerBannerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   winnerBannerIconWrap: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   winnerPillBadge: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: 'rgba(255,255,255,0.35)',
     borderRadius: 20,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
+    flexShrink: 0,
   },
   winnerPillBadgeText: {
     color: '#FDE047',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.6,
+    fontSize: 10.5,
+    fontWeight: '800',
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
+  },
+  winnerBannerContent: {
+    marginTop: 2,
   },
   winnerBannerHeadline: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '900',
+    fontSize: 17,
+    fontWeight: '800',
     letterSpacing: -0.2,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   winnerBannerSubline: {
-    color: 'rgba(255,255,255,0.88)',
-    fontSize: 12.5,
-    lineHeight: 17,
+    color: 'rgba(255,255,255,0.92)',
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: '500',
   },
 
