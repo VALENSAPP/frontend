@@ -67,6 +67,9 @@ import {
 } from '../../services/myCloset';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAllUser } from '../../services/users';
+import { getActivePromotions } from '../../utils/marketplaceDeliveryAlgorithm';
+
+export const CHALLENGE_ITEMS = [];
 
 // Fallback palette — used only when the theme doesn't provide a value,
 // so screens still look right before useAppTheme() resolves.
@@ -122,24 +125,55 @@ const itemImages = item =>
 
 const itemImage = item => itemImages(item)[0] || null;
 
-const normalizeItem = (item = {}, index = 0, t) => ({
-  id: String(item?.id || item?._id || `item-${index}`),
-  raw: item,
-  name: item?.name || item?.title || item?.itemName || t('myClosetBuyer.untitledItem'),
-  price: currency(item?.price ?? item?.amount ?? item?.salePrice),
-  priceValue: numberFromPrice(item?.price ?? item?.amount ?? item?.salePrice),
-  image: itemImage(item),
-  images: itemImages(item),
-  brand: item?.brand || t('myClosetBuyer.defaultBrand'),
-  category: item?.category || t('myClosetBuyer.defaultCategory'),
-  condition: item?.condition || t('myClosetBuyer.defaultCondition'),
-  description: item?.description || t('myClosetBuyer.defaultDescription'),
-  quantityAvailable: Number(item?.quantity || item?.availableQuantity || 1) || 1,
-  sellerName: item?.sellerName || item?.userName || item?.ownerName || '',
-});
+const normalizeItem = (item = {}, index = 0, t, extra = {}) => {
+  const raw = item?.raw || item || {};
+  const isWinner = Boolean(
+    extra?.isWinner ||
+    item?.isWinner ||
+    raw?.isWinner ||
+    item?.isBattleWinner ||
+    raw?.isBattleWinner ||
+    item?.isWinnerProduct ||
+    raw?.isWinnerProduct ||
+    item?.battleWinner ||
+    raw?.battleWinner ||
+    (Number(raw?.winnerBattleCount) > 0) ||
+    (Number(item?.winnerBattleCount) > 0) ||
+    raw?.type === 'battle_winner_product' ||
+    raw?.typeByBattle === 'winner' ||
+    item?.type === 'battle_winner_product' ||
+    item?.typeByBattle === 'winner' ||
+    raw?.promotion?.battleId ||
+    item?.promotion?.battleId ||
+    String(raw?.promotion?.primaryBadge || '').toUpperCase().includes('WINNER') ||
+    String(item?.promotion?.primaryBadge || '').toUpperCase().includes('WINNER') ||
+    raw?.promotion?.promotionType === 'battle_winner' ||
+    item?.promotion?.promotionType === 'battle_winner'
+  );
 
-const normalizeItems = (items, t) =>
-  (Array.isArray(items) ? items : []).map((item, index) => normalizeItem(item, index, t));
+  return {
+    id: String(item?.id || item?._id || `item-${index}`),
+    raw: item,
+    name: item?.name || item?.title || item?.itemName || (t ? t('myClosetBuyer.untitledItem') : 'Untitled'),
+    price: currency(item?.price ?? item?.amount ?? item?.salePrice),
+    priceValue: numberFromPrice(item?.price ?? item?.amount ?? item?.salePrice),
+    image: itemImage(item),
+    images: itemImages(item),
+    brand: item?.brand || (t ? t('myClosetBuyer.defaultBrand') : ''),
+    category: item?.category || (t ? t('myClosetBuyer.defaultCategory') : ''),
+    condition: item?.condition || (t ? t('myClosetBuyer.defaultCondition') : ''),
+    description: item?.description || (t ? t('myClosetBuyer.defaultDescription') : ''),
+    quantityAvailable: Number(item?.quantity || item?.availableQuantity || 1) || 1,
+    sellerName: item?.sellerName || item?.userName || item?.ownerName || '',
+    isWinner,
+  };
+};
+
+const normalizeItems = (items, t, extraMap = {}) =>
+  (Array.isArray(items) ? items : []).map((item, index) => {
+    const id = String(item?.id || item?._id || `item-${index}`);
+    return normalizeItem(item, index, t, extraMap[id] || {});
+  });
 
 const prefetchImageUrls = async items => {
   const urls = (Array.isArray(items) ? items : [])
@@ -742,6 +776,7 @@ export function CreateBattleScreen({ navigation, route }) {
     setLoading(true);
     setLoadError(null);
     try {
+      const activePromos = await getActivePromotions().catch(() => ({}));
       const response = await getMyClosetItems(sellerId);
       const payload =
         response?.data?.data ?? response?.data?.items ?? response?.data ?? response;
@@ -752,14 +787,38 @@ export function CreateBattleScreen({ navigation, route }) {
           : Array.isArray(payload?.data)
             ? payload.data
             : [];
-      const availableItems = nextItems.filter(
-        item => Number(item.quantity) > 0
+
+      const passedWinner = route?.params?.winnerItem;
+      const passedWinnerId = String(
+        passedWinner?.id || passedWinner?._id || passedWinner?.productId || passedWinner?.raw?.id || passedWinner?.raw?._id || ''
       );
-      const normalized = normalizeItems(nextItems, t);
+      const passedWinnerName = String(passedWinner?.name || passedWinner?.title || '').trim().toLowerCase();
+
+      // Build winner detection mapping
+      const extraMap = {};
+      nextItems.forEach((rawItem, idx) => {
+        const id = String(rawItem?.id || rawItem?._id || `item-${idx}`);
+        const name = String(rawItem?.name || rawItem?.title || '').trim().toLowerCase();
+        const promo = activePromos[id];
+        const isPromoWinner = Boolean(
+          promo?.battleId ||
+          promo?.promotionType === 'battle_winner' ||
+          String(promo?.primaryBadge || '').toUpperCase().includes('WINNER')
+        );
+        const isMatchedWithPassed = Boolean(
+          (passedWinnerId && id === passedWinnerId) ||
+          (passedWinnerName && name && (passedWinnerName === name || name.includes(passedWinnerName) || passedWinnerName.includes(name)))
+        );
+        if (isPromoWinner || isMatchedWithPassed || passedWinner?.isWinner) {
+          extraMap[id] = { isWinner: true };
+        }
+      });
+
+      const normalized = normalizeItems(nextItems, t, extraMap);
       prefetchImageUrls(nextItems);
 
       if (initialPassedItems.length > 0) {
-        const normalizedPassed = normalizeItems(initialPassedItems, t);
+        const normalizedPassed = normalizeItems(initialPassedItems, t, extraMap);
         const mergedItems = [...normalized];
         normalizedPassed.forEach(pItem => {
           if (!mergedItems.some(existing => String(existing.id) === String(pItem.id))) {
@@ -770,6 +829,16 @@ export function CreateBattleScreen({ navigation, route }) {
         setSelectedIds(normalizedPassed.map(i => i.id));
       } else {
         setItems(normalized);
+        if (passedWinner) {
+          const matchedWinner = normalized.find(
+            i => (passedWinnerId && i.id === passedWinnerId) ||
+                 (passedWinnerName && i.name?.trim()?.toLowerCase() === passedWinnerName) ||
+                 i.isWinner
+          );
+          if (matchedWinner) {
+            setSelectedIds([matchedWinner.id]);
+          }
+        }
       }
     } catch (err) {
       if (initialPassedItems.length > 0) {
@@ -784,7 +853,7 @@ export function CreateBattleScreen({ navigation, route }) {
     } finally {
       setLoading(false);
     }
-  }, [items.length, sellerId, t, initialPassedItems]);
+  }, [items.length, sellerId, t, initialPassedItems, route?.params?.winnerItem]);
 
   useFocusEffect(
     useCallback(() => {
@@ -815,6 +884,36 @@ export function CreateBattleScreen({ navigation, route }) {
     () => items.filter(item => selectedIds.includes(item.id)).slice(0, 2),
     [selectedIds, items],
   );
+
+  const isWinnerSelected = selectedItems.length === 1 && Boolean(selectedItems[0]?.isWinner);
+
+  const handleChallengeAnotherShop = () => {
+    if (selectedItems.length === 0) {
+      Alert.alert(
+        t('battle.selectOneItemTitle', 'Select Item'),
+        t('battle.selectWinnerItemPrompt', 'Please select your battle winner product to challenge another shop.')
+      );
+      return;
+    }
+    if (selectedItems.length > 1) {
+      Alert.alert(
+        t('battle.challengeSelectOneTitle', 'Select 1 Item'),
+        t('battle.challengeSelectOneMsg', 'Please select only 1 winner product to challenge another shop.')
+      );
+      return;
+    }
+    if (!selectedItems[0]?.isWinner) {
+      Alert.alert(
+        t('battle.winnerRequiredTitle', 'Winner Product Required 🏆'),
+        t(
+          'battle.winnerRequiredMsg',
+          'Only battle winner products can challenge other shops. Please select a product with a 🏆 Winner badge to challenge another shop.'
+        )
+      );
+      return;
+    }
+    navigation.navigate('ChallengeShopList', { ...route?.params, selectedItems });
+  };
 
   const handleShare = async () => {
     try {
@@ -879,9 +978,23 @@ export function CreateBattleScreen({ navigation, route }) {
                     ]}
                   />
                 )}
+                {item.isWinner ? (
+                  <View style={styles.gridWinnerBadgeTop}>
+                    <Ionicons name="trophy" size={10} color="#FFFFFF" />
+                    <Text style={styles.gridWinnerBadgeTopText}>WINNER</Text>
+                  </View>
+                ) : null}
                 <FastImage source={fastImageSource(item.image)} style={styles.gridImage} resizeMode={FastImage.resizeMode.cover} />
-                <Text style={[styles.gridName, { color: primaryText }]}>{item.name}</Text>
+                <Text style={[styles.gridName, { color: primaryText }]} numberOfLines={1}>{item.name}</Text>
                 <Text style={[styles.gridPrice, { color: subtleMuted }]}>{item.price}</Text>
+                {item.isWinner ? (
+                  <View style={styles.gridWinnerRow}>
+                    <Ionicons name="trophy" size={12} color="#D97706" />
+                    <Text style={styles.gridWinnerRowText}>
+                      {t('battleInsights.winner', 'Winner')}
+                    </Text>
+                  </View>
+                ) : null}
               </TouchableOpacity>
             ))}
           </View>
@@ -909,14 +1022,26 @@ export function CreateBattleScreen({ navigation, route }) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            activeOpacity={0.9}
-            disabled={selectedItems.length !== 1}
-            onPress={() => navigation.navigate('ChallengeShopList', { ...route?.params, selectedItems })}
-            style={[styles.secondaryButton, selectedItems.length !== 1 && { opacity: 0.5 }, { borderColor: accent, flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' }]}
+            activeOpacity={0.88}
+            onPress={handleChallengeAnotherShop}
+            style={[
+              styles.secondaryButton,
+              (!isWinnerSelected || selectedItems.length !== 1) && { opacity: 0.45 },
+              { borderColor: accent, flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' },
+            ]}
           >
             <Ionicons name="storefront-outline" size={18} color={accent} />
             <Text style={[styles.secondaryButtonText, { color: accent }]}>{t('battle.challengeAnotherShop', 'Challenge another shop')}</Text>
           </TouchableOpacity>
+
+          {selectedItems.length === 1 && !selectedItems[0]?.isWinner ? (
+            <View style={styles.challengeNoticeRow}>
+              <Ionicons name="lock-closed" size={13} color="#D97706" />
+              <Text style={styles.challengeNoticeText}>
+                {t('battle.onlyWinnerCanChallengeNotice', 'Only battle winner products can challenge another shop')}
+              </Text>
+            </View>
+          ) : null}
         </View>
       </View>
     </View>
@@ -4147,8 +4272,52 @@ const styles = StyleSheet.create({
   selectionDot: { position: 'absolute', top: 10, left: 10, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
   selectionDotGhost: { position: 'absolute', top: 10, left: 10, width: 18, height: 18, borderRadius: 9, borderWidth: 1, borderColor: '#D8CBEF', zIndex: 1 },
   gridImage: { height: 120, borderRadius: 14, marginBottom: 8 },
+  gridWinnerBadgeTop: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#D97706',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+    borderRadius: 8,
+    zIndex: 2,
+  },
+  gridWinnerBadgeTopText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
   gridName: { fontSize: 12, fontWeight: '700' },
   gridPrice: { fontSize: 12, fontWeight: '800', marginTop: 4 },
+  gridWinnerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  gridWinnerRowText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#D97706',
+  },
+  challengeNoticeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: 4,
+    paddingHorizontal: 8,
+  },
+  challengeNoticeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#D97706',
+    textAlign: 'center',
+  },
   primaryButton: { height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   primaryButtonText: { color: '#fff', fontSize: 15, fontWeight: '900' },
   footerActions: { flexDirection: 'row', gap: 10, paddingBottom: Platform.OS === 'android' ? 20 : 0 },

@@ -1664,12 +1664,14 @@ export const WalletDashboardScreen = ({ navigation }) => {
             activeOpacity={0.88}
             onPress={() => navigation.navigate('ValensWallet')}
           >
-            <LinearGradient
-              colors={bannerGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0.8 }}
-              style={styles.walletBannerCard}
-            >
+            <View style={styles.walletBannerCard}>
+              <LinearGradient
+                colors={bannerGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0.8 }}
+                style={StyleSheet.absoluteFill}
+              />
+
               <View style={styles.walletBannerLeft}>
                 <View style={styles.walletBannerIconWrap}>
                   <Ionicons
@@ -1706,7 +1708,7 @@ export const WalletDashboardScreen = ({ navigation }) => {
                   color={themePalette.arrowIconColor}
                 />
               </View>
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
         </View>
       );
@@ -2182,11 +2184,11 @@ export const WalletDashboardScreen = ({ navigation }) => {
                 <Svg width="100%" height={44} viewBox="0 0 400 44" preserveAspectRatio="none">
                   <Path
                     d="M0,22 C90,8 180,30 270,16 C330,8 370,22 400,16 L400,44 L0,44 Z"
-                    fill={isDarkMode ? 'rgba(0, 0, 0, 0.28)' : 'rgba(59, 7, 100, 0.35)'}
+                    fill={isDarkMode ? 'rgba(0, 0, 0, 0.28)' : (isBusinessProfile ? 'rgba(60, 40, 10, 0.35)' : 'rgba(59, 7, 100, 0.35)')}
                   />
                   <Path
                     d="M0,30 C110,16 200,36 290,24 C340,16 375,28 400,22 L400,44 L0,44 Z"
-                    fill={isDarkMode ? 'rgba(0, 0, 0, 0.45)' : 'rgba(46, 16, 101, 0.55)'}
+                    fill={isDarkMode ? 'rgba(0, 0, 0, 0.45)' : (isBusinessProfile ? 'rgba(40, 25, 5, 0.55)' : 'rgba(46, 16, 101, 0.55)')}
                   />
                 </Svg>
               </View>
@@ -2228,9 +2230,9 @@ export const WalletDashboardScreen = ({ navigation }) => {
                 <View style={[styles.heroHandBurstRay, { transform: [{ rotate: '32deg' }], height: 6 }]} />
               </View>
 
-              {/* Horizontally flipped bee sticker matching the mockup */}
+              {/* Profile-aware waving bee/butterfly mascot */}
               <Image
-                source={require('../../assets/Valens Stickers/Valens Stickers/PNG/wave.png')}
+                source={butterflyPoints}
                 style={styles.heroMascotImage}
                 resizeMode="contain"
               />
@@ -2245,16 +2247,16 @@ export const WalletDashboardScreen = ({ navigation }) => {
             style={[
               styles.pointStatCard,
               {
-                backgroundColor: isDarkMode ? card : '#FFFDF5',
-                borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : '#FDE68A',
+                backgroundColor: isDarkMode ? card : (isBusinessProfile ? '#FDFBF7' : '#FFFDF5'),
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : (isBusinessProfile ? '#F2E8D5' : '#FDE68A'),
               },
             ]}
           >
             <Ionicons name="trophy" size={24} color="#F59E0B" />
-            <Text style={[styles.pointStatValue, { color: isDarkMode ? '#FFFFFF' : '#3B0764' }]}>
+            <Text style={[styles.pointStatValue, { color: isDarkMode ? '#FFFFFF' : (isBusinessProfile ? '#3D2F14' : '#3B0764') }]}>
               {formatPointValue(rewardSummary.totalBattlePoints)}
             </Text>
-            <Text style={[styles.pointStatLabel, { color: isDarkMode ? '#DDD6FE' : '#4C1D95' }]}>
+            <Text style={[styles.pointStatLabel, { color: isDarkMode ? (isBusinessProfile ? '#E5C98A' : '#DDD6FE') : (isBusinessProfile ? '#8C6D37' : '#4C1D95') }]}>
               {'Battle\nPoints'}
             </Text>
           </View>
@@ -2264,18 +2266,18 @@ export const WalletDashboardScreen = ({ navigation }) => {
             style={[
               styles.pointStatCard,
               {
-                backgroundColor: isDarkMode ? card : '#F0F9FF',
-                borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : '#BAE6FD',
+                backgroundColor: isDarkMode ? card : (isBusinessProfile ? '#FAF8F2' : '#F0F9FF'),
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : (isBusinessProfile ? '#EFE2C8' : '#BAE6FD'),
               },
             ]}
             activeOpacity={0.8}
             onPress={openReferPointsInfo}
           >
-            <Ionicons name="gift" size={24} color="#0EA5E9" />
-            <Text style={[styles.pointStatValue, { color: isDarkMode ? '#FFFFFF' : '#3B0764' }]}>
+            <Ionicons name="gift" size={24} color={isBusinessProfile ? '#C9A15A' : '#0EA5E9'} />
+            <Text style={[styles.pointStatValue, { color: isDarkMode ? '#FFFFFF' : (isBusinessProfile ? '#3D2F14' : '#3B0764') }]}>
               {formatPointValue(rewardSummary.referPoints)}
             </Text>
-            <Text style={[styles.pointStatLabel, { color: isDarkMode ? '#DDD6FE' : '#4C1D95' }]}>
+            <Text style={[styles.pointStatLabel, { color: isDarkMode ? (isBusinessProfile ? '#E5C98A' : '#DDD6FE') : (isBusinessProfile ? '#8C6D37' : '#4C1D95') }]}>
               {'Refer\nPoints'}
             </Text>
           </TouchableOpacity>
@@ -2285,16 +2287,16 @@ export const WalletDashboardScreen = ({ navigation }) => {
             style={[
               styles.pointStatCard,
               {
-                backgroundColor: isDarkMode ? card : '#FDF4FF',
-                borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : '#F5D0FE',
+                backgroundColor: isDarkMode ? card : (isBusinessProfile ? '#FBF9F4' : '#FDF4FF'),
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : (isBusinessProfile ? '#EFE5D2' : '#F5D0FE'),
               },
             ]}
           >
-            <Ionicons name="layers" size={24} color="#C026D3" />
-            <Text style={[styles.pointStatValue, { color: isDarkMode ? '#FFFFFF' : '#3B0764' }]}>
+            <Ionicons name="layers" size={24} color={isBusinessProfile ? '#A07D41' : '#C026D3'} />
+            <Text style={[styles.pointStatValue, { color: isDarkMode ? '#FFFFFF' : (isBusinessProfile ? '#3D2F14' : '#3B0764') }]}>
               {formatPointValue(rewardSummary.used)}
             </Text>
-            <Text style={[styles.pointStatLabel, { color: isDarkMode ? '#DDD6FE' : '#4C1D95' }]}>
+            <Text style={[styles.pointStatLabel, { color: isDarkMode ? (isBusinessProfile ? '#E5C98A' : '#DDD6FE') : (isBusinessProfile ? '#8C6D37' : '#4C1D95') }]}>
               {'Used\nPoints'}
             </Text>
           </View>
@@ -2303,20 +2305,26 @@ export const WalletDashboardScreen = ({ navigation }) => {
         {/* 3. Activity Overview Section */}
         <View style={styles.activitySectionContainer}>
           <View style={styles.activityHeaderRow}>
-            <Text style={[styles.activitySectionTitle, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>
+            <Text style={[styles.activitySectionTitle, { color: isDarkMode ? '#FFFFFF' : (isBusinessProfile ? '#3D2F14' : '#1E1B4B') }]}>
               {t('walletDashboard.activityOverview.sectionTitle', 'Activity Overview')}
             </Text>
 
             <TouchableOpacity
-              style={[styles.timeframeButton, { borderColor: '#DDD6FE', backgroundColor: card }]}
+              style={[
+                styles.timeframeButton,
+                {
+                  borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : (isBusinessProfile ? '#E8DCC6' : '#DDD6FE'),
+                  backgroundColor: card,
+                },
+              ]}
               onPress={() => setTimeframeModalVisible(true)}
               activeOpacity={0.8}
             >
-              <Ionicons name="calendar-outline" size={14} color="#7C3AED" style={{ marginRight: 6 }} />
-              <Text style={[styles.timeframeButtonText, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>
+              <Ionicons name="calendar-outline" size={14} color={isBusinessProfile ? accent : '#7C3AED'} style={{ marginRight: 6 }} />
+              <Text style={[styles.timeframeButtonText, { color: isDarkMode ? '#FFFFFF' : (isBusinessProfile ? '#3D2F14' : '#1E1B4B') }]}>
                 {selectedTimeframe}
               </Text>
-              <Ionicons name="chevron-down" size={13} color="#7C3AED" style={{ marginLeft: 4 }} />
+              <Ionicons name="chevron-down" size={13} color={isBusinessProfile ? accent : '#7C3AED'} style={{ marginLeft: 4 }} />
             </TouchableOpacity>
           </View>
 
@@ -2326,7 +2334,7 @@ export const WalletDashboardScreen = ({ navigation }) => {
               styles.periodSelectorPill,
               {
                 backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
-                borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#EDE9FE',
+                borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : (isBusinessProfile ? '#EFE4CD' : '#EDE9FE'),
               },
             ]}
           >
@@ -2359,7 +2367,7 @@ export const WalletDashboardScreen = ({ navigation }) => {
                       <Text
                         style={[
                           styles.periodTabText,
-                          { color: isDarkMode ? '#DDD6FE' : '#374151' },
+                          { color: isDarkMode ? (isBusinessProfile ? '#E5C98A' : '#DDD6FE') : (isBusinessProfile ? '#5C4723' : '#374151') },
                         ]}
                       >
                         {label}
@@ -2374,17 +2382,17 @@ export const WalletDashboardScreen = ({ navigation }) => {
           {/* 3 Metric Cards Row (OUTSIDE the chart card!) */}
           <View style={styles.exactMetricsRow}>
             {/* Followers */}
-            <View style={[styles.exactMetricCard, { backgroundColor: card, borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(237, 233, 254, 0.85)' }]}>
-              <View style={[styles.exactIconWrap, { backgroundColor: '#EDE9FE' }]}>
-                <Ionicons name="people" size={15} color="#7C3AED" />
+            <View style={[styles.exactMetricCard, { backgroundColor: card, borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : (isBusinessProfile ? '#F2E8D5' : 'rgba(237, 233, 254, 0.85)') }]}>
+              <View style={[styles.exactIconWrap, { backgroundColor: isDarkMode ? (isBusinessProfile ? 'rgba(201, 161, 90, 0.22)' : 'rgba(124, 58, 237, 0.25)') : (isBusinessProfile ? '#FBF6EA' : '#EDE9FE') }]}>
+                <Ionicons name="people" size={15} color={isBusinessProfile ? accent : '#7C3AED'} />
               </View>
-              <Text style={[styles.exactMetricValue, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>
+              <Text style={[styles.exactMetricValue, { color: isDarkMode ? '#FFFFFF' : (isBusinessProfile ? '#3D2F14' : '#1E1B4B') }]}>
                 {formatDisplayNumber(Math.round(followersCount || 11))}
               </Text>
-              <Text style={[styles.exactMetricLabel, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>
+              <Text style={[styles.exactMetricLabel, { color: isDarkMode ? '#FFFFFF' : (isBusinessProfile ? '#3D2F14' : '#1E1B4B') }]}>
                 Followers
               </Text>
-              <Text style={[styles.exactMetricSub, { color: isDarkMode ? '#9CA3AF' : '#4B5563' }]} numberOfLines={1}>
+              <Text style={[styles.exactMetricSub, { color: isDarkMode ? (isBusinessProfile ? '#D4B87E' : '#9CA3AF') : (isBusinessProfile ? '#5C4723' : '#4B5563') }]} numberOfLines={1}>
                 Following {formatDisplayNumber(Math.round(followingCount || 18))}
               </Text>
               <View style={styles.exactGreenBadge}>
@@ -2396,17 +2404,17 @@ export const WalletDashboardScreen = ({ navigation }) => {
             </View>
 
             {/* Total support */}
-            <View style={[styles.exactMetricCard, { backgroundColor: card, borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(237, 233, 254, 0.85)' }]}>
-              <View style={[styles.exactIconWrap, { backgroundColor: '#F3E8FF' }]}>
-                <Ionicons name="wallet" size={15} color="#9333EA" />
+            <View style={[styles.exactMetricCard, { backgroundColor: card, borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : (isBusinessProfile ? '#F2E8D5' : 'rgba(237, 233, 254, 0.85)') }]}>
+              <View style={[styles.exactIconWrap, { backgroundColor: isDarkMode ? (isBusinessProfile ? 'rgba(201, 161, 90, 0.22)' : 'rgba(124, 58, 237, 0.25)') : (isBusinessProfile ? '#FAF4E6' : '#F3E8FF') }]}>
+                <Ionicons name="wallet" size={15} color={isBusinessProfile ? '#B8860B' : '#9333EA'} />
               </View>
-              <Text style={[styles.exactMetricValue, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>
+              <Text style={[styles.exactMetricValue, { color: isDarkMode ? '#FFFFFF' : (isBusinessProfile ? '#3D2F14' : '#1E1B4B') }]}>
                 {formatDisplayCurrency(supportReceivedUsd || 795, undefined, paymentProvider)}
               </Text>
-              <Text style={[styles.exactMetricLabel, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>
+              <Text style={[styles.exactMetricLabel, { color: isDarkMode ? '#FFFFFF' : (isBusinessProfile ? '#3D2F14' : '#1E1B4B') }]}>
                 Total support
               </Text>
-              <Text style={[styles.exactMetricSub, { color: isDarkMode ? '#9CA3AF' : '#4B5563' }]} numberOfLines={1}>
+              <Text style={[styles.exactMetricSub, { color: isDarkMode ? (isBusinessProfile ? '#D4B87E' : '#9CA3AF') : (isBusinessProfile ? '#5C4723' : '#4B5563') }]} numberOfLines={1}>
                 Subscriptions & tips
               </Text>
               <View style={styles.exactGreenBadge}>
@@ -2418,17 +2426,17 @@ export const WalletDashboardScreen = ({ navigation }) => {
             </View>
 
             {/* Unfollowers */}
-            <View style={[styles.exactMetricCard, { backgroundColor: card, borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(237, 233, 254, 0.85)' }]}>
+            <View style={[styles.exactMetricCard, { backgroundColor: card, borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : (isBusinessProfile ? '#F2E8D5' : 'rgba(237, 233, 254, 0.85)') }]}>
               <View style={[styles.exactIconWrap, { backgroundColor: '#FCE7F3' }]}>
                 <Ionicons name="person-remove-outline" size={15} color="#E11D48" />
               </View>
-              <Text style={[styles.exactMetricValue, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>
+              <Text style={[styles.exactMetricValue, { color: isDarkMode ? '#FFFFFF' : (isBusinessProfile ? '#3D2F14' : '#1E1B4B') }]}>
                 {formatDisplayNumber(unfollowersDisplay || 0)}
               </Text>
-              <Text style={[styles.exactMetricLabel, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>
+              <Text style={[styles.exactMetricLabel, { color: isDarkMode ? '#FFFFFF' : (isBusinessProfile ? '#3D2F14' : '#1E1B4B') }]}>
                 Unfollowers
               </Text>
-              <Text style={[styles.exactMetricSub, { color: isDarkMode ? '#9CA3AF' : '#4B5563' }]} numberOfLines={1}>
+              <Text style={[styles.exactMetricSub, { color: isDarkMode ? (isBusinessProfile ? '#D4B87E' : '#9CA3AF') : (isBusinessProfile ? '#5C4723' : '#4B5563') }]} numberOfLines={1}>
                 Lost over this range
               </Text>
               <View style={styles.exactGreenBadge}>
@@ -2441,20 +2449,20 @@ export const WalletDashboardScreen = ({ navigation }) => {
           </View>
 
           {/* Chart Card (CONTAINING ONLY THE CHART, LEGEND, FOOTNOTE!) */}
-          <View style={[styles.chartContainerCard, { backgroundColor: card, borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(237, 233, 254, 0.85)' }]}>
+          <View style={[styles.chartContainerCard, { backgroundColor: card, borderColor: isDarkMode ? 'rgba(255,255,255,0.08)' : (isBusinessProfile ? '#F2E8D5' : 'rgba(237, 233, 254, 0.85)') }]}>
             {/* Legend */}
             <View style={styles.activityLegendRow}>
               <View style={styles.activityLegendItem}>
-                <View style={[styles.activityLegendDot, { backgroundColor: '#581C87' }]} />
-                <Text style={[styles.activityLegendText, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>Followers</Text>
+                <View style={[styles.activityLegendDot, { backgroundColor: isBusinessProfile ? '#8C6D37' : '#581C87' }]} />
+                <Text style={[styles.activityLegendText, { color: isDarkMode ? '#FFFFFF' : (isBusinessProfile ? '#3D2F14' : '#1E1B4B') }]}>Followers</Text>
               </View>
               <View style={styles.activityLegendItem}>
-                <View style={[styles.activityLegendDot, { backgroundColor: '#A855F7' }]} />
-                <Text style={[styles.activityLegendText, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>Support trend</Text>
+                <View style={[styles.activityLegendDot, { backgroundColor: isBusinessProfile ? '#C9A15A' : '#A855F7' }]} />
+                <Text style={[styles.activityLegendText, { color: isDarkMode ? '#FFFFFF' : (isBusinessProfile ? '#3D2F14' : '#1E1B4B') }]}>Support trend</Text>
               </View>
               <View style={styles.activityLegendItem}>
                 <View style={[styles.activityLegendDot, { backgroundColor: '#E11D48' }]} />
-                <Text style={[styles.activityLegendText, { color: isDarkMode ? '#FFFFFF' : '#1E1B4B' }]}>Unfollowers</Text>
+                <Text style={[styles.activityLegendText, { color: isDarkMode ? '#FFFFFF' : (isBusinessProfile ? '#3D2F14' : '#1E1B4B') }]}>Unfollowers</Text>
               </View>
             </View>
 
@@ -2473,17 +2481,17 @@ export const WalletDashboardScreen = ({ navigation }) => {
                 supportValues={activitySupportSeries.map((p) => p.value)}
                 chartWidth={activityChartScrollWidth}
                 chartHeight={200}
-                colorFollowers="#581C87"
+                colorFollowers={isBusinessProfile ? '#8C6D37' : '#581C87'}
                 colorUnfollowers="#E11D48"
-                colorSupport="#A855F7"
+                colorSupport={isBusinessProfile ? '#C9A15A' : '#A855F7'}
                 range={FOLLOWERS_RANGE_BY_PERIOD[activityPeriod] ?? 'daily'}
               />
             </ScrollView>
 
             {/* Footnote Box with (i) icon */}
-            <View style={[styles.chartInfoBox, { backgroundColor: isDarkMode ? 'rgba(168,85,247,0.12)' : '#F5F3FF' }]}>
-              <Ionicons name="information-circle-outline" size={18} color="#7C3AED" style={{ marginRight: 8, marginTop: 1 }} />
-              <Text style={[styles.chartInfoText, { color: isDarkMode ? '#DDD6FE' : '#4C1D95' }]}>
+            <View style={[styles.chartInfoBox, { backgroundColor: isDarkMode ? (isBusinessProfile ? 'rgba(201,161,90,0.12)' : 'rgba(168,85,247,0.12)') : (isBusinessProfile ? '#FAF6ED' : '#F5F3FF') }]}>
+              <Ionicons name="information-circle-outline" size={18} color={isBusinessProfile ? accent : '#7C3AED'} style={{ marginRight: 8, marginTop: 1 }} />
+              <Text style={[styles.chartInfoText, { color: isDarkMode ? (isBusinessProfile ? '#E5C98A' : '#DDD6FE') : (isBusinessProfile ? '#8C6D37' : '#4C1D95') }]}>
                 {t('walletDashboard.activityOverview.chartFootnote', 'Lines use separate scales. Swipe the chart sideways when points are crowded.')}
               </Text>
             </View>
@@ -2552,7 +2560,11 @@ export const WalletDashboardScreen = ({ navigation }) => {
                     </Text>
                   </View>
                   <View style={styles.modalIconWrap}>
-                    <BlueDragonfly width={60} height={60} />
+                    {isBusinessProfile ? (
+                      <GoldDragonfly width={60} height={60} />
+                    ) : (
+                      <BlueDragonfly width={60} height={60} />
+                    )}
                   </View>
                 </View>
                 <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
@@ -3942,18 +3954,24 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 22,
     overflow: 'hidden',
+    shadowColor: '#581C87',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 4,
   },
 
   walletBannerCard: {
     width: '100%',
-    minHeight: 100,
+    minHeight: 104,
     borderRadius: 22,
-    paddingHorizontal: 10,
-    // paddingVertical: 5,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     overflow: 'hidden',
+    position: 'relative',
   },
 
   walletBannerLeft: {
@@ -3961,13 +3979,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     minWidth: 0,
-    marginRight: 25,
+    marginRight: 16,
   },
 
   walletBannerIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.20)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -3978,7 +3996,7 @@ const styles = StyleSheet.create({
     width: 1.5,
     height: 38,
     backgroundColor: 'rgba(255,255,255,0.28)',
-    marginHorizontal: 10,
+    marginHorizontal: 12,
     flexShrink: 0,
   },
 
@@ -3992,7 +4010,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 3,
+    marginBottom: 4,
     lineHeight: 20,
   },
 
@@ -4012,8 +4030,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    marginLeft: 10,
-    right: 20
   },
 
   kpiHintWrap: {

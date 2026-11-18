@@ -59,7 +59,7 @@
     "passwordMismatch": "Las contraseñas no coinciden"
   },
   "selectAccountType": {
-    "subtitle": "Construye tu reputación, gana credibilidad",
+    "subtitle": "Las redes sociales acaban de actualizarse",
     "alreadyHaveAccount": "¿Ya tienes una cuenta? ",
     "login": "Inicia sesión",
     "personaTitle": "Soy Persona",
@@ -70,20 +70,39 @@
     "continueAsBusiness": "Continuar como Empresa",
     "personaFeatures": {
       "support": "Apoyar y recibir apoyo",
+      "supportDesc": "Envía propinas y apoya amigos",
       "battles": "Unirse a batallas",
+      "battlesDesc": "Comparte tu opinión y gana credibilidad",
       "verified": "Usuario verificado",
+      "verifiedDesc": "Construye tu reputación",
       "storefront": "Tienda de creador",
+      "storefrontDesc": "Vende en My Closet",
       "subscriptions": "Suscripciones de fans",
+      "subscriptionsDesc": "Suscríbete a tus creadores favoritos",
       "missions": "Publicaciones de misión",
-      "privateCircle": "Publicaciones privadas"
+      "missionsDesc": "Apoya y lanza misiones",
+      "privateCircle": "Publicaciones de círculo privado",
+      "privateCircleDesc": "Comparte con tu círculo cercano",
+      "services": "Servicios",
+      "servicesDesc": "Reserva u ofrece servicios (mentoría, citas y más)"
     },
     "businessFeatures": {
       "shop": "Crear tienda",
+      "shopDesc": "Vende productos y servicios",
       "community": "Comunidad de apoyo",
+      "communityDesc": "Interactúa y haz crecer tu audiencia",
       "missions": "Lanzar misiones",
+      "missionsDesc": "Recauda fondos y haz realidad ideas",
       "battles": "Gestionar batallas",
-      "verified": "Obtener verificación — KYB",
-      "vip": "Publicaciones privadas VIP"
+      "battlesDesc": "Promociona productos y obtén comentarios",
+      "verified": "Obtener verificación - KYB",
+      "verifiedDesc": "Genera confianza con la comunidad",
+      "vip": "Publicaciones VIP privadas",
+      "vipDesc": "Comparte contenido exclusivo",
+      "services": "Servicios",
+      "servicesDesc": "Ofrece o gestiona servicios (mentoría, eventos y más)",
+      "analytics": "Estadísticas",
+      "analyticsDesc": "Monitorea tu crecimiento y ganancias"
     }
   },
   "signup": {
@@ -5987,6 +6006,29 @@
     "noMatchesQuery": "Prueba con otras palabras o limpia la búsqueda",
     "noProductsInCategory": "Aún no hay productos en esta categoría",
     "clearFilters": "Limpiar Filtros",
-    "untitled": "Producto"
+    "untitled": "Producto",
+    "filters": "Filtros",
+    "filterModalTitle": "Filtros y Orden",
+    "applyFilters": "Aplicar Filtros",
+    "resetAll": "Restablecer",
+    "conditionSection": "Condición",
+    "priceSection": "Rango de Precios",
+    "sortBySection": "Ordenar Por",
+    "sortOrderSection": "Orden",
+    "allConditions": "Todas",
+    "condNew": "Nuevo",
+    "condUsed": "Usado",
+    "condGood": "Buen Estado",
+    "condNeedAttention": "Requiere Atención",
+    "minPrice": "Mín",
+    "maxPrice": "Máx",
+    "orderDesc": "Descendente",
+    "orderAsc": "Ascendente",
+    "descending": "Descendente",
+    "ascending": "Ascendente",
+    "descSub": "Mayor a Menor",
+    "ascSub": "Menor a Mayor",
+    "smartRank": "Rango Inteligente",
+    "dateAdded": "Más Recientes"
   }
 }

@@ -37,6 +37,7 @@ import { formSurfaces, selectedSurface, themedCard } from '../../utils/closetThe
 import { useTargetClosetScreen, navigateToTargetClosetScreen, themeGradient } from '../../utils/closetNavigation';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
 import { BASE_URL } from '../../config/urls';
+import { recordActivePromotion } from '../../utils/marketplaceDeliveryAlgorithm';
 
 const PURPLE = '#5B2FB5';
 const BORDER = '#E7DDF7';
@@ -747,7 +748,26 @@ export function ReviewBoostScreen({ navigation, route }) {
         }
 
         if (isPaid) {
+          await recordActivePromotion(winnerItem?.id, {
+            battleId,
+            isPinnedOnTop: Boolean(pinOnTop),
+            priorityTier: pinOnTop ? 1 : 2,
+            primaryBadge: showBadge ? '🏆 BATTLE WINNER' : 'BOOSTED',
+            promotionType: 'boost',
+            days: pkg?.days || 7,
+          });
+
           Alert.alert(t('boost.boostedTitle'), t('boost.boostedMessage'), [
+            {
+              text: t('promotion.viewExplore') || 'View on Explore',
+              onPress: () => {
+                try {
+                  navigation.navigate('Marketplace', { screen: 'MarketplaceHome', params: { refresh: true, promotedItemId: winnerItem?.id } });
+                } catch {
+                  navigateToTargetClosetScreen(navigation, targetScreen, { boostedItemId: winnerItem?.id });
+                }
+              },
+            },
             { text: t('boost.done'), onPress: () => navigateToTargetClosetScreen(navigation, targetScreen, { boostedItemId: winnerItem?.id }) }
           ]);
         }
@@ -833,6 +853,36 @@ export function CreateWinnerPromotionScreen({ navigation, route }) {
   const winnerItem = route?.params?.winnerItem;
   const battleId = route?.params?.battleId;
   const [selectedType, setSelectedType] = useState('discount24');
+  const [activePromoType, setActivePromoType] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    if (battleId) {
+      getMarketplaceWinnerPromotionByBattle(battleId)
+        .then(res => {
+          if (!mounted) return;
+          const data = res?.data?.data || res?.data || {};
+          const st = String(data?.paymentStatus || data?.status || '').toLowerCase();
+          if (st === 'paid' || st === 'active' || st === 'completed' || st === 'success') {
+            const desc = String(data?.package?.description || '').toUpperCase();
+            const isFree = Boolean(
+              data?.isFreeShipping === true ||
+              data?.hasFreeShipping === true ||
+              desc.includes('FREE_SHIPPING') ||
+              String(data?.promotionType || '').toUpperCase().includes('FREE_SHIPPING')
+            );
+            const activeId = isFree ? 'freeShipping' : 'discount24';
+            setActivePromoType(activeId);
+            // Default selection to the other promotion type if one is already active
+            setSelectedType(isFree ? 'discount24' : 'freeShipping');
+          }
+        })
+        .catch(() => {});
+    }
+    return () => {
+      mounted = false;
+    };
+  }, [battleId]);
 
   return (
     <View style={[styles.screen, bgStyle, { backgroundColor: bg || SOFT_BG }]}>
@@ -841,6 +891,7 @@ export function CreateWinnerPromotionScreen({ navigation, route }) {
         <Text style={[styles.sectionLabel, { color: text || TEXT }]}>{t('promotion.chooseType')}</Text>
         {PROMO_TYPES.map(promo => {
           const selected = promo.id === selectedType;
+          const isActive = promo.id === activePromoType;
           return (
             <TouchableOpacity
               key={promo.id}
@@ -856,7 +907,16 @@ export function CreateWinnerPromotionScreen({ navigation, route }) {
                 <Ionicons name={promo.icon} size={18} color={accent} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.promoTypeTitle, { color: text || TEXT }]}>{t(`promotion.types.${promo.id}.title`)}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={[styles.promoTypeTitle, { color: text || TEXT, marginRight: 8 }]}>
+                    {t(`promotion.types.${promo.id}.title`)}
+                  </Text>
+                  {isActive && (
+                    <View style={{ backgroundColor: '#10B981', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                      <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>ACTIVE</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={[styles.promoTypeSub, { color: subtleMuted }]}>{t(`promotion.types.${promo.id}.subtitle`)}</Text>
               </View>
               {selected ? <Ionicons name="checkmark-circle" size={20} color={accent} /> : null}
@@ -906,13 +966,29 @@ export function PromotionDetailsScreen({ navigation, route }) {
   const [discount, setDiscount] = useState('20');
   const [userEditedMessage, setUserEditedMessage] = useState(false);
   const [message, setMessage] = useState('');
-  const [isAlreadyPromoted, setIsAlreadyPromoted] = useState(false);
+  const [activePromotionInfo, setActivePromotionInfo] = useState(null);
   const [existingPendingPromoId, setExistingPendingPromoId] = useState(null);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const currentPackage = packages.find(p => p.id === selectedPackageId) || packages[0];
   const durationLabel = currentPackage?.durationLabel || (currentPackage?.days === 1 ? '24 Hours' : `${currentPackage?.days || 3} Days`);
+
+  const isCurrentTypeAlreadyPromoted = Boolean(
+    activePromotionInfo?.isPaid && (
+      isFreeShipping
+        ? activePromotionInfo.isFreeShipping
+        : activePromotionInfo.isDiscount
+    )
+  );
+
+  const isOtherTypeActive = Boolean(
+    activePromotionInfo?.isPaid && (
+      isFreeShipping
+        ? activePromotionInfo.isDiscount && !activePromotionInfo.isFreeShipping
+        : activePromotionInfo.isFreeShipping && !activePromotionInfo.isDiscount
+    )
+  );
 
   useEffect(() => {
     if (!userEditedMessage) {
@@ -1004,10 +1080,49 @@ export function PromotionDetailsScreen({ navigation, route }) {
           const st = String(checkData?.paymentStatus || checkData?.status || checkData?.state || '').toLowerCase();
           const promoId = checkData?.promotionId || checkData?.id || checkData?._id;
 
-          if (st === 'paid' || st === 'active' || st === 'completed' || st === 'success') {
-            if (mounted) setIsAlreadyPromoted(true);
-          } else if (promoId && (st === 'pending_payment' || st === 'pending')) {
-            if (mounted) setExistingPendingPromoId(promoId);
+          const isPaid = st === 'paid' || st === 'active' || st === 'completed' || st === 'success';
+          const isPending = promoId && (st === 'pending_payment' || st === 'pending');
+
+          const activePkgDesc = String(checkData?.package?.description || checkData?.packageDescription || checkData?.description || '').toUpperCase();
+          const activePkgName = String(checkData?.package?.name || checkData?.packageName || checkData?.name || '').toUpperCase();
+          const activeType = String(checkData?.promotionType || checkData?.type || '').toUpperCase();
+          const activeMsg = String(checkData?.message || '').toUpperCase();
+
+          const activeIsFreeShipping = Boolean(
+            checkData?.isFreeShipping === true ||
+            checkData?.hasFreeShipping === true ||
+            activeType.includes('FREE_SHIPPING') ||
+            activeType.includes('FREESHIPPING') ||
+            activePkgDesc.includes('FREE_SHIPPING') ||
+            activePkgName.includes('FREE SHIPPING') ||
+            activeMsg.includes('FREE SHIPPING')
+          );
+
+          const activeIsDiscount = Boolean(
+            (checkData?.discount != null && Number(checkData.discount) > 0) ||
+            checkData?.hasPercentageOff === true ||
+            activeType.includes('DISCOUNT') ||
+            activePkgDesc.includes('DISCOUNT') ||
+            activePkgName.includes('DISCOUNT') ||
+            (!activeIsFreeShipping && isPaid)
+          );
+
+          const activeDiscountVal = Number(checkData?.discount || checkData?.discountPercent || 20);
+
+          if (mounted) {
+            setActivePromotionInfo({
+              isPaid,
+              isPending,
+              isFreeShipping: activeIsFreeShipping,
+              isDiscount: activeIsDiscount,
+              discount: activeDiscountVal,
+              status: st,
+              promoId,
+            });
+
+            if (isPending) {
+              setExistingPendingPromoId(promoId);
+            }
           }
         } catch (e) {
         } finally {
@@ -1027,10 +1142,12 @@ export function PromotionDetailsScreen({ navigation, route }) {
       showToastMessage(toast, 'danger', 'Missing battle id');
       return;
     }
-    if (isAlreadyPromoted) {
+    if (isCurrentTypeAlreadyPromoted) {
       Alert.alert(
         'Already Promoted',
-        'This battle winner has already been promoted.',
+        isFreeShipping
+          ? 'Free shipping is already active on this battle winner.'
+          : 'A discount is already active on this battle winner.',
         [{ text: t('boost.done') || 'Done', onPress: () => navigateToClosetShopFront(navigation, { promotedItemId: winnerItem?.id }) }]
       );
       return;
@@ -1052,20 +1169,52 @@ export function PromotionDetailsScreen({ navigation, route }) {
       const checkData = checkRes?.data?.data || checkRes?.data || checkRes;
       const checkStatus = String(checkData?.paymentStatus || checkData?.status || checkData?.state || '').toLowerCase();
 
-      if (checkStatus === 'paid' || checkStatus === 'active' || checkStatus === 'completed' || checkStatus === 'success') {
-        setIsAlreadyPromoted(true);
+      const activePkgDesc = String(checkData?.package?.description || checkData?.packageDescription || checkData?.description || '').toUpperCase();
+      const activePkgName = String(checkData?.package?.name || checkData?.packageName || checkData?.name || '').toUpperCase();
+      const activeType = String(checkData?.promotionType || checkData?.type || '').toUpperCase();
+      const activeMsg = String(checkData?.message || '').toUpperCase();
+
+      const checkIsFreeShipping = Boolean(
+        checkData?.isFreeShipping === true ||
+        checkData?.hasFreeShipping === true ||
+        activeType.includes('FREE_SHIPPING') ||
+        activeType.includes('FREESHIPPING') ||
+        activePkgDesc.includes('FREE_SHIPPING') ||
+        activePkgName.includes('FREE SHIPPING') ||
+        activeMsg.includes('FREE SHIPPING')
+      );
+
+      const checkIsDiscount = Boolean(
+        (checkData?.discount != null && Number(checkData.discount) > 0) ||
+        checkData?.hasPercentageOff === true ||
+        activeType.includes('DISCOUNT') ||
+        activePkgDesc.includes('DISCOUNT') ||
+        activePkgName.includes('DISCOUNT') ||
+        (!checkIsFreeShipping && (checkStatus === 'paid' || checkStatus === 'active'))
+      );
+
+      const checkCurrentAlreadyPromoted = isFreeShipping ? checkIsFreeShipping : checkIsDiscount;
+
+      if (checkCurrentAlreadyPromoted && (checkStatus === 'paid' || checkStatus === 'active' || checkStatus === 'completed' || checkStatus === 'success')) {
         Alert.alert(
           'Already Promoted',
-          'This battle winner has already been promoted.',
+          isFreeShipping
+            ? 'Free shipping is already active on this battle winner.'
+            : 'A discount is already active on this battle winner.',
           [{ text: t('boost.done') || 'Done', onPress: () => navigateToClosetShopFront(navigation, { promotedItemId: winnerItem?.id }) }]
         );
         return;
       }
 
-      let promotionId = checkData?.promotionId || checkData?.id || checkData?._id || existingPendingPromoId;
+      let promotionId = null;
+      if (checkStatus === 'pending_payment' || checkStatus === 'pending') {
+        if (checkIsFreeShipping === isFreeShipping) {
+          promotionId = checkData?.promotionId || checkData?.id || checkData?._id;
+        }
+      }
 
       // Create promotion intent (PENDING_PAYMENT)
-      if (!promotionId || (checkStatus !== 'pending_payment' && checkStatus !== 'pending')) {
+      if (!promotionId) {
         const payload = isFreeShipping
           ? {
             packageId: selectedPackageId,
@@ -1153,10 +1302,40 @@ export function PromotionDetailsScreen({ navigation, route }) {
 
       if (isPaid) {
         setIsAlreadyPromoted(true);
+        // Persist active promotion for guaranteed immediate delivery on Explore
+        const promoDays = Number(currentPackage?.days) || 7;
+        const discountNum = Number(String(discount).replace(/[^0-9.]/g, '')) || 20;
+        await recordActivePromotion(winnerItem?.id, {
+          battleId,
+          discount: discountNum,
+          isFreeShipping: Boolean(isFreeShipping),
+          primaryBadge: isFreeShipping ? 'BATTLE WINNER - FREE SHIP' : `BATTLE WINNER ${discountNum}% OFF`,
+          priorityTier: 1,
+          isPinnedOnTop: true,
+          promotionType: 'battle_winner',
+          days: promoDays,
+          message: message?.trim() || getDefaultWinnerPromotionMessage(currentPackage, discount, isFreeShipping),
+        });
+
         Alert.alert(
           t('promotion.liveTitle') || 'Promotion Live 🎉',
           t('promotion.liveMessage') || 'Your promotion is now live on the product.',
-          [{ text: t('boost.done') || 'Done', onPress: () => navigateToClosetShopFront(navigation, { promotedItemId: winnerItem?.id }) }]
+          [
+            {
+              text: t('promotion.viewExplore') || 'View on Explore',
+              onPress: () => {
+                try {
+                  navigation.navigate('Marketplace', { screen: 'MarketplaceHome', params: { refresh: true, promotedItemId: winnerItem?.id } });
+                } catch {
+                  navigateToClosetShopFront(navigation, { promotedItemId: winnerItem?.id });
+                }
+              },
+            },
+            {
+              text: t('boost.done') || 'Done',
+              onPress: () => navigateToClosetShopFront(navigation, { promotedItemId: winnerItem?.id }),
+            },
+          ]
         );
       }
     } catch (error) {
@@ -1199,7 +1378,7 @@ export function PromotionDetailsScreen({ navigation, route }) {
           <ActivityIndicator size="small" color={accent} style={{ marginVertical: 4 }} />
         ) : null}
 
-        {isAlreadyPromoted ? (
+        {isCurrentTypeAlreadyPromoted ? (
           <View style={[styles.winnerNotice, themedCard(surface, border || surfaces.listBorder), { backgroundColor: `${accent}15` }]}>
             <View style={styles.winnerNoticeHeader}>
               <View style={[styles.winnerNoticeIcon, { backgroundColor: `${accent}25` }]}>
@@ -1208,7 +1387,27 @@ export function PromotionDetailsScreen({ navigation, route }) {
               <View style={{ flex: 1 }}>
                 <Text style={[styles.winnerNoticeTitle, { color: text || TEXT }]}>🎉 Already Promoted</Text>
                 <Text style={[styles.winnerNoticeText, { color: subtleMuted }]}>
-                  This battle winner has already been promoted and is currently active.
+                  {isFreeShipping
+                    ? 'Free shipping is already active on this battle winner.'
+                    : `${activePromotionInfo?.discount || 20}% discount is already active on this battle winner.`}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : isOtherTypeActive ? (
+          <View style={[styles.winnerNotice, themedCard(surface, border || surfaces.listBorder), { backgroundColor: `${accent}15` }]}>
+            <View style={styles.winnerNoticeHeader}>
+              <View style={[styles.winnerNoticeIcon, { backgroundColor: `${accent}25` }]}>
+                <Ionicons name="information-circle-outline" size={20} color={accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.winnerNoticeTitle, { color: text || TEXT }]}>
+                  {isFreeShipping ? '💡 Active Discount Running' : '💡 Active Free Shipping Running'}
+                </Text>
+                <Text style={[styles.winnerNoticeText, { color: subtleMuted }]}>
+                  {isFreeShipping
+                    ? `Your battle winner currently has an active ${activePromotionInfo?.discount || 20}% discount. You can also promote Free Shipping to boost conversions even further!`
+                    : 'Your battle winner currently has active Free Shipping. You can also add a percentage discount!'}
                 </Text>
               </View>
             </View>
@@ -1314,14 +1513,14 @@ export function PromotionDetailsScreen({ navigation, route }) {
         <TouchableOpacity
           activeOpacity={0.9}
           onPress={handlePaymentAndLaunch}
-          disabled={submitting || isAlreadyPromoted}
+          disabled={submitting || isCurrentTypeAlreadyPromoted}
         >
           <LinearGradient colors={buttonColors} style={styles.primaryButton}>
             {submitting ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <Text style={styles.primaryButtonText}>
-                {isAlreadyPromoted
+                {isCurrentTypeAlreadyPromoted
                   ? 'Already Promoted'
                   : currentPackage?.priceLabel
                     ? `Pay ${currentPackage.priceLabel} & Launch`
@@ -1344,6 +1543,10 @@ export function PromotionDetailsScreen({ navigation, route }) {
               battleId,
               packageId: selectedPackageId,
               selectedPackage: currentPackage,
+              activePromotionInfo,
+            })
+          }
+        >
             })
           }
         >
@@ -1401,24 +1604,57 @@ export function PreviewPromotionScreen({ navigation, route }) {
     try {
       setLaunching(true);
 
-      // 1. Check if already promoted
+      // 1. Check if already promoted for current promotion type
       const checkRes = await getMarketplaceWinnerPromotionByBattle(battleId);
       const checkData = checkRes?.data?.data || checkRes?.data || checkRes;
       const checkStatus = String(checkData?.paymentStatus || checkData?.status || checkData?.state || '').toLowerCase();
 
-      if (checkStatus === 'paid' || checkStatus === 'active' || checkStatus === 'completed' || checkStatus === 'success') {
+      const activePkgDesc = String(checkData?.package?.description || checkData?.packageDescription || checkData?.description || '').toUpperCase();
+      const activePkgName = String(checkData?.package?.name || checkData?.packageName || checkData?.name || '').toUpperCase();
+      const activeType = String(checkData?.promotionType || checkData?.type || '').toUpperCase();
+      const activeMsg = String(checkData?.message || '').toUpperCase();
+
+      const checkIsFreeShipping = Boolean(
+        checkData?.isFreeShipping === true ||
+        checkData?.hasFreeShipping === true ||
+        activeType.includes('FREE_SHIPPING') ||
+        activeType.includes('FREESHIPPING') ||
+        activePkgDesc.includes('FREE_SHIPPING') ||
+        activePkgName.includes('FREE SHIPPING') ||
+        activeMsg.includes('FREE SHIPPING')
+      );
+
+      const checkIsDiscount = Boolean(
+        (checkData?.discount != null && Number(checkData.discount) > 0) ||
+        checkData?.hasPercentageOff === true ||
+        activeType.includes('DISCOUNT') ||
+        activePkgDesc.includes('DISCOUNT') ||
+        activePkgName.includes('DISCOUNT') ||
+        (!checkIsFreeShipping && (checkStatus === 'paid' || checkStatus === 'active'))
+      );
+
+      const checkCurrentAlreadyPromoted = isFreeShipping ? checkIsFreeShipping : checkIsDiscount;
+
+      if (checkCurrentAlreadyPromoted && (checkStatus === 'paid' || checkStatus === 'active' || checkStatus === 'completed' || checkStatus === 'success')) {
         Alert.alert(
           'Already Promoted',
-          'This battle winner has already been promoted.',
+          isFreeShipping
+            ? 'Free shipping is already active on this battle winner.'
+            : 'A discount is already active on this battle winner.',
           [{ text: t('boost.done') || 'Done', onPress: () => navigateToClosetShopFront(navigation, { promotedItemId: winnerItem?.id }) }]
         );
         return;
       }
 
-      let promotionId = checkData?.promotionId || checkData?.id || checkData?._id;
+      let promotionId = null;
+      if (checkStatus === 'pending_payment' || checkStatus === 'pending') {
+        if (checkIsFreeShipping === isFreeShipping) {
+          promotionId = checkData?.promotionId || checkData?.id || checkData?._id;
+        }
+      }
 
       // 2. Create promotion intent if not already created
-      if (!promotionId || (checkStatus !== 'pending_payment' && checkStatus !== 'pending')) {
+      if (!promotionId) {
         const payload = isFreeShipping
           ? {
             packageId: resolvedPackageId,
@@ -1505,7 +1741,36 @@ export function PreviewPromotionScreen({ navigation, route }) {
       }
 
       if (isPaid) {
+        const promoDays = Number(currentPackage?.days || selectedPackage?.days) || 7;
+        const discountNum = Number(String(discount).replace(/[^0-9.]/g, '')) || 20;
+        const prevDiscount = route?.params?.activePromotionInfo?.discount || null;
+        const mergedDiscount = isFreeShipping ? prevDiscount : discountNum;
+        const mergedFreeShipping = isFreeShipping || Boolean(route?.params?.activePromotionInfo?.isFreeShipping);
+
+        await recordActivePromotion(winnerItem?.id, {
+          battleId,
+          discount: mergedDiscount,
+          isFreeShipping: mergedFreeShipping,
+          primaryBadge: mergedFreeShipping
+            ? (mergedDiscount ? `WINNER • ${mergedDiscount}% OFF + FREE SHIP` : 'BATTLE WINNER - FREE SHIP')
+            : `BATTLE WINNER ${mergedDiscount}% OFF`,
+          priorityTier: 1,
+          isPinnedOnTop: true,
+          promotionType: mergedFreeShipping ? 'free_shipping' : 'discount',
+          days: promoDays,
+        });
+
         Alert.alert(t('promotion.liveTitle'), t('promotion.liveMessage'), [
+          {
+            text: t('promotion.viewExplore') || 'View on Explore',
+            onPress: () => {
+              try {
+                navigation.navigate('Marketplace', { screen: 'MarketplaceHome', params: { refresh: true, promotedItemId: winnerItem?.id } });
+              } catch {
+                navigateToClosetShopFront(navigation, { promotedItemId: winnerItem?.id });
+              }
+            },
+          },
           { text: t('boost.done'), onPress: () => navigateToClosetShopFront(navigation, { promotedItemId: winnerItem?.id }) }
         ]);
       }
