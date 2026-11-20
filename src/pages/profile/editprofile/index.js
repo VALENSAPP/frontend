@@ -293,6 +293,10 @@ const ProfileEditScreen = () => {
 
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerTitle: t('profileEdit.title', 'Edit Profile'),
+      headerTitleStyle: { color: accent, fontWeight: '700' },
+      headerStyle: { backgroundColor: bgStyle?.backgroundColor || '#FAF7F0', elevation: 0, shadowOpacity: 0 },
+      headerTintColor: accent,
       headerLeft: () => (
         <TouchableOpacity
           onPress={handleBack}
@@ -318,7 +322,7 @@ const ProfileEditScreen = () => {
         </TouchableOpacity>
       ),
     });
-  }, [navigation, loading, isFormValid, handleSaveAll, returnTo, returnScreen, icon, accent, t]);
+  }, [navigation, loading, isFormValid, handleSaveAll, returnTo, returnScreen, icon, accent, t, bgStyle]);
 
   const handleBack = () => {
     if (returnTo === 'wallet' && returnScreen) {

@@ -25,6 +25,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToast } from 'react-native-toast-notifications';
 import { showToastMessage } from '../../components/displaytoastmessage';
 import { useAppTheme } from '../../theme/useApptheme';
+import { useBusinessProfileTheme } from '../../theme/useBusinessProfileTheme';
 import { useThemeContext } from '../../theme/ThemeContext';
 import { exploretBattle } from '../../services/battle';
 import BattleCard from '../../components/search/Battlecard';
@@ -122,10 +123,9 @@ const BoostedWinnerCard = ({ item, cardWidth, accent, border, onPress }) => {
 export default function BattleExplore({ onClose, profile }) {
   const navigation = useNavigation();
   const toast = useToast();
-  const themeProfile = String(profile || '').toLowerCase() === 'company' ? 'company' : undefined;
-  const { bgStyle, text, card, border, mutedText, icon, accent } = useAppTheme(themeProfile);
+  const { isBusinessProfile, bgStyle, text, card, border, mutedText, icon, accent } = useBusinessProfileTheme(profile);
   const { isDarkMode } = useThemeContext();
-  const labelColor = isDarkMode ? '#ffffff' : '#111827';
+  const labelColor = isDarkMode ? '#ffffff' : (isBusinessProfile ? '#CBA257' : '#111827');
   const inputSurface = isDarkMode ? 'rgba(255,255,255,0.08)' : card;
   const { t } = useLanguage();
   const cardWidth = Dimensions.get('window').width - 32;
@@ -429,53 +429,38 @@ export default function BattleExplore({ onClose, profile }) {
     <View style={[styles.container, bgStyle]}>
       <Pressable onPress={Keyboard.dismiss} style={StyleSheet.absoluteFill} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => onClose?.()} style={styles.backBtn}>
-          <Icon name="arrow-back" size={24} color={icon} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: labelColor }]}>
-          {t('battleExplore.headerTitle')}
-        </Text>
-        <View style={styles.backBtn} />
-      </View>
-
-      {/* Search */}
-      <View style={[styles.searchContainer, { backgroundColor: card, borderColor: border }]}>
-        <Icon name="search" size={20} color={mutedText} style={styles.searchIcon} />
-        <TextInput
-          style={[styles.searchInput, { color: labelColor }]}
-          placeholder={t('search.searchUsersPlaceholder', 'Search users...')}
-          placeholderTextColor={mutedText}
-          value={searchText}
-          onChangeText={handleSearch}
-          returnKeyType="search"
-          onSubmitEditing={Keyboard.dismiss}
-        />
-        {searchText.length > 0 && (
-          <TouchableOpacity
-            onPress={() => handleSearch('')}
-            style={styles.clearSearchBtn}>
-            <Icon name="close-circle" size={20} color={mutedText} />
+      {/* Top Search & Filter Bar matching Image 2 mockup */}
+      <View style={styles.topSearchRow}>
+        {!!onClose && (
+          <TouchableOpacity onPress={() => onClose?.()} style={styles.backBtnInline}>
+            <Icon name="arrow-back" size={24} color={icon} />
           </TouchableOpacity>
         )}
-      </View>
-
-      {/* Explore Banner & Filter row matching mockup */}
-      <View style={styles.exploreBannerRow}>
-        <View style={[styles.exploreBannerPill, { backgroundColor: accent }]}>
-          <Text style={styles.exploreBannerEmoji}>⚔️</Text>
-          <Text style={styles.exploreBannerText}>
-            {t('search.battleExplore', 'Battle Explore')}
-          </Text>
-          <Icon name="chevron-forward" size={16} color="#FFFFFF" style={{ marginLeft: 4 }} />
+        <View style={[styles.searchContainer, { backgroundColor: card, borderColor: border, flex: 1, marginBottom: 0 }]}>
+          <Icon name="search" size={20} color={mutedText} style={styles.searchIcon} />
+          <TextInput
+            style={[styles.searchInput, { color: labelColor }]}
+            placeholder={t('search.searchBattlesUsersPlaceholder', 'Search battles, users or businesses...')}
+            placeholderTextColor={mutedText}
+            value={searchText}
+            onChangeText={handleSearch}
+            returnKeyType="search"
+            onSubmitEditing={Keyboard.dismiss}
+          />
+          {searchText.length > 0 && (
+            <TouchableOpacity
+              onPress={() => handleSearch('')}
+              style={styles.clearSearchBtn}>
+              <Icon name="close-circle" size={18} color={mutedText} />
+            </TouchableOpacity>
+          )}
         </View>
 
         <TouchableOpacity
           style={[
-            styles.filterBtn,
+            styles.filterCircleBtn,
             {
-              backgroundColor: card,
+              backgroundColor: isBusinessProfile ? '#F5EEDD' : (isDarkMode ? '#241D30' : card),
               borderColor: border,
             },
           ]}
@@ -486,7 +471,7 @@ export default function BattleExplore({ onClose, profile }) {
           accessibilityRole="button"
           accessibilityLabel={t('search.filter', 'Filter')}
         >
-          <Icon name="options-outline" size={18} color={text} />
+          <Icon name="options-outline" size={20} color={isBusinessProfile ? '#8C6010' : accent} />
         </TouchableOpacity>
       </View>
 
@@ -524,6 +509,33 @@ export default function BattleExplore({ onClose, profile }) {
 }
 
 const styles = StyleSheet.create({
+  topSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: Platform.OS === 'android' ? 40 : 55,
+    marginBottom: 12,
+  },
+  backBtnInline: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterCircleBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+  },
+
   container: {
     flex: 1,
     paddingHorizontal: 16,

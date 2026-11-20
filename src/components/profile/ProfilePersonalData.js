@@ -308,8 +308,8 @@ const ProfilePersonData = ({
   const { bgStyle, textStyle, text, card, bg, icon, mutedText, accent, border, cardStyle } =
     useAppTheme(uiThemeType);
   const profileActionGradient = profileThemeIsCompany
-    ? [accent, accent]
-    : ['#513189bd', '#e54ba0'];
+    ? ['#CBA257', '#9E7429']
+    : ['#4A249D', '#402090'];
   const route = useRoute();
   const showIdentityVerified = isProfileFullyIdentityVerified(userData);
   const isSubscriptionActive = userData?.subscriptionStatus == 'ACTIVE';
@@ -1730,72 +1730,73 @@ const ProfilePersonData = ({
           {/* Valens Services Button */}
           <View style={[styles.tabContainer, { height: 48, marginBottom: 6 }]}>
             <TouchableOpacity
-              style={[
-                styles.servicesButton,
-                {
-                  backgroundColor: isDarkMode
-                    ? (profileThemeIsCompany ? '#1E1E1E' : '#241536')
-                    : '#FFFFFF',
-                  borderColor: profileThemeIsCompany
-                    ? accent
-                    : (isDarkMode ? '#7C3AED' : '#8B5CF6'),
-                  shadowColor: profileThemeIsCompany ? accent : '#5B21B6',
-                },
-              ]}
+              style={[styles.battleBtnWrapper, { backgroundColor: accent, borderColor: accent }]}
               onPress={handleServicesPress}
-              activeOpacity={0.75}
+              activeOpacity={0.85}
             >
-              <View style={styles.servicesBtnInner}>
-                <Ionicons
-                  name="briefcase-outline"
-                  size={18}
-                  color={
-                    profileThemeIsCompany
-                      ? accent
-                      : (isDarkMode ? '#C4B5FD' : '#5B21B6')
-                  }
-                  style={{ marginRight: 8 }}
-                />
-                <Text
-                  style={[
-                    styles.servicesBtnText,
-                    {
-                      color: profileThemeIsCompany
-                        ? accent
-                        : (isDarkMode ? '#EDE9FE' : '#4C1D95'),
-                    },
-                  ]}
-                >
-                  {t('profilePersonData.services', 'Serviços')}
-                </Text>
-              </View>
+              <LinearGradient
+                colors={profileActionGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.battleBtn}
+              >
+                <View style={styles.servicesBtnInner}>
+                  <Ionicons
+                    name="briefcase-outline"
+                    size={18}
+                    color="#FFFFFF"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text
+                    style={[
+                      styles.servicesBtnText,
+                      {
+                        color: '#FFFFFF',
+                      },
+                    ]}
+                  >
+                    {t('profilePersonData.services', 'Serviços')}
+                  </Text>
+                </View>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
 
-          {/* Battle LIVE — shown above Open Battle when a battle is active */}
-          <View style={[styles.tabContainer, { marginBottom: -8, height: 50 }]}>
+          {/* Battle LIVE Button */}
+          <View style={[styles.tabContainer, { height: 48, marginBottom: 6 }]}>
             <TouchableOpacity
-              style={[styles.tab, { backgroundColor: accent, borderColor: accent }]}
+              style={[styles.battleBtnWrapper, { backgroundColor: accent, borderColor: accent }]}
               onPress={handleBattleTabPress}
+              activeOpacity={0.85}
             >
-              <View style={styles.tabContentRow}>
-                <Text style={[styles.tabText, styles.activeTabText, { color: '#fff' }]}>
-                  {t('profilePersonData.battle')}
-                </Text>
-                {hasLiveBattle && (
+              <LinearGradient
+                colors={profileActionGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.battleBtn}
+              >
+                <View style={styles.battleBtnInner}>
+                  <Text style={styles.battleBtnText}>
+                    {t('profilePersonData.battle', 'Battle') || 'Battle'}
+                  </Text>
                   <View style={styles.liveBadge}>
                     <Animated.View
-                      style={[styles.liveBadgeDot, { opacity: battleStatusPulseAnim }]}
+                      style={[
+                        styles.liveBadgeDot,
+                        { opacity: hasLiveBattle ? battleStatusPulseAnim : 1 },
+                      ]}
                     />
-                    <Text style={styles.liveBadgeText}>{t('profilePersonData.live')}</Text>
+                    <Text style={styles.liveBadgeText}>
+                      {t('profilePersonData.live', 'LIVE') || 'LIVE'}
+                    </Text>
                   </View>
-                )}
-              </View>
+                </View>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
 
           {/* Open Battle / Invite to Battle */}
-          <View style={[styles.tabContainer, { height: 50 }]}>
+          <View style={[styles.tabContainer, { height: 48, marginBottom: 6 }]}>
             {fromUsersProfile ? (
               <TouchableOpacity
                 style={[styles.battleBtnWrapper, { backgroundColor: accent, borderColor: accent }]}
@@ -2371,9 +2372,10 @@ const styles = StyleSheet.create({
   },
 
   battleBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.2,
     ...Platform.select({
       ios: {
         lineHeight: 18,
@@ -2394,6 +2396,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
+  },
+  battleBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   servicesBtnInner: {
     flexDirection: 'row',
@@ -2436,6 +2443,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 2,
+    marginLeft: 8,
   },
   liveBadgeDot: {
     width: 7,

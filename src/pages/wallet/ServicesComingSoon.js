@@ -18,7 +18,8 @@ import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Svg, { Ellipse, Path } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { getServicesSettingsDraft } from '../../services/servicesSettings';
 import { useToast } from 'react-native-toast-notifications';
 import { useSelector } from 'react-redux';
 import { useLanguage } from '../../i18n';
@@ -122,6 +123,24 @@ export default function ServicesComingSoon() {
   const [currentStep, setCurrentStep] = useState(isDirectSetup ? 1 : 0);
   const [mainTab, setMainTab] = useState(route?.params?.initialTab || 'services'); // 'services' | 'manage'
   const [activeFlow, setActiveFlow] = useState(null); // 'consultation' | 'appointment' | 'event' | 'monthly_package' | null
+  const [servicesInfo, setServicesInfo] = useState(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isMounted = true;
+      (async () => {
+        try {
+          const draft = await getServicesSettingsDraft();
+          if (isMounted && draft && (draft.title || draft.name || draft.whoAreYou || draft.servicePicture || draft.location)) {
+            setServicesInfo(draft);
+          }
+        } catch (_e) {}
+      })();
+      return () => {
+        isMounted = false;
+      };
+    }, [])
+  );
 
   // Form State
   const [selectedServiceType, setSelectedServiceType] = useState('mentorship');
@@ -157,34 +176,34 @@ export default function ServicesComingSoon() {
           wave: '#8C6D37',
           wave2: '#5C441D',
           headerIcon: '#FDF7EB',
-          accent: '#C9A15A',
+          accent: '#CBA257',
           accentDark: '#A88038',
-          btnGradient: ['#B8923E', '#C9A15A', '#DFBA74'],
-          pillBg: 'rgba(201, 161, 90, 0.22)',
+          btnGradient: ['#CBA257', '#CBA257'],
+          pillBg: 'rgba(203, 162, 87, 0.22)',
           inputBg: '#1F1A13',
           divider: '#3D3220',
           isBusiness: true,
         }
         : {
-          bg: ['#FCFBFA', '#FBF6ED', '#F5ECE0'],
+          bg: ['#FAF7F0', '#FAF7F0', '#FAF7F0'],
           surface: '#FFFFFF',
           card: '#FFFFFF',
-          cardBorder: '#F0E2C8',
-          cardInner: '#FCF8F2',
-          launch: '#F8EEDD',
-          title: '#4A3B18',
+          cardBorder: '#E8D9BD',
+          cardInner: '#FAF7F0',
+          launch: '#FAF7F0',
+          title: '#CBA257',
           body: '#6E5D34',
           muted: '#8C7A55',
           iconBg: '#FAF1E2',
-          wave: '#ECD9B7',
+          wave: '#E8D9BD',
           wave2: '#DFC496',
-          headerIcon: '#4A3B18',
-          accent: '#C9A15A',
+          headerIcon: '#CBA257',
+          accent: '#CBA257',
           accentDark: '#A88038',
-          btnGradient: ['#B8923E', '#C9A15A', '#DFBA74'],
-          pillBg: 'rgba(201, 161, 90, 0.12)',
+          btnGradient: ['#CBA257', '#CBA257'],
+          pillBg: 'rgba(203, 162, 87, 0.12)',
           inputBg: '#FFFFFF',
-          divider: '#F0E2C8',
+          divider: '#E8D9BD',
           isBusiness: true,
         };
     }
@@ -200,37 +219,37 @@ export default function ServicesComingSoon() {
         body: '#C4B5D6',
         muted: '#A78BBE',
         iconBg: '#3B2760',
-        wave: '#4C1D95',
+        wave: '#402090',
         wave2: '#2E1064',
         headerIcon: '#EDE4FF',
-        accent: '#8B5CF6',
-        accentDark: '#6D28D9',
-        btnGradient: ['#7C3AED', '#A855F7', '#C026D3'],
-        pillBg: 'rgba(139, 92, 246, 0.2)',
+        accent: '#402090',
+        accentDark: '#311870',
+        btnGradient: ['#402090', '#5A2D82'],
+        pillBg: 'rgba(64, 32, 144, 0.2)',
         inputBg: '#1E1430',
         divider: '#362354',
         isBusiness: false,
       }
       : {
-        bg: ['#FBFAFF', '#F4ECFF', '#EDE4FE'],
+        bg: ['#FAF5FE', '#FAF5FE', '#FAF5FE'],
         surface: '#FFFFFF',
         card: '#FFFFFF',
-        cardBorder: '#E9D7FD',
-        cardInner: '#F8F3FF',
-        launch: '#F3EAFF',
-        title: '#2A1258',
+        cardBorder: '#EAE4F5',
+        cardInner: '#F8F4FD',
+        launch: '#FAF5FE',
+        title: '#402090',
         body: '#5B4A7A',
-        muted: '#7A6A94',
-        iconBg: '#EFE6FF',
-        wave: '#D8C4F6',
-        wave2: '#C4A7F0',
-        headerIcon: '#2A1258',
-        accent: '#7C3AED',
-        accentDark: '#5B21B6',
-        btnGradient: ['#6D28D9', '#9333EA', '#C026D3'],
-        pillBg: 'rgba(124, 58, 237, 0.08)',
+        muted: '#7A7289',
+        iconBg: '#F3ECFA',
+        wave: '#E0D4F5',
+        wave2: '#D0BFF0',
+        headerIcon: '#402090',
+        accent: '#402090',
+        accentDark: '#311870',
+        btnGradient: ['#402090', '#402090'],
+        pillBg: 'rgba(64, 32, 144, 0.08)',
         inputBg: '#FFFFFF',
-        divider: '#EBDCFD',
+        divider: '#EAE4F5',
         isBusiness: false,
       };
   }, [isDarkMode, isBusiness]);
@@ -668,6 +687,74 @@ export default function ServicesComingSoon() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.content}
             >
+              {/* Services Profile & Title Banner from Services Settings */}
+              {servicesInfo ? (
+                <View style={[styles.servicesProfileBannerCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+                  <View style={styles.servicesProfileTopRow}>
+                    <Image
+                      source={{
+                        uri: servicesInfo.servicePicture?.uri ||
+                          (typeof servicesInfo.servicePicture === 'string' ? servicesInfo.servicePicture : null) ||
+                          userProfilePic ||
+                          'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+                      }}
+                      style={styles.servicesProfileAvatar}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.servicesProfileInfoCol}>
+                      <View style={styles.servicesProfileNameRow}>
+                        <Text style={[styles.servicesProfileName, { color: colors.title }]}>
+                          {servicesInfo.name || t('servicesSettings.defaultName', 'Your Name')}
+                        </Text>
+                        <Ionicons name="checkmark-circle" size={16} color="#3B82F6" style={{ marginLeft: 4 }} />
+                      </View>
+                      <Text style={[styles.servicesProfileTitle, { color: colors.accent }]}>
+                        {servicesInfo.title || t('servicesSettings.defaultTitle', 'Professional Services')}
+                      </Text>
+                      {servicesInfo.location ? (
+                        <View style={styles.servicesProfileLocationRow}>
+                          <Ionicons name="location-sharp" size={12} color={colors.muted} />
+                          <Text style={[styles.servicesProfileLocationText, { color: colors.muted }]}>
+                            {servicesInfo.location}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('ServicesSettings')}
+                      style={[styles.editServicesBtn, { borderColor: colors.cardBorder }]}
+                    >
+                      <Ionicons name="create-outline" size={18} color={colors.accent} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {(servicesInfo.whoAreYou || servicesInfo.aboutServices) ? (
+                    <Text style={[styles.servicesProfileBio, { color: colors.body }]} numberOfLines={3}>
+                      {servicesInfo.whoAreYou || servicesInfo.aboutServices}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('ServicesSettings')}
+                  activeOpacity={0.85}
+                  style={[styles.servicesSetupPromptCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+                >
+                  <View style={[styles.servicesSetupPromptIcon, { backgroundColor: colors.pillBg }]}>
+                    <Ionicons name="briefcase" size={20} color={colors.accent} />
+                  </View>
+                  <View style={{ flex: 1, marginHorizontal: 12 }}>
+                    <Text style={[styles.servicesSetupPromptTitle, { color: colors.title }]}>
+                      {t('servicesSettings.setupTitle', 'Set Up Your Services Title & Profile')}
+                    </Text>
+                    <Text style={[styles.servicesSetupPromptSub, { color: colors.muted }]}>
+                      {t('servicesSettings.setupSubtitle', 'Add your title, bio & photo so clients know what you offer')}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.accent} />
+                </TouchableOpacity>
+              )}
+
               {/* Shortcut Banner to Manage Services */}
               <TouchableOpacity
                 onPress={() => setMainTab('manage')}
@@ -697,7 +784,7 @@ export default function ServicesComingSoon() {
                     <Text
                       style={[
                         styles.heroTitleHighlight,
-                        { color: isBusiness ? colors.accent : '#C026D3' },
+                        { color: colors.accent },
                       ]}
                     >
                       {line2}
@@ -718,22 +805,22 @@ export default function ServicesComingSoon() {
                   <Sparkle
                     style={styles.heroSparkleTop}
                     size={13}
-                    color={isBusiness ? '#E8D49E' : '#C4B5FD'}
+                    color={isBusiness ? '#E8D9BD' : '#BFA6F5'}
                   />
 
                   <View style={styles.bagWrap}>
                     <View
                       style={[
                         styles.bagHandle,
-                        { borderColor: isBusiness ? '#DFBA74' : '#A78BFA' },
+                        { borderColor: isBusiness ? '#CBA257' : '#402090' },
                       ]}
                     />
 
                     <LinearGradient
                       colors={
                         isBusiness
-                          ? ['#F5E6C8', '#DFBA74', '#C9A15A']
-                          : ['#DDD6FE', '#A78BFA', '#7C3AED']
+                          ? ['#F5E6C8', '#E8D9BD', '#CBA257']
+                          : ['#E6DAFC', '#BFA6F5', '#402090']
                       }
                       start={{ x: 0.15, y: 0 }}
                       end={{ x: 0.9, y: 1 }}
@@ -774,7 +861,7 @@ export default function ServicesComingSoon() {
                   <Sparkle
                     style={styles.heroSparkleBottom}
                     size={12}
-                    color={isBusiness ? '#DFBA74' : '#E879F9'}
+                    color={colors.accent}
                   />
                 </View>
               </View>
@@ -1717,8 +1804,8 @@ export default function ServicesComingSoon() {
                 <Ionicons name="checkmark" size={44} color="#FFFFFF" />
               </LinearGradient>
               <Ionicons name="star" size={14} color={isBusiness ? '#F3E2B8' : '#C084FC'} style={{ position: 'absolute', top: 4, left: 24 }} />
-              <Ionicons name="sparkles" size={18} color={isBusiness ? '#DFBA74' : '#E879F9'} style={{ position: 'absolute', top: 10, right: 28 }} />
-              <Ionicons name="ellipse" size={8} color={isBusiness ? '#C9A15A' : '#A855F7'} style={{ position: 'absolute', bottom: 12, left: 16 }} />
+              <Ionicons name="sparkles" size={18} color={colors.accent} style={{ position: 'absolute', top: 10, right: 28 }} />
+              <Ionicons name="ellipse" size={8} color={colors.accent} style={{ position: 'absolute', bottom: 12, left: 16 }} />
               <Ionicons name="sparkles" size={14} color={isBusiness ? '#F3E2B8' : '#C4B5FD'} style={{ position: 'absolute', bottom: 16, right: 20 }} />
             </View>
 
@@ -1915,7 +2002,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   heroTitleHighlight: {
-    color: '#C026D3',
+    color: '#402090',
     fontWeight: '800',
   },
   heroSubtitleText: {
@@ -2002,7 +2089,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#6D28D9',
+    shadowColor: '#402090',
     shadowOpacity: 0.12,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -2017,7 +2104,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginTop: 18,
     marginBottom: 8,
-    shadowColor: '#7C3AED',
+    shadowColor: '#402090',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.28,
     shadowRadius: 8,
@@ -2086,7 +2173,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
-    shadowColor: '#7C3AED',
+    shadowColor: '#402090',
     shadowOpacity: 0.08,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -2107,7 +2194,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    shadowColor: '#7C3AED',
+    shadowColor: '#402090',
     shadowOpacity: 0.06,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -2317,7 +2404,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   formatToggleActive: {
-    shadowColor: '#6D28D9',
+    shadowColor: '#402090',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -2587,7 +2674,7 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#7C3AED',
+    shadowColor: '#402090',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
@@ -2740,6 +2827,91 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   manageBannerSub: {
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  servicesProfileBannerCard: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  servicesProfileTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  servicesProfileAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+  },
+  servicesProfileInfoCol: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  servicesProfileNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  servicesProfileName: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  servicesProfileTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  servicesProfileLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 3,
+  },
+  servicesProfileLocationText: {
+    fontSize: 11.5,
+    marginLeft: 3,
+  },
+  servicesProfileBio: {
+    fontSize: 12,
+    lineHeight: 16.5,
+    marginTop: 10,
+  },
+  editServicesBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  servicesSetupPromptCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 14,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  servicesSetupPromptIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  servicesSetupPromptTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  servicesSetupPromptSub: {
     fontSize: 11.5,
     marginTop: 2,
   },
