@@ -40,8 +40,8 @@ export const PERSONAL_THEME = Object.freeze({
   // Required Color Tokens
   primary: '#402090',
   secondary: '#6B46C1',
-  background: '#FAF7FD',
-  screenBackground: '#FAF7FD',
+  background: '#FAF5FE',
+  screenBackground: '#FAF5FE',
   cardBackground: '#FFFFFF',
   borderColor: '#EAE4F5',
   textPrimary: '#402090',
@@ -53,7 +53,7 @@ export const PERSONAL_THEME = Object.freeze({
   inactiveColor: '#A59DB5',
 
   // Semantic & Backwards-Compatibility Aliases
-  bg: '#FAF7FD',
+  bg: '#FAF5FE',
   text: '#402090',
   card: '#FFFFFF',
   border: '#EAE4F5',

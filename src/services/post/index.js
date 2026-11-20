@@ -438,7 +438,7 @@ export async function postDralensReply({
   }
 
   try {
-
+    console.log('[AI Comment Reply] Calling API:', `${AI_API_URL}/ai-comment-reply`);
     const response = await axiosInstance.post(
       `${AI_API_URL}/ai-comment-reply`,
       formData,
@@ -446,12 +446,14 @@ export async function postDralensReply({
         timeout: 60000,
       }
     );
-
+    console.log('[AI Comment Reply] Raw API Response:', response);
+    console.log('[AI Comment Reply] Full Response Body:', JSON.stringify(response, null, 2));
+    console.log('[AI Comment Reply] Extracted reply_text:', (response?.data?.reply_text || response?.reply_text));
 
     return response;
 
   } catch (error) {
-
+    console.warn('[AI Comment Reply] API Error:', error?.response?.data || error?.message || error);
     throw error;
   } finally {
     if (tempDownloadedFilePath) {
