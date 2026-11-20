@@ -251,6 +251,9 @@ export default function BattleExplore({ onClose, profile }) {
       params: {
         userId: String(targetId),
         username: user?.userName || user?.username || '',
+        user,
+        userData: user,
+        profileType: user?.profile || user?.profileType,
         returnTo: 'Search',
       },
     });

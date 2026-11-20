@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
+  Modal,
   Platform,
   ScrollView,
   Share,
@@ -26,7 +27,7 @@ import { useThemeContext } from '../../theme/ThemeContext';
 import { showToastMessage } from '../../components/displaytoastmessage';
 import { normalizeProfileType } from '../../utils/supportEligibility';
 import RegularSubscriptionPrompt from '../../components/modals/RegularSubscriptionPrompt';
-import { saveService } from './services/servicesStorage';
+import { saveService, getStoredServices } from './services/servicesStorage';
 import ManageServicesView from './services/ManageServicesView';
 import ConsultationFlow from './services/ConsultationFlow';
 import AppointmentFlow from './services/AppointmentFlow';
@@ -36,6 +37,90 @@ import MonthlyPackageFlow from './services/MonthlyPackageFlow';
 const NOTIFY_KEY = 'servicesComingSoonNotifyMe';
 const HERO_FLY = require('../../assets/icons/pngicons/welcome.png');
 const HERO_FLY_BUSINESS = require('../../assets/icons/pngicons/Golden_Bee_Masco.png');
+
+const MOCKUP_PRO_SERVICES = [
+  {
+    id: 'mock_pro_1',
+    title: '1:1 Mentorship Pack',
+    price: '$199.00 / month',
+    status: 'Active',
+    clientsCount: '48 Clients',
+    image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&q=80',
+  },
+  {
+    id: 'mock_pro_2',
+    title: 'Beauty Set',
+    price: '$129.00 / month',
+    status: 'Active',
+    clientsCount: '36 Clients',
+    image: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&q=80',
+  },
+  {
+    id: 'mock_pro_3',
+    title: 'Business Coaching',
+    price: '$249.00 / month',
+    status: 'Active',
+    clientsCount: '21 Clients',
+    image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&q=80',
+  },
+];
+
+const MOCKUP_CLIENT_PACKAGES = [
+  {
+    id: 'mock_client_pkg_1',
+    title: '1:1 Mentorship Pack',
+    price: '$199.00 / month',
+    status: 'Active',
+    renewsText: 'Renews on Jun 24, 2024',
+    image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&q=80',
+  },
+  {
+    id: 'mock_client_pkg_2',
+    title: 'Beauty Set',
+    price: '$129.00 / month',
+    status: 'Active',
+    renewsText: 'Renews on Jun 30, 2024',
+    image: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&q=80',
+  },
+];
+
+const MOCKUP_UPCOMING_SESSIONS = [
+  {
+    id: 'mock_session_1',
+    month: 'MAY',
+    day: '24',
+    title: '1:1 Mentorship Session',
+    time: 'Today • 10:00 AM – 11:00 AM',
+    provider: 'with Graziela Barrette',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80',
+  },
+  {
+    id: 'mock_session_2',
+    month: 'MAY',
+    day: '27',
+    title: 'Beauty Set – Nails',
+    time: 'Mon • 2:00 PM – 3:00 PM',
+    provider: 'with Studio Glam',
+    icon: 'sparkles',
+  },
+];
+
+const MOCKUP_RECOMMENDED = [
+  {
+    id: 'mock_rec_1',
+    title: 'Business Coaching',
+    price: '$249 / session',
+    rating: '4.9 (63)',
+    image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&q=80',
+  },
+  {
+    id: 'mock_rec_2',
+    title: 'Personal Styling Session',
+    price: '$159 / session',
+    rating: '4.8 (42)',
+    image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400&q=80',
+  },
+];
 
 const OFFERINGS = [
   { key: 'mentorships', icon: 'school-outline' },
@@ -120,8 +205,28 @@ export default function ServicesComingSoon() {
   // Setup Flow Steps: 0 = Original Landing, 1 = Choose Type, 2 = Program Details, 3 = Service Details, 4 = Availability, 5 = Review, 6 = Live / All Set
   const isDirectSetup = route.name === 'ServiceSetup' || Boolean(route?.params?.startSetup);
   const [currentStep, setCurrentStep] = useState(isDirectSetup ? 1 : 0);
+  const [roleMode, setRoleMode] = useState(
+    route?.params?.initialSide === 'client' || route?.params?.initialRole === 'client'
+      ? 'client'
+      : 'professional',
+  );
   const [mainTab, setMainTab] = useState(route?.params?.initialTab || 'services'); // 'services' | 'manage'
   const [activeFlow, setActiveFlow] = useState(null); // 'consultation' | 'appointment' | 'event' | 'monthly_package' | null
+  const [storedServices, setStoredServices] = useState([]);
+  const [selectedServiceAction, setSelectedServiceAction] = useState(null);
+  const [overviewMonthDropdown, setOverviewMonthDropdown] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState('This Month');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const list = await getStoredServices();
+        if (Array.isArray(list) && list.length > 0) {
+          setStoredServices(list);
+        }
+      } catch (_) {}
+    })();
+  }, [currentStep, activeFlow]);
 
   // Form State
   const [selectedServiceType, setSelectedServiceType] = useState('mentorship');
@@ -559,318 +664,635 @@ export default function ServicesComingSoon() {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // STEP 0: ACTIVATE SERVICES HERO SCREEN & MANAGE SERVICES
+  // STEP 0: SERVICES DASHBOARD (PROFESSIONAL & CLIENT MOCKUP VIEWS)
   // ─────────────────────────────────────────────────────────────────────────────
   if (currentStep === 0) {
-    const rawTitle = t('serviceActivation.heroTitle', 'Activate\nYour Services\nNow');
-    const titleLines = String(rawTitle).split('\n');
-    const line1 = titleLines[0] || 'Activate';
-    const line2 = titleLines[1] || 'Your Services';
-    const line3 = titleLines[2] || 'Now';
+    const displayedProServices =
+      storedServices.length > 0
+        ? [
+            ...storedServices.map(s => ({
+              id: s.id || `stored_${Date.now()}`,
+              title: s.title || s.type || 'Custom Service',
+              price: s.price ? `$${s.price} / month` : '$199.00 / month',
+              status: 'Active',
+              clientsCount: '1 Client',
+              image:
+                s.image ||
+                userProfilePic ||
+                'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&q=80',
+            })),
+            ...MOCKUP_PRO_SERVICES,
+          ]
+        : MOCKUP_PRO_SERVICES;
 
     return (
       <LinearGradient colors={colors.bg} style={styles.flex}>
         <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
-          {/* Header */}
-          <View style={styles.header}>
+          {/* Header matching Mockup: Left brand icon + VALENS, Center Services, Right Bell + Chat */}
+          <View style={styles.mockupHeader}>
             <TouchableOpacity
               onPress={() => navigation.goBack()}
-              style={[styles.headerBtn, { backgroundColor: colors.surface }]}
+              activeOpacity={0.7}
+              style={styles.mockupHeaderLeft}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="chevron-back" size={22} color={colors.headerIcon} />
+              <Ionicons name="chevron-back" size={22} color={colors.title} style={{ marginRight: 6 }} />
+              <View style={styles.brandIconBox}>
+                <Ionicons name="checkmark-done" size={14} color="#FFFFFF" />
+              </View>
+              <Text style={styles.brandTitleText}>VALENS</Text>
             </TouchableOpacity>
 
-            <View style={styles.headerCenterTitleWrap}>
-              <Ionicons name="briefcase-outline" size={19} color={colors.accent} style={{ marginRight: 7 }} />
-              <Text style={[styles.headerCenterTitle, { color: colors.title }]}>
-                {t('valensServices.comingSoon', 'Services')}
-              </Text>
+            <Text style={[styles.mockupHeaderCenterTitle, { color: colors.title }]}>
+              {t('valensServices.comingSoon', 'Services')}
+            </Text>
+
+            <View style={styles.mockupHeaderRight}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Notification')}
+                activeOpacity={0.7}
+                style={styles.mockupHeaderIconBtn}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Ionicons name="notifications-outline" size={22} color={colors.title} />
+                <View style={styles.headerBadgeDot}>
+                  <Text style={styles.headerBadgeText}>6</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Chat')}
+                activeOpacity={0.7}
+                style={styles.mockupHeaderIconBtn}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Ionicons name="chatbubble-outline" size={21} color={colors.title} />
+              </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-              onPress={handleInfo}
-              style={[styles.headerBtn, { backgroundColor: colors.surface }]}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name="information-circle-outline"
-                size={22}
-                color={colors.headerIcon}
-              />
-            </TouchableOpacity>
           </View>
 
-          {/* MAIN TABS: Services | Manage Services */}
-          <View style={[styles.mainTopTabBar, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          {/* Segmented Role Switcher: [ I'm Professional ] | [ I'm Client ] */}
+          <View style={[styles.roleSwitcherContainer, { backgroundColor: isDarkMode ? '#1F1A2E' : '#F1EBFB', borderColor: isDarkMode ? '#3B3355' : '#E4DCF5' }]}>
             <TouchableOpacity
-              onPress={() => setMainTab('services')}
-              activeOpacity={0.8}
+              onPress={() => setRoleMode('professional')}
+              activeOpacity={0.85}
               style={[
-                styles.mainTopTabBtn,
-                mainTab === 'services' && { backgroundColor: colors.accent },
+                styles.roleSwitcherBtn,
+                roleMode === 'professional' && styles.roleSwitcherBtnActive,
               ]}
             >
-              <Ionicons
-                name="briefcase-outline"
-                size={16}
-                color={mainTab === 'services' ? '#FFFFFF' : colors.muted}
-                style={{ marginRight: 6 }}
-              />
               <Text
                 style={[
-                  styles.mainTopTabText,
-                  { color: mainTab === 'services' ? '#FFFFFF' : colors.muted, fontWeight: '700' },
+                  styles.roleSwitcherText,
+                  roleMode === 'professional'
+                    ? styles.roleSwitcherTextActive
+                    : { color: isDarkMode ? '#9CA3AF' : '#6B7280' },
                 ]}
               >
-                {t('serviceActivation.header', 'Services')}
+                {t('services.imProfessional', "I'm Professional")}
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => setMainTab('manage')}
-              activeOpacity={0.8}
+              onPress={() => setRoleMode('client')}
+              activeOpacity={0.85}
               style={[
-                styles.mainTopTabBtn,
-                mainTab === 'manage' && { backgroundColor: colors.accent },
+                styles.roleSwitcherBtn,
+                roleMode === 'client' && styles.roleSwitcherBtnActive,
               ]}
             >
-              <Ionicons
-                name="layers-outline"
-                size={16}
-                color={mainTab === 'manage' ? '#FFFFFF' : colors.muted}
-                style={{ marginRight: 6 }}
-              />
               <Text
                 style={[
-                  styles.mainTopTabText,
-                  { color: mainTab === 'manage' ? '#FFFFFF' : colors.muted, fontWeight: '700' },
+                  styles.roleSwitcherText,
+                  roleMode === 'client'
+                    ? styles.roleSwitcherTextActive
+                    : { color: isDarkMode ? '#9CA3AF' : '#6B7280' },
                 ]}
               >
-                {t('manageServices.tabTitle', 'Manage Services')}
+                {t('services.imClient', "I'm Client")}
               </Text>
             </TouchableOpacity>
           </View>
 
-          {mainTab === 'manage' ? (
-            <ManageServicesView
-              colors={colors}
-              isDarkMode={isDarkMode}
-              t={t}
-              onAddNewService={() => {
-                setMainTab('services');
-                handleActivateServicesPress();
-              }}
-              userProfilePic={userProfilePic}
-            />
-          ) : (
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.content}
-            >
-              {/* Shortcut Banner to Manage Services */}
-              <TouchableOpacity
-                onPress={() => setMainTab('manage')}
-                activeOpacity={0.85}
-                style={[styles.manageServicesBanner, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
-              >
-                <View style={[styles.manageIconCircle, { backgroundColor: colors.iconBg }]}>
-                  <Ionicons name="layers" size={20} color={colors.accent} />
-                </View>
-                <View style={{ flex: 1, marginHorizontal: 12 }}>
-                  <Text style={[styles.manageBannerTitle, { color: colors.title }]}>
-                    Manage Services
-                  </Text>
-                  <Text style={[styles.manageBannerSub, { color: colors.muted }]}>
-                    Duo Side: Me as a Professional & Me as a Client
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.accent} />
-              </TouchableOpacity>
-              {/* Hero Row: Left (Headline & Subtitle), Right (3D Bag Art + Vertical Floating Cards) */}
-
-              <View style={styles.heroRow}>
-                <View style={styles.heroCopy}>
-                  <Text style={[styles.heroTitleMain, { color: colors.title }]}>
-                    {line1}
-                    {'\n'}
-                    <Text
-                      style={[
-                        styles.heroTitleHighlight,
-                        { color: isBusiness ? colors.accent : '#C026D3' },
-                      ]}
-                    >
-                      {line2}
-                    </Text>
-                    {line3 ? `\n${line3}` : ''}
-                  </Text>
-                </View>
-
-                <View
-                  style={[
-                    styles.heroArt,
-                    {
-                      width: Math.round(154 * scale),
-                      height: Math.round(186 * scale),
-                    },
-                  ]}
-                >
-                  <Sparkle
-                    style={styles.heroSparkleTop}
-                    size={13}
-                    color={isBusiness ? '#E8D49E' : '#C4B5FD'}
-                  />
-
-                  <View style={styles.bagWrap}>
-                    <View
-                      style={[
-                        styles.bagHandle,
-                        { borderColor: isBusiness ? '#DFBA74' : '#A78BFA' },
-                      ]}
-                    />
-
+          {/* MAIN SCROLLABLE CONTENT */}
+          <ScrollView
+            style={styles.flex}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.mockupScrollContent}
+          >
+            {roleMode === 'professional' ? (
+              /* ═══════════════════════════════════════════════════════════
+                 PROFESSIONAL VIEW
+                 ═══════════════════════════════════════════════════════════ */
+              <>
+                {/* Professional Dashboard Card */}
+                <View style={styles.proDashboardCardWrapper}>
+                  <View style={styles.proDashboardCard}>
                     <LinearGradient
-                      colors={
-                        isBusiness
-                          ? ['#F5E6C8', '#DFBA74', '#C9A15A']
-                          : ['#DDD6FE', '#A78BFA', '#7C3AED']
-                      }
-                      start={{ x: 0.15, y: 0 }}
-                      end={{ x: 0.9, y: 1 }}
-                      style={[
-                        styles.bag,
-                        {
-                          width: Math.round(92 * scale),
-                          height: Math.round(100 * scale),
-                        },
-                      ]}
-                    >
-                      <View style={styles.bagFlap} />
-                      <View style={styles.bagShine} />
-                      <Image
-                        source={isBusiness ? HERO_FLY_BUSINESS : HERO_FLY}
-                        style={styles.bagFly}
-                        resizeMode="contain"
-                      />
-                    </LinearGradient>
-                  </View>
-
-                  {VERTICAL_HERO_CARDS.map(c => (
-                    <View
-                      key={c.icon}
-                      style={[
-                        styles.verticalHeroCard,
-                        {
-                          top: Math.round(c.top * scale),
-                          backgroundColor: colors.surface,
-                          shadowColor: colors.accent,
-                        },
-                      ]}
-                    >
-                      <Ionicons name={c.icon} size={18} color={colors.accent} />
-                    </View>
-                  ))}
-
-                  <Sparkle
-                    style={styles.heroSparkleBottom}
-                    size={12}
-                    color={isBusiness ? '#DFBA74' : '#E879F9'}
-                  />
-                </View>
-              </View>
-
-              {/* Full-width subtitle */}
-              <Text style={[styles.heroSubtitleText, { color: colors.body }]}>
-                {t(
-                  'serviceActivation.heroSubtitle',
-                  'Start selling your services on Valens. Offer mentorships, consultations, appointments, events, and monthly packages directly from your profile.',
-                )}
-              </Text>
-
-
-              {/* Activate Services Button with Explicit Radius & Gradient */}
-              <TouchableOpacity
-                onPress={() => handleActivateServicesPress()}
-                activeOpacity={0.85}
-                style={[styles.activateBtnWrap, { shadowColor: colors.accent }]}
-              >
-                <LinearGradient
-                  colors={colors.btnGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[styles.activateBtn, { borderRadius: 18 }]}
-                >
-                  <Text style={styles.activateBtnText}>
-                    {t('serviceActivation.activateBtn', 'Activate Services')}
-                  </Text>
-                  <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 8 }} />
-                </LinearGradient>
-              </TouchableOpacity>
-
-              {/* Trust Badge: 100% secure • You're in control */}
-              <View style={styles.trustBadgeRow}>
-                <Ionicons name="lock-closed-outline" size={13} color={colors.muted} />
-                <Text style={[styles.trustBadgeText, { color: colors.muted }]}>
-                  {t('serviceActivation.secureNote', "100% secure • You're in control")}
-                </Text>
-              </View>
-
-              {/* Section Divider & Title: What you can sell */}
-              <View style={styles.sectionHeaderRow}>
-                <View style={[styles.sectionDividerLine, { backgroundColor: colors.divider }]} />
-                <Text style={[styles.sectionTitle, { color: colors.title }]}>
-                  {t('serviceActivation.whatYouCanSell', 'What you can sell')}
-                </Text>
-                <View style={[styles.sectionDividerLine, { backgroundColor: colors.divider }]} />
-              </View>
-
-              {/* 5 Offering Items */}
-              <View style={styles.offerRow}>
-                {OFFERINGS.map(item => {
-                  const itemWidth = Math.floor((width - 44) / OFFERINGS.length);
-                  const label = t(`servicesComingSoon.offer.${item.key}`);
-                  const numLines = label.includes(' ') ? 2 : 1;
-                  return (
-                    <TouchableOpacity
-                      key={item.key}
-                      onPress={() => handleActivateServicesPress(item.key)}
-                      activeOpacity={0.75}
-                      style={[styles.offerItem, { width: itemWidth, maxWidth: itemWidth }]}
-                    >
-                      <View style={[styles.offerIcon, { backgroundColor: colors.surface, shadowColor: colors.accent }]}>
-                        <Ionicons name={item.icon} size={22} color={colors.accent} />
+                      colors={['#5B21B6', '#7C3AED']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <View style={styles.proCardHeaderRow}>
+                      <Text style={styles.proCardTitle}>
+                        {t('services.proDashboard', 'Professional Dashboard')}
+                      </Text>
+                      <View style={styles.proBadgePill}>
+                        <Text style={styles.proBadgeText}>Pro</Text>
                       </View>
-                      <Text
-                        style={[styles.offerLabel, { color: colors.body }]}
-                        numberOfLines={numLines}
-                        adjustsFontSizeToFit
-                        minimumFontScale={0.65}
-                      >
-                        {label}
+                    </View>
+                    <Text style={styles.proCardSubtitle}>
+                      {t('services.proSubtitle', 'Manage your services, packages and clients.')}
+                    </Text>
+
+                    {/* 4 Stat Tiles Row */}
+                    <View style={styles.proStatTilesRow}>
+                      <View style={styles.proStatTile}>
+                        <Text style={styles.proStatValue}>12</Text>
+                        <Text style={styles.proStatLabel} numberOfLines={2}>
+                          {t('services.activeServices', 'Active Services')}
+                        </Text>
+                      </View>
+                      <View style={styles.proStatTile}>
+                        <Text style={styles.proStatValue}>248</Text>
+                        <Text style={styles.proStatLabel} numberOfLines={2}>
+                          {t('services.totalClients', 'Total Clients')}
+                        </Text>
+                      </View>
+                      <View style={styles.proStatTile}>
+                        <Text style={styles.proStatValue}>$8,450</Text>
+                        <Text style={styles.proStatLabel} numberOfLines={2}>
+                          {t('services.monthlyRevenue', 'Monthly Revenue')}
+                        </Text>
+                      </View>
+                      <View style={styles.proStatTile}>
+                        <Text style={styles.proStatValue}>32</Text>
+                        <Text style={styles.proStatLabel} numberOfLines={2}>
+                          {t('services.upcomingSessions', 'Upcoming Sessions')}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Create New Service or Package Button */}
+                    <TouchableOpacity
+                      onPress={handleActivateServicesPress}
+                      activeOpacity={0.85}
+                      style={styles.proCreateBtn}
+                    >
+                      <Ionicons name="add" size={19} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.proCreateBtnText}>
+                        {t('services.createNewService', 'Create New Service or Package')}
                       </Text>
                     </TouchableOpacity>
-                  );
-                })}
-              </View>
+                  </View>
+                </View>
 
-              {/* Built for creators and experts Card */}
-              <View style={[styles.builtCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder, shadowColor: colors.accent }]}>
-                <View style={[styles.shieldWrap, { backgroundColor: colors.iconBg }]}>
-                  <Ionicons name="shield-checkmark-outline" size={26} color={colors.accent} />
-                </View>
-                <View style={styles.builtCopy}>
-                  <Text style={[styles.builtTitle, { color: colors.title }]}>
-                    {t('serviceActivation.builtTitle', 'Built for creators and experts')}
+                {/* Overview Section */}
+                <View style={styles.mockupSectionHeaderRow}>
+                  <Text style={[styles.sectionHeading, { color: colors.title }]}>
+                    {t('services.overview', 'Overview')}
                   </Text>
-                  <Text style={[styles.builtBody, { color: colors.muted }]}>
-                    {t(
-                      'serviceActivation.builtDesc',
-                      'Grow your business, get paid securely, and build lasting relationships with your community.',
-                    )}
-                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setOverviewMonthDropdown(prev => !prev)}
+                    activeOpacity={0.7}
+                    style={styles.monthDropdownBtn}
+                  >
+                    <Text style={styles.monthDropdownText}>{selectedMonth}</Text>
+                    <Ionicons name="chevron-down" size={14} color="#7C3AED" style={{ marginLeft: 4 }} />
+                  </TouchableOpacity>
                 </View>
-              </View>
-            </ScrollView>
+
+                {/* 4 Metric Cards in 2x2 Grid */}
+                <View style={styles.proMetricCardsGrid}>
+                  {/* Revenue */}
+                  <View style={[styles.metricCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+                    <Text style={[styles.metricLabel, { color: colors.muted }]}>
+                      {t('services.revenue', 'Revenue')}
+                    </Text>
+                    <Text style={[styles.metricMainValue, { color: colors.title }]}>$8,450</Text>
+                    <View style={styles.metricTrendRow}>
+                      <Ionicons name="arrow-up" size={13} color="#10B981" />
+                      <Text style={styles.metricTrendGreen}>18% vs last month</Text>
+                    </View>
+                  </View>
+
+                  {/* New Clients */}
+                  <View style={[styles.metricCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+                    <Text style={[styles.metricLabel, { color: colors.muted }]}>
+                      {t('services.newClients', 'New Clients')}
+                    </Text>
+                    <Text style={[styles.metricMainValue, { color: colors.title }]}>28</Text>
+                    <View style={styles.metricTrendRow}>
+                      <Ionicons name="arrow-up" size={13} color="#10B981" />
+                      <Text style={styles.metricTrendGreen}>12% vs last month</Text>
+                    </View>
+                  </View>
+
+                  {/* Sessions */}
+                  <View style={[styles.metricCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+                    <Text style={[styles.metricLabel, { color: colors.muted }]}>
+                      {t('services.sessions', 'Sessions')}
+                    </Text>
+                    <Text style={[styles.metricMainValue, { color: colors.title }]}>32</Text>
+                    <View style={styles.metricTrendRow}>
+                      <Ionicons name="arrow-up" size={13} color="#10B981" />
+                      <Text style={styles.metricTrendGreen}>8% vs last month</Text>
+                    </View>
+                  </View>
+
+                  {/* Reviews */}
+                  <View style={[styles.metricCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+                    <Text style={[styles.metricLabel, { color: colors.muted }]}>
+                      {t('services.reviews', 'Reviews')}
+                    </Text>
+                    <Text style={[styles.metricMainValue, { color: colors.title }]}>4.9</Text>
+                    <View style={styles.metricTrendRow}>
+                      <Ionicons name="star" size={13} color="#F59E0B" />
+                      <Text style={styles.metricTrendAmber}>from 86 clients</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Your Services Section */}
+                <View style={styles.mockupSectionHeaderRow}>
+                  <Text style={[styles.sectionHeading, { color: colors.title }]}>
+                    {t('services.yourServices', 'Your Services')}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      showToastMessage('All 12 services loaded');
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.viewAllText}>{t('services.viewAll', 'View all')}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Services List */}
+                <View style={styles.servicesListWrap}>
+                  {displayedProServices.map((svc, idx) => (
+                    <View
+                      key={svc.id || idx}
+                      style={[
+                        styles.serviceItemCard,
+                        { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+                      ]}
+                    >
+                      <Image
+                        source={{ uri: svc.image }}
+                        style={styles.serviceItemThumbnail}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.serviceItemDetails}>
+                        <Text style={[styles.serviceItemTitle, { color: colors.title }]} numberOfLines={1}>
+                          {svc.title}
+                        </Text>
+                        <View style={styles.servicePriceBadgeRow}>
+                          <Text style={styles.serviceItemPrice}>{svc.price}</Text>
+                          <View style={styles.activePillBadge}>
+                            <Text style={styles.activePillText}>{svc.status || 'Active'}</Text>
+                          </View>
+                        </View>
+                        <Text style={[styles.serviceItemMeta, { color: colors.muted }]}>
+                          {svc.clientsCount}
+                        </Text>
+                      </View>
+
+                      <TouchableOpacity
+                        onPress={() => setSelectedServiceAction(svc)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        style={styles.serviceActionMenuBtn}
+                      >
+                        <Ionicons name="ellipsis-horizontal" size={20} color={colors.title} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              </>
+            ) : (
+              /* ═══════════════════════════════════════════════════════════
+                 CLIENT VIEW
+                 ═══════════════════════════════════════════════════════════ */
+              <>
+                {/* Client Dashboard Banner with 3D Calendar illustration */}
+                <View style={styles.clientDashboardCardWrapper}>
+                  <View style={styles.clientDashboardCard}>
+                    <LinearGradient
+                      colors={['#5B21B6', '#7C3AED']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <View style={styles.clientBannerCopy}>
+                      <Text style={styles.clientCardTitle}>
+                        {t('services.clientDashboard', 'Client Dashboard')}
+                      </Text>
+                      <Text style={styles.clientCardSubtitle}>
+                        {t(
+                          'services.clientSubtitle',
+                          'Manage your bookings, packages and favorite services.',
+                        )}
+                      </Text>
+                    </View>
+
+                    {/* Calendar 3D Illustration */}
+                    <View style={styles.calendarIllustrationBox}>
+                      <View style={styles.calendarSheet}>
+                        <View style={styles.calendarHeaderStripe}>
+                          <View style={styles.calendarRing} />
+                          <View style={styles.calendarRing} />
+                        </View>
+                        <View style={styles.calendarBody}>
+                          <Ionicons name="star" size={26} color="#7C3AED" />
+                        </View>
+                      </View>
+                      <View style={styles.calendarCheckBadge}>
+                        <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                      </View>
+                    </View>
+                  </View>
+                </View>
+
+                {/* My Packages Section */}
+                <View style={styles.mockupSectionHeaderRow}>
+                  <Text style={[styles.sectionHeading, { color: colors.title }]}>
+                    {t('services.myPackages', 'My Packages')}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => showToastMessage('Showing all packages')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.viewAllText}>{t('services.viewAll', 'View all')}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.servicesListWrap}>
+                  {MOCKUP_CLIENT_PACKAGES.map((pkg, idx) => (
+                    <TouchableOpacity
+                      key={pkg.id || idx}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        Alert.alert(pkg.title, `Package details:\n${pkg.price}\n${pkg.renewsText}`);
+                      }}
+                      style={[
+                        styles.serviceItemCard,
+                        { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+                      ]}
+                    >
+                      <Image
+                        source={{ uri: pkg.image }}
+                        style={styles.serviceItemThumbnail}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.serviceItemDetails}>
+                        <Text style={[styles.serviceItemTitle, { color: colors.title }]} numberOfLines={1}>
+                          {pkg.title}
+                        </Text>
+                        <View style={styles.servicePriceBadgeRow}>
+                          <Text style={styles.serviceItemPrice}>{pkg.price}</Text>
+                          <View style={styles.activePillBadge}>
+                            <Text style={styles.activePillText}>{pkg.status || 'Active'}</Text>
+                          </View>
+                        </View>
+                        <Text style={[styles.serviceItemMeta, { color: colors.muted }]}>
+                          {pkg.renewsText}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Upcoming Sessions Section */}
+                <View style={styles.mockupSectionHeaderRow}>
+                  <Text style={[styles.sectionHeading, { color: colors.title }]}>
+                    {t('services.upcomingSessionsTitle', 'Upcoming Sessions')}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => showToastMessage('Showing all upcoming sessions')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.viewAllText}>{t('services.viewAll', 'View all')}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.servicesListWrap}>
+                  {MOCKUP_UPCOMING_SESSIONS.map((sess, idx) => (
+                    <TouchableOpacity
+                      key={sess.id || idx}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        Alert.alert(sess.title, `${sess.time}\n${sess.provider}`);
+                      }}
+                      style={[
+                        styles.sessionItemCard,
+                        { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+                      ]}
+                    >
+                      {/* Date block on the left */}
+                      <View style={styles.sessionDateBlock}>
+                        <Text style={styles.sessionDateMonth}>{sess.month}</Text>
+                        <Text style={styles.sessionDateDay}>{sess.day}</Text>
+                      </View>
+
+                      <View style={styles.sessionDetails}>
+                        <Text style={[styles.sessionTitle, { color: colors.title }]} numberOfLines={1}>
+                          {sess.title}
+                        </Text>
+                        <Text style={[styles.sessionTime, { color: colors.muted }]}>
+                          {sess.time}
+                        </Text>
+                        <View style={styles.sessionHostRow}>
+                          {sess.avatar ? (
+                            <Image source={{ uri: sess.avatar }} style={styles.sessionHostAvatar} />
+                          ) : (
+                            <View style={styles.sessionHostIconBadge}>
+                              <Ionicons name="sparkles" size={11} color="#7C3AED" />
+                            </View>
+                          )}
+                          <Text style={[styles.sessionHostName, { color: colors.title }]}>
+                            {sess.provider}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Recommended for You Section */}
+                <View style={styles.mockupSectionHeaderRow}>
+                  <Text style={[styles.sectionHeading, { color: colors.title }]}>
+                    {t('services.recommendedForYou', 'Recommended for You')}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => showToastMessage('Showing all recommendations')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.viewAllText}>{t('services.viewAll', 'View all')}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.recommendedGridRow}>
+                  {MOCKUP_RECOMMENDED.map((rec, idx) => (
+                    <TouchableOpacity
+                      key={rec.id || idx}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        Alert.alert(rec.title, `${rec.price}\nRating: ${rec.rating}`);
+                      }}
+                      style={[
+                        styles.recommendedCard,
+                        { backgroundColor: colors.surface, borderColor: colors.cardBorder },
+                      ]}
+                    >
+                      <Image
+                        source={{ uri: rec.image }}
+                        style={styles.recommendedThumbnail}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.recommendedContent}>
+                        <Text style={[styles.recommendedTitle, { color: colors.title }]} numberOfLines={2}>
+                          {rec.title}
+                        </Text>
+                        <Text style={styles.recommendedPrice}>{rec.price}</Text>
+                        <View style={styles.recommendedRatingRow}>
+                          <Ionicons name="star" size={12} color="#F59E0B" />
+                          <Text style={[styles.recommendedRatingText, { color: colors.muted }]}>
+                            {rec.rating}
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
+
+            <View style={{ height: 40 }} />
+          </ScrollView>
+
+          {/* Service Action Menu Modal */}
+          {selectedServiceAction && (
+            <Modal
+              visible={!!selectedServiceAction}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setSelectedServiceAction(null)}
+            >
+              <TouchableOpacity
+                style={styles.actionModalOverlay}
+                activeOpacity={1}
+                onPress={() => setSelectedServiceAction(null)}
+              >
+                <View style={[styles.actionModalContent, { backgroundColor: colors.surface }]}>
+                  <Text style={[styles.actionModalTitle, { color: colors.title }]}>
+                    {selectedServiceAction.title}
+                  </Text>
+                  <Text style={[styles.actionModalSub, { color: colors.muted }]}>
+                    {selectedServiceAction.price} • {selectedServiceAction.clientsCount || 'Active'}
+                  </Text>
+
+                  <TouchableOpacity
+                    style={styles.actionModalOption}
+                    onPress={() => {
+                      const item = selectedServiceAction;
+                      setSelectedServiceAction(null);
+                      Alert.alert('Service Details', `${item.title}\nPrice: ${item.price}`);
+                    }}
+                  >
+                    <Ionicons name="eye-outline" size={20} color="#7C3AED" />
+                    <Text style={[styles.actionModalOptionText, { color: colors.title }]}>View Details</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.actionModalOption}
+                    onPress={() => {
+                      setSelectedServiceAction(null);
+                      setCurrentStep(1);
+                    }}
+                  >
+                    <Ionicons name="create-outline" size={20} color="#7C3AED" />
+                    <Text style={[styles.actionModalOptionText, { color: colors.title }]}>Edit Service</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.actionModalOption}
+                    onPress={() => {
+                      const shareTitle = selectedServiceAction.title;
+                      setSelectedServiceAction(null);
+                      Share.share({
+                        message: `Check out my service on Valens: ${shareTitle}!`,
+                      });
+                    }}
+                  >
+                    <Ionicons name="share-social-outline" size={20} color="#7C3AED" />
+                    <Text style={[styles.actionModalOptionText, { color: colors.title }]}>Share Service</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.actionModalOption, { borderBottomWidth: 0 }]}
+                    onPress={() => {
+                      setSelectedServiceAction(null);
+                      showToastMessage('Service status updated');
+                    }}
+                  >
+                    <Ionicons name="pause-circle-outline" size={20} color="#EF4444" />
+                    <Text style={[styles.actionModalOptionText, { color: '#EF4444' }]}>Pause Service</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.actionModalCancelBtn}
+                    onPress={() => setSelectedServiceAction(null)}
+                  >
+                    <Text style={styles.actionModalCancelText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            </Modal>
+          )}
+
+          {/* Month selector dropdown modal */}
+          {overviewMonthDropdown && (
+            <Modal
+              visible={overviewMonthDropdown}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setOverviewMonthDropdown(false)}
+            >
+              <TouchableOpacity
+                style={styles.actionModalOverlay}
+                activeOpacity={1}
+                onPress={() => setOverviewMonthDropdown(false)}
+              >
+                <View style={[styles.actionModalContent, { backgroundColor: colors.surface }]}>
+                  <Text style={[styles.actionModalTitle, { color: colors.title, marginBottom: 12 }]}>
+                    Select Period
+                  </Text>
+                  {['This Month', 'Last Month', 'Last 3 Months', 'This Year'].map(m => (
+                    <TouchableOpacity
+                      key={m}
+                      style={styles.actionModalOption}
+                      onPress={() => {
+                        setSelectedMonth(m);
+                        setOverviewMonthDropdown(false);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.actionModalOptionText,
+                          { color: selectedMonth === m ? '#7C3AED' : colors.title, fontWeight: selectedMonth === m ? '700' : '500' },
+                        ]}
+                      >
+                        {m}
+                      </Text>
+                      {selectedMonth === m && <Ionicons name="checkmark" size={18} color="#7C3AED" />}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </TouchableOpacity>
+            </Modal>
           )}
 
           {/* Valens Membership Required Modal */}
@@ -2742,5 +3164,571 @@ const styles = StyleSheet.create({
   manageBannerSub: {
     fontSize: 11.5,
     marginTop: 2,
+  },
+  // Mockup Design Styles (Services Tab)
+  mockupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  mockupHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandIconBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: '#7C3AED',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  brandTitleText: {
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    color: '#7C3AED',
+  },
+  mockupHeaderCenterTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  mockupHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  mockupHeaderIconBtn: {
+    padding: 6,
+    marginLeft: 8,
+    position: 'relative',
+  },
+  headerBadgeDot: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  headerBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9.5,
+    fontWeight: '800',
+  },
+  roleSwitcherContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 3,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  roleSwitcherBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 11,
+  },
+  roleSwitcherBtnActive: {
+    backgroundColor: '#6D28D9',
+    shadowColor: '#6D28D9',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  roleSwitcherText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+  },
+  roleSwitcherTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  mockupScrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 40,
+    width: '100%',
+  },
+  // Professional Dashboard Card
+  proDashboardCardWrapper: {
+    width: '100%',
+    marginBottom: 20,
+    borderRadius: 20,
+    shadowColor: '#5B21B6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  proDashboardCard: {
+    width: '100%',
+    borderRadius: 20,
+    overflow: 'hidden',
+    padding: 16,
+    paddingBottom: 16,
+    position: 'relative',
+    backgroundColor: '#6D28D9',
+  },
+  proCardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  proCardTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '800',
+    flexShrink: 1,
+  },
+  proBadgePill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 8,
+  },
+  proBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  proCardSubtitle: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 12,
+    marginTop: 3,
+    marginBottom: 14,
+  },
+  proStatTilesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 14,
+  },
+  proStatTile: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 2,
+    marginHorizontal: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 64,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  proStatValue: {
+    color: '#3B0764',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  proStatLabel: {
+    color: '#6B7280',
+    fontSize: 8.5,
+    fontWeight: '600',
+    marginTop: 3,
+    textAlign: 'center',
+    lineHeight: 11,
+  },
+  proCreateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    width: '100%',
+    marginTop: 2,
+  },
+  proCreateBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  // Overview Section
+  mockupSectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    marginTop: 6,
+  },
+  sectionHeading: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  monthDropdownBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  monthDropdownText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#7C3AED',
+  },
+  proMetricCardsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+  },
+  metricCard: {
+    width: '48.5%',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  metricLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  metricMainValue: {
+    fontSize: 19,
+    fontWeight: '800',
+    marginVertical: 4,
+  },
+  metricTrendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  metricTrendGreen: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#10B981',
+    marginLeft: 3,
+  },
+  metricTrendAmber: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#F59E0B',
+    marginLeft: 3,
+  },
+  viewAllText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#7C3AED',
+  },
+  // Services & Packages List
+  servicesListWrap: {
+    marginBottom: 18,
+  },
+  serviceItemCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  serviceItemThumbnail: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: '#E5E7EB',
+  },
+  serviceItemDetails: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  serviceItemTitle: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    marginBottom: 3,
+  },
+  servicePriceBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 3,
+  },
+  serviceItemPrice: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#7C3AED',
+    marginRight: 8,
+  },
+  activePillBadge: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 7,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  activePillText: {
+    color: '#15803D',
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+  serviceItemMeta: {
+    fontSize: 11.5,
+    fontWeight: '500',
+  },
+  serviceActionMenuBtn: {
+    padding: 6,
+  },
+  // Client Dashboard Banner
+  clientDashboardCardWrapper: {
+    width: '100%',
+    marginBottom: 20,
+    borderRadius: 20,
+    shadowColor: '#5B21B6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  clientDashboardCard: {
+    width: '100%',
+    borderRadius: 20,
+    overflow: 'hidden',
+    padding: 18,
+    minHeight: 110,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    position: 'relative',
+    backgroundColor: '#6D28D9',
+  },
+  clientBannerCopy: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  clientCardTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  clientCardSubtitle: {
+    color: 'rgba(255, 255, 255, 0.88)',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  calendarIllustrationBox: {
+    width: 68,
+    height: 68,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calendarSheet: {
+    width: 54,
+    height: 54,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  calendarHeaderStripe: {
+    height: 14,
+    backgroundColor: '#6D28D9',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  calendarRing: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#FFFFFF',
+  },
+  calendarBody: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FAF5FF',
+  },
+  calendarCheckBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: 0,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#5B21B6',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Upcoming Sessions
+  sessionItemCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  sessionDateBlock: {
+    width: 50,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: '#EDE9FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sessionDateMonth: {
+    color: '#6D28D9',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  sessionDateDay: {
+    color: '#5B21B6',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  sessionDetails: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  sessionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  sessionTime: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  sessionHostRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sessionHostAvatar: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginRight: 6,
+  },
+  sessionHostIconBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#EDE9FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  sessionHostName: {
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  // Recommended Grid
+  recommendedGridRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  recommendedCard: {
+    width: '48.5%',
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  recommendedThumbnail: {
+    width: '100%',
+    height: 94,
+    backgroundColor: '#E5E7EB',
+  },
+  recommendedContent: {
+    padding: 10,
+  },
+  recommendedTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 4,
+    minHeight: 34,
+  },
+  recommendedPrice: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#7C3AED',
+    marginBottom: 4,
+  },
+  recommendedRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  recommendedRatingText: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginLeft: 3,
+  },
+  // Action sheet modal
+  actionModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  actionModalContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  actionModalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  actionModalSub: {
+    fontSize: 12.5,
+    marginTop: 2,
+    marginBottom: 16,
+  },
+  actionModalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(150,150,150,0.2)',
+  },
+  actionModalOptionText: {
+    fontSize: 14.5,
+    fontWeight: '600',
+    marginLeft: 12,
+    flex: 1,
+  },
+  actionModalCancelBtn: {
+    marginTop: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(150,150,150,0.15)',
+    alignItems: 'center',
+  },
+  actionModalCancelText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#6B7280',
   },
 });

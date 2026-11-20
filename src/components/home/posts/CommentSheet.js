@@ -247,12 +247,25 @@ const CommentItem = memo(
     const isExpanded = !!expandedReplies[item.id];
 
     const handleNavigateToProfile = useCallback(
-      userId => {
+      (userId, commentUser) => {
         if (!userId) return;
         onCloseSheet?.();
         requestAnimationFrame(() => {
           const parentNavigation = navigation.getParent?.();
-          const params = { userId, returnTo, returnParams };
+          const resolvedProfileType =
+            commentUser?.profile ||
+            commentUser?.profileType ||
+            commentUser?.user?.profile;
+          const params = {
+            userId,
+            returnTo,
+            returnParams,
+            ...(commentUser ? { user: commentUser, userData: commentUser } : {}),
+            ...(resolvedProfileType ? { profileType: resolvedProfileType } : {}),
+            ...(commentUser?.userName || commentUser?.username
+              ? { username: commentUser?.userName || commentUser?.username }
+              : {}),
+          };
 
           if (parentNavigation?.navigate) {
             parentNavigation.navigate('HomeMain', {
@@ -349,7 +362,7 @@ const CommentItem = memo(
         ) : (
           <View style={styles.commentRow}>
             <TouchableOpacity
-              onPress={() => handleNavigateToProfile(item?.userId)}
+              onPress={() => handleNavigateToProfile(item?.userId, item)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={styles.hexAvatarWrap}
               accessibilityRole="button"
@@ -499,7 +512,7 @@ const CommentItem = memo(
               return (
                 <View key={reply.id} style={[styles.replyCard, { backgroundColor: replySurface }]}>
                   <TouchableOpacity
-                    onPress={() => handleNavigateToProfile(reply?.userId)}
+                    onPress={() => handleNavigateToProfile(reply?.userId, reply)}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     style={styles.hexAvatarWrap}
                     accessibilityRole="button"

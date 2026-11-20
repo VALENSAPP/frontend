@@ -31,7 +31,36 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const normalizeImageUrl = url => {
+const extractImageUrl = value => {
+    if (!value) return null;
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed || trimmed === '[object Object]') return null;
+        return trimmed;
+    }
+    if (typeof value === 'object') {
+        const candidate =
+            value.url ||
+            value.uri ||
+            value.imageUrl ||
+            value.image ||
+            value.mediaUrl ||
+            value.media ||
+            value.picture ||
+            value.pict ||
+            value.pic ||
+            value.src ||
+            value.photo ||
+            value.thumbnail ||
+            value.thumb ||
+            (Array.isArray(value) && value.length > 0 ? value[0] : null);
+        return extractImageUrl(candidate);
+    }
+    return null;
+};
+
+const normalizeImageUrl = rawInput => {
+    const url = extractImageUrl(rawInput);
     if (!url || typeof url !== 'string') return null;
     const t = url.trim();
     if (t.startsWith('http://') || t.startsWith('https://') || t.startsWith('data:') || t.startsWith('file://')) return t;
@@ -356,15 +385,30 @@ const OptionChip = ({
     onImagePress,
 }) => {
     const { accent, border, mutedText, isDarkMode } = useBattleAccent();
+    const [imageError, setImageError] = useState(false);
     const safePercent = Number.isFinite(percent)
         ? Math.max(0, Math.min(100, Math.round(percent)))
         : 0;
-    const label = option?.label || option;
+    const label = option?.label || (typeof option === 'string' ? option : '');
     const labelColor = isDarkMode ? '#F5F0FF' : '#1F1435';
 
-    const resolvedImage = normalizeImageUrl(
-        imageUrl || option?.image || option?.imageUrl || option?.picture || (avatarUrl !== DEFAULT_AVATAR ? avatarUrl : null)
-    );
+    const rawImage =
+        imageUrl ||
+        option?.image ||
+        option?.imageUrl ||
+        option?.picture ||
+        option?.pict ||
+        option?.pic ||
+        option?.photo ||
+        option?.mediaUrl ||
+        option?.media ||
+        option?.thumbnail ||
+        option?.thumb ||
+        option?.url ||
+        option?.uri ||
+        (avatarUrl !== DEFAULT_AVATAR ? avatarUrl : null);
+
+    const resolvedImage = normalizeImageUrl(rawImage);
 
     const handleImagePress = (e) => {
         e?.stopPropagation?.();
@@ -372,6 +416,9 @@ const OptionChip = ({
             onImagePress?.(resolvedImage, label);
         }
     };
+
+    const activeBorderColor = isDarkMode ? '#C084FC' : (accent || '#7C3AED');
+    const inactiveBorderColor = isDarkMode ? '#382A4C' : '#EAE4F5';
 
     return (
         <TouchableOpacity
@@ -381,18 +428,18 @@ const OptionChip = ({
             style={[
                 styles.optionChip,
                 {
-                    backgroundColor: isDarkMode ? '#241D30' : '#FFFFFF',
-                    borderColor: isSelected
-                        ? (isDarkMode ? '#C084FC' : accent)
-                        : (isDarkMode ? '#382A4C' : border),
+                    backgroundColor: isSelected
+                        ? (isDarkMode ? '#2D2040' : '#F7F0FD')
+                        : (isDarkMode ? '#241D30' : '#FFFFFF'),
+                    borderColor: isSelected ? activeBorderColor : inactiveBorderColor,
                     borderWidth: isSelected ? 1.5 : 1,
                 },
                 isSelected && (isDarkMode ? styles.optionChipSelectedDark : styles.optionChipSelected),
                 disabled && styles.optionDisabled,
             ]}
         >
-            {/* Left: Big Landscape Picture Thumbnail with Click to Enlarge */}
-            {resolvedImage ? (
+            {/* Left: Landscape Picture Thumbnail with Click to Enlarge */}
+            {resolvedImage && !imageError ? (
                 <TouchableOpacity
                     activeOpacity={0.85}
                     onPress={handleImagePress}
@@ -402,9 +449,10 @@ const OptionChip = ({
                         source={{ uri: resolvedImage }}
                         style={styles.optionImage}
                         resizeMode="cover"
+                        onError={() => setImageError(true)}
                     />
                     <View style={styles.imageEnlargeBadge}>
-                        <Icon name="scan-outline" size={10} color="#FFFFFF" />
+                        <Icon name="scan-outline" size={9} color="#FFFFFF" />
                     </View>
                 </TouchableOpacity>
             ) : teamLogoUrl ? (
@@ -417,12 +465,12 @@ const OptionChip = ({
                 </View>
             ) : (
                 <View style={[styles.optionImageWrapper, styles.optionImagePlaceholder, { backgroundColor: isDarkMode ? '#352B44' : '#F4F0FB' }]}>
-                    <Icon name="image-outline" size={22} color={isDarkMode ? '#7E6D99' : '#B8ACD1'} />
+                    <Icon name="image-outline" size={18} color={isDarkMode ? '#7E6D99' : '#B8ACD1'} />
                 </View>
             )}
 
             {/* Vertical Divider */}
-            <View style={[styles.optionVerticalDivider, { backgroundColor: isDarkMode ? '#382A4C' : '#EAE4F5' }]} />
+            <View style={[styles.optionVerticalDivider, { backgroundColor: isSelected ? (isDarkMode ? '#4A3B63' : '#E8DCFA') : (isDarkMode ? '#382A4C' : '#F0ECF8') }]} />
 
             {/* Right: Content Area (Title + Percent + Radio top, Progress bar bottom) */}
             <View style={styles.optionRightContent}>
@@ -430,7 +478,7 @@ const OptionChip = ({
                     <Text
                         style={[
                             styles.optionChipLabel,
-                            { color: isSelected ? (isDarkMode ? '#F5F0FF' : accent) : labelColor },
+                            { color: isSelected ? (isDarkMode ? '#F5F0FF' : '#1F1435') : labelColor },
                         ]}
                         numberOfLines={1}
                     >
@@ -441,7 +489,7 @@ const OptionChip = ({
                         <Text
                             style={[
                                 styles.optionPercentText,
-                                { color: isSelected ? (isDarkMode ? '#C084FC' : accent) : (isDarkMode ? '#A598B8' : mutedText) },
+                                { color: isSelected ? (isDarkMode ? '#C084FC' : '#7C3AED') : (isDarkMode ? '#A598B8' : mutedText) },
                             ]}
                         >
                             {safePercent}%
@@ -451,7 +499,7 @@ const OptionChip = ({
                                 styles.radioCircle,
                                 {
                                     borderColor: isSelected
-                                        ? (isDarkMode ? '#C084FC' : accent)
+                                        ? (isDarkMode ? '#C084FC' : '#7C3AED')
                                         : (isDarkMode ? '#5C4E75' : '#D1C8E5'),
                                     backgroundColor: isDarkMode ? 'transparent' : '#FFFFFF',
                                 },
@@ -461,7 +509,7 @@ const OptionChip = ({
                                 <View
                                     style={[
                                         styles.radioInner,
-                                        { backgroundColor: isDarkMode ? '#C084FC' : accent },
+                                        { backgroundColor: isDarkMode ? '#C084FC' : '#7C3AED' },
                                     ]}
                                 />
                             )}
@@ -481,7 +529,7 @@ const OptionChip = ({
                             styles.optionProgressFill,
                             {
                                 width: `${safePercent}%`,
-                                backgroundColor: isDarkMode ? '#A855F7' : accent,
+                                backgroundColor: isDarkMode ? '#A855F7' : (isSelected ? '#7C3AED' : '#9333EA'),
                             },
                         ]}
                     />
@@ -512,7 +560,7 @@ const StatRow = ({ totalParticipants, totalLikes, totalComments }) => {
 
 // ─── BattleCard ───────────────────────────────────────────────────────────────
 
-const BattleCard = memo(({ item, selectedOption, onCardPress, onOptionSelect, onUserPress, fullWidth, bottomMargin = 8 }) => {
+const BattleCard = memo(({ item, selectedOption, onCardPress, onOptionSelect, onUserPress, fullWidth, bottomMargin = 4 }) => {
     const { t } = useLanguage();
     const [enlargedImage, setEnlargedImage] = useState(null);
     const {
@@ -636,7 +684,7 @@ const BattleCard = memo(({ item, selectedOption, onCardPress, onOptionSelect, on
                                 >
                                     <HexAvatar
                                         uri={normalizeImageUrl(item.creator.avatar) || DEFAULT_AVATAR}
-                                        size={34}
+                                        size={26}
                                         borderWidth={2}
                                         borderColor={accent}
                                         fadeDuration={0}
@@ -657,7 +705,7 @@ const BattleCard = memo(({ item, selectedOption, onCardPress, onOptionSelect, on
                                 <View style={styles.pollCreatorPressable}>
                                     <HexAvatar
                                         uri={normalizeImageUrl(item.creator?.avatar) || DEFAULT_AVATAR}
-                                        size={34}
+                                        size={26}
                                         borderWidth={2}
                                         borderColor={accent}
                                         fadeDuration={0}
@@ -698,17 +746,30 @@ const BattleCard = memo(({ item, selectedOption, onCardPress, onOptionSelect, on
                     {item.options?.length > 0 && (
                         <View style={styles.pollOptions}>
                             {item.options.slice(0, 4).map((option, idx) => {
-                                const optionImageUrl = optionImages[idx];
-                                const label = option?.label || option;
+                                const optionImageUrl =
+                                    optionImages[idx] ||
+                                    option?.image ||
+                                    option?.imageUrl ||
+                                    option?.picture ||
+                                    option?.pict ||
+                                    option?.pic ||
+                                    option?.photo ||
+                                    option?.mediaUrl ||
+                                    option?.media ||
+                                    option?.thumbnail ||
+                                    option?.thumb ||
+                                    option?.url ||
+                                    option?.uri;
+                                const label = option?.label || (typeof option === 'string' ? option : '');
                                 const isSelected = selectedOption === label;
                                 return (
                                     <OptionChip
-                                        key={`${item.id}-${option?.id || label}`}
+                                        key={`${item.id}-${option?.id || label || idx}`}
                                         option={option}
                                         isSelected={isSelected}
                                         disabled={ended}
-                                        imageUrl={optionImageUrl || option?.image || option?.imageUrl}
-                                        avatarUrl={optionImageUrl || option?.image || DEFAULT_AVATAR}
+                                        imageUrl={optionImageUrl}
+                                        avatarUrl={optionImageUrl || DEFAULT_AVATAR}
                                         teamLogoUrl={getTeamLogoForOption(option)}
                                         onPress={() => handleOption(label)}
                                         onImagePress={(url, title) => setEnlargedImage({ url, title })}
@@ -898,17 +959,30 @@ const BattleCard = memo(({ item, selectedOption, onCardPress, onOptionSelect, on
             {!soloOpponent && item.options?.length > 0 && (
                 <View style={styles.pollOptions}>
                     {item.options.slice(0, 2).map((option, idx) => {
-                        const optionImageUrl = optionImages[idx];
-                        const label = option?.label || option;
+                        const optionImageUrl =
+                            optionImages[idx] ||
+                            option?.image ||
+                            option?.imageUrl ||
+                            option?.picture ||
+                            option?.pict ||
+                            option?.pic ||
+                            option?.photo ||
+                            option?.mediaUrl ||
+                            option?.media ||
+                            option?.thumbnail ||
+                            option?.thumb ||
+                            option?.url ||
+                            option?.uri;
+                        const label = option?.label || (typeof option === 'string' ? option : '');
                         const isSelected = selectedOption === label;
                         return (
                             <OptionChip
-                                key={`${item.id}-${option?.id || label}`}
+                                key={`${item.id}-${option?.id || label || idx}`}
                                 option={option}
                                 isSelected={isSelected}
                                 disabled={ended}
-                                imageUrl={optionImageUrl || option?.image || option?.imageUrl}
-                                avatarUrl={optionImageUrl || option?.image || DEFAULT_AVATAR}
+                                imageUrl={optionImageUrl}
+                                avatarUrl={optionImageUrl || DEFAULT_AVATAR}
                                 teamLogoUrl={getTeamLogoForOption(option)}
                                 onPress={() => handleOption(label)}
                                 onImagePress={(url, title) => setEnlargedImage({ url, title })}
@@ -1153,7 +1227,7 @@ const AndroidBattleRow = ({ children, style, cardWidth = CARD_WIDTH, cardGap = C
             translateX.setValue(finalOffset);
             resumeAutoScroll(finalOffset);
         },
-    }), [normalizeLoopOffset, resumeAutoScroll, totalWidth, translateX]);
+    }), [cardWidth, normalizeLoopOffset, resumeAutoScroll, totalWidth, translateX]);
 
     useEffect(() => () => {
         animRef.current?.stop();
@@ -1414,7 +1488,7 @@ const styles = StyleSheet.create({
     },
     liveDotCore: { width: 6, height: 6, borderRadius: 3, backgroundColor: GREEN },
     timerBadge: { flexDirection: 'row', alignItems: 'center' },
-    timerText: { fontSize: 10, color: GRAY_MID, fontWeight: '500' },
+    timerText: { fontSize: 9.5, color: GRAY_MID, fontWeight: '500' },
     timerTextEnded: { color: '#A32D2D' },
     versusRow: {
         flexDirection: 'row', alignItems: 'center',
@@ -1435,11 +1509,11 @@ const styles = StyleSheet.create({
     waitingLabel: { fontSize: 10, fontWeight: '600', color: PURPLE, textAlign: 'center' },
     waitingSub: { fontSize: 9, color: GRAY_MID, textAlign: 'center' },
     question: {
-        fontSize: 17,
-        fontWeight: '800',
-        lineHeight: 22,
-        marginTop: 4,
-        marginBottom: 10,
+        fontSize: 13,
+        fontWeight: '700',
+        lineHeight: 17,
+        marginTop: 2,
+        marginBottom: 4,
     },
     stakePill: {
         flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start',
@@ -1448,20 +1522,20 @@ const styles = StyleSheet.create({
     },
     stakeText: { fontSize: 11, color: PURPLE_DARK },
     stakeAmount: { fontWeight: '700', color: PURPLE_DARK },
-    pollOptions: { width: '100%', gap: 8, marginBottom: 10 },
+    pollOptions: { width: '100%', gap: 4, marginBottom: 4 },
     optionChip: {
         flexDirection: 'row',
         alignItems: 'center',
         width: '100%',
-        borderRadius: 14,
-        paddingVertical: 7,
-        paddingHorizontal: 8,
-        marginVertical: 4,
+        borderRadius: 12,
+        paddingVertical: 3,
+        paddingHorizontal: 5,
+        marginVertical: 0,
         minWidth: 0,
         backgroundColor: '#fff',
-        gap: 6,
+        gap: 5,
     },
-    optionChipSelected: { borderColor: PURPLE, backgroundColor: PURPLE_LIGHT },
+    optionChipSelected: { borderColor: '#7C3AED', backgroundColor: '#F7F0FD' },
     optionChipTopRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1476,7 +1550,7 @@ const styles = StyleSheet.create({
     optionChipPercent: { marginTop: 1, fontSize: 9, fontWeight: '700', color: GRAY_MID },
     optionProgressTrack: {
         width: '100%',
-        height: 4,
+        height: 3,
         borderRadius: 999,
         backgroundColor: '#ECEAF8',
         overflow: 'hidden',
@@ -1484,15 +1558,15 @@ const styles = StyleSheet.create({
     optionProgressFill: {
         height: '100%',
         borderRadius: 999,
-        backgroundColor: PURPLE,
+        backgroundColor: '#7C3AED',
     },
     radioCircle: {
         width: 13, height: 13, borderRadius: 6.5,
-        borderWidth: 1.5, borderColor: BORDER,
+        borderWidth: 1.5, borderColor: '#D1C8E5',
         alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
     },
-    radioCircleSelected: { borderColor: PURPLE },
-    radioInner: { width: 6, height: 6, borderRadius: 3, backgroundColor: PURPLE },
+    radioCircleSelected: { borderColor: '#7C3AED' },
+    radioInner: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#7C3AED' },
     optionDisabled: { opacity: 0.45 },
     acceptBtn: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
@@ -1503,8 +1577,8 @@ const styles = StyleSheet.create({
     pollCreatorRowContainer: { flex: 1, marginRight: 8, minWidth: 0 },
     pollCreatorPressable: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', minWidth: 0 },
     pollCreatorTextWrap: { marginLeft: 6, flexShrink: 1, minWidth: 0 },
-    pollCreatorName: { fontSize: 12, fontWeight: '500', color: TEXT, flexShrink: 1 },
-    pollCreatorHandle: { fontSize: 10, color: GRAY_MID },
+    pollCreatorName: { fontSize: 11.5, fontWeight: '700', color: TEXT, flexShrink: 1 },
+    pollCreatorHandle: { fontSize: 9.5, color: GRAY_MID },
     metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 },
     metaText: { fontSize: 10, color: GRAY_MID },
     divider: { height: 0.5, backgroundColor: BORDER, marginBottom: 3 },
@@ -1528,22 +1602,24 @@ const styles = StyleSheet.create({
         zIndex: 0,
     },
     pollCard: {
-        borderRadius: 22,
-        borderWidth: 1.2,
-        paddingHorizontal: 14,
-        paddingTop: 12,
-        paddingBottom: 12,
-        shadowColor: '#402090',
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: '#EFE8F8',
+        paddingHorizontal: 10,
+        paddingTop: 7,
+        paddingBottom: 7,
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#7C3AED',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 14,
-        elevation: 3,
+        shadowOpacity: 0.07,
+        shadowRadius: 10,
+        elevation: 2,
         overflow: 'hidden',
     },
     modeBadgeDotGreen: {
-        width: 7,
-        height: 7,
-        borderRadius: 3.5,
+        width: 6,
+        height: 6,
+        borderRadius: 3,
         backgroundColor: '#22C55E',
     },
     pollCreatorNameRow: {
@@ -1552,16 +1628,16 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     swordsBadge: {
-        fontSize: 12,
+        fontSize: 11,
     },
     timerRow: {
-        marginTop: 4,
-        marginBottom: 2,
+        marginTop: 1,
+        marginBottom: 1,
     },
     optionImageWrapper: {
-        width: 96,
-        height: 52,
-        borderRadius: 10,
+        width: 64,
+        height: 32,
+        borderRadius: 6,
         overflow: 'hidden',
         backgroundColor: '#EDE8F5',
         position: 'relative',
@@ -1572,11 +1648,11 @@ const styles = StyleSheet.create({
     },
     imageEnlargeBadge: {
         position: 'absolute',
-        right: 3,
-        bottom: 3,
+        right: 2,
+        bottom: 2,
         backgroundColor: 'rgba(0, 0, 0, 0.45)',
-        borderRadius: 4,
-        padding: 2,
+        borderRadius: 3,
+        padding: 1.5,
     },
     optionImagePlaceholder: {
         alignItems: 'center',
@@ -1584,13 +1660,13 @@ const styles = StyleSheet.create({
     },
     optionVerticalDivider: {
         width: 1,
-        height: 38,
-        marginHorizontal: 8,
+        height: 20,
+        marginHorizontal: 3,
     },
     optionRightContent: {
         flex: 1,
         justifyContent: 'center',
-        gap: 6,
+        gap: 2,
     },
     optionTopRow: {
         flexDirection: 'row',
@@ -1600,15 +1676,11 @@ const styles = StyleSheet.create({
     optionPercentAndRadio: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 6,
     },
     optionPercentText: {
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: '800',
-    },
-    optionChipSelected: {
-        borderColor: '#402090',
-        backgroundColor: '#FFFFFF',
     },
     optionChipSelectedDark: {
         borderColor: '#A855F7',
@@ -1618,55 +1690,58 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginTop: 10,
-        paddingTop: 8,
+        marginTop: 4,
+        paddingTop: 4,
         borderTopWidth: 0.5,
     },
     footerStakePill: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderRadius: 14,
-        paddingVertical: 4,
-        paddingHorizontal: 10,
+        borderRadius: 10,
+        paddingVertical: 2,
+        paddingHorizontal: 6,
+        backgroundColor: '#F3E8FF',
     },
     footerStakeText: {
-        fontSize: 11,
+        fontSize: 9.5,
         fontWeight: '600',
+        color: '#6B21A8',
     },
     footerStakeAmount: {
         fontWeight: '800',
+        color: '#6B21A8',
     },
     footerVerticalDivider: {
         width: 1,
-        height: 16,
+        height: 11,
     },
     footerStatsRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 5,
     },
     footerStatItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        gap: 2.5,
     },
     footerStatText: {
-        fontSize: 12,
-        fontWeight: '700',
+        fontSize: 10.5,
+        fontWeight: '600',
     },
     footerDot: {
-        fontSize: 12,
+        fontSize: 10,
     },
     footerDateRow: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     footerDateLabel: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '500',
     },
     footerDateVal: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '700',
     },
     imageModalOverlay: {

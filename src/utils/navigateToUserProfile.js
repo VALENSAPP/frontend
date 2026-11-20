@@ -40,6 +40,11 @@ export async function navigateToUserProfile(navigation, targetUserId, options = 
   const params = {
     userId: targetId,
     ...(options.user ? { user: options.user } : {}),
+    ...(options.userData
+      ? { userData: options.userData }
+      : options.user
+        ? { userData: options.user }
+        : {}),
     ...(options.profileType
       ? { profileType: options.profileType }
       : options.user?.profile
