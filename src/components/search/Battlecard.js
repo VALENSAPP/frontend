@@ -164,7 +164,7 @@ const useBattleAccent = () => {
 
     const brandAccent = accent || (isBusinessProfile ? '#CBA257' : '#402090');
     const brandCard = isDarkMode ? '#1E1729' : (card || '#FFFFFF');
-    const brandBorder = isDarkMode ? '#382A4C' : (border || (isBusinessProfile ? '#E8D9BD' : '#EAE4F5'));
+    const brandBorder = isDarkMode ? '#382A4C' : (isBusinessProfile ? '#E8D9BD' : (border || '#EAE4F5'));
 
     const accentLight = isBusinessProfile
         ? (isDarkMode ? 'rgba(203,162,87,0.22)' : 'rgba(203,162,87,0.12)')
@@ -185,7 +185,7 @@ const useBattleAccent = () => {
         text: brandAccent,
         mutedText: isDarkMode ? '#A59DB5' : (isBusinessProfile ? '#8C8270' : (mutedText || '#7A7289')),
         isBusinessProfile,
-        background: isDarkMode ? '#121212' : (screenBackground || (isBusinessProfile ? '#FAF7F0' : '#FAF7FD')),
+        background: isDarkMode ? '#121212' : (isBusinessProfile ? '#FAF7F0' : (screenBackground || '#FAF7FD')),
     };
 };
 
@@ -293,14 +293,14 @@ const TimerBadge = ({ endTime, ended, t }) => {
 };
 
 const ModeBadge = ({ format, ended, isLive, t }) => {
-    const { isDarkMode } = useBattleAccent();
+    const { isDarkMode, isBusinessProfile } = useBattleAccent();
     return (
         <View
             style={[
                 styles.modeBadge,
                 {
                     backgroundColor: isDarkMode ? '#2B2338' : '#FFFFFF',
-                    borderColor: isDarkMode ? '#3E3250' : '#ECE8F6',
+                    borderColor: isDarkMode ? '#3E3250' : (isBusinessProfile ? '#E8D9BD' : '#ECE8F6'),
                 },
                 ended && styles.modeBadgeEnded,
             ]}
@@ -309,7 +309,7 @@ const ModeBadge = ({ format, ended, isLive, t }) => {
             <Text
                 style={[
                     styles.modeBadgeText,
-                    { color: isDarkMode ? '#E2D9F3' : '#321D50' },
+                    { color: isDarkMode ? '#E2D9F3' : (isBusinessProfile ? '#CBA257' : '#321D50') },
                     ended && styles.modeBadgeTextEnded,
                 ]}
                 numberOfLines={1}
@@ -375,6 +375,7 @@ const StakePill = ({ amount, t }) => {
 
 const OptionChip = ({
     option,
+    index = 0,
     isSelected,
     onPress,
     disabled,
@@ -384,12 +385,13 @@ const OptionChip = ({
     percent,
     onImagePress,
 }) => {
-    const { accent, border, mutedText, isDarkMode } = useBattleAccent();
+    const { accent, border, mutedText, isDarkMode, isBusinessProfile } = useBattleAccent();
     const [imageError, setImageError] = useState(false);
     const safePercent = Number.isFinite(percent)
         ? Math.max(0, Math.min(100, Math.round(percent)))
         : 0;
     const label = option?.label || (typeof option === 'string' ? option : '');
+    const optionLetter = String.fromCharCode(65 + (index % 26));
     const labelColor = isDarkMode ? '#F5F0FF' : '#1F1435';
 
     const rawImage =
@@ -417,8 +419,8 @@ const OptionChip = ({
         }
     };
 
-    const activeBorderColor = isDarkMode ? '#C084FC' : (accent || '#7C3AED');
-    const inactiveBorderColor = isDarkMode ? '#382A4C' : '#EAE4F5';
+    const activeBorderColor = isDarkMode ? '#C084FC' : (isBusinessProfile ? '#B88728' : (accent || '#7C3AED'));
+    const inactiveBorderColor = isDarkMode ? '#382A4C' : (isBusinessProfile ? '#E8D9BD' : '#EAE4F5');
 
     return (
         <TouchableOpacity
@@ -429,12 +431,11 @@ const OptionChip = ({
                 styles.optionChip,
                 {
                     backgroundColor: isSelected
-                        ? (isDarkMode ? '#2D2040' : '#F7F0FD')
-                        : (isDarkMode ? '#241D30' : '#FFFFFF'),
+                        ? (isDarkMode ? '#2D2040' : (isBusinessProfile ? '#FFFDF8' : '#F7F0FD'))
+                        : (isDarkMode ? '#241D30' : (isBusinessProfile ? '#FFFFFF' : '#FFFFFF')),
                     borderColor: isSelected ? activeBorderColor : inactiveBorderColor,
                     borderWidth: isSelected ? 1.5 : 1,
                 },
-                isSelected && (isDarkMode ? styles.optionChipSelectedDark : styles.optionChipSelected),
                 disabled && styles.optionDisabled,
             ]}
         >
@@ -464,13 +465,13 @@ const OptionChip = ({
                     />
                 </View>
             ) : (
-                <View style={[styles.optionImageWrapper, styles.optionImagePlaceholder, { backgroundColor: isDarkMode ? '#352B44' : '#F4F0FB' }]}>
-                    <Icon name="image-outline" size={18} color={isDarkMode ? '#7E6D99' : '#B8ACD1'} />
+                <View style={[styles.optionImageWrapper, styles.optionImagePlaceholder, { backgroundColor: isDarkMode ? '#352B44' : (isBusinessProfile ? '#F5EFE3' : '#F4F0FB') }]}>
+                    <Icon name="image-outline" size={18} color={isDarkMode ? '#7E6D99' : (isBusinessProfile ? '#B8A688' : '#B8ACD1')} />
                 </View>
             )}
 
             {/* Vertical Divider */}
-            <View style={[styles.optionVerticalDivider, { backgroundColor: isSelected ? (isDarkMode ? '#4A3B63' : '#E8DCFA') : (isDarkMode ? '#382A4C' : '#F0ECF8') }]} />
+            <View style={[styles.optionVerticalDivider, { backgroundColor: isSelected ? (isDarkMode ? '#4A3B63' : (isBusinessProfile ? '#E8D9BD' : '#E8DCFA')) : (isDarkMode ? '#382A4C' : (isBusinessProfile ? '#F0E6D4' : '#F0ECF8')) }]} />
 
             {/* Right: Content Area (Title + Percent + Radio top, Progress bar bottom) */}
             <View style={styles.optionRightContent}>
@@ -478,7 +479,7 @@ const OptionChip = ({
                     <Text
                         style={[
                             styles.optionChipLabel,
-                            { color: isSelected ? (isDarkMode ? '#F5F0FF' : '#1F1435') : labelColor },
+                            { color: isSelected ? (isDarkMode ? '#F5F0FF' : (isBusinessProfile ? '#5C3E08' : '#1F1435')) : (isBusinessProfile ? '#5C3E08' : labelColor) },
                         ]}
                         numberOfLines={1}
                     >
@@ -489,7 +490,7 @@ const OptionChip = ({
                         <Text
                             style={[
                                 styles.optionPercentText,
-                                { color: isSelected ? (isDarkMode ? '#C084FC' : '#7C3AED') : (isDarkMode ? '#A598B8' : mutedText) },
+                                { color: isSelected ? (isDarkMode ? '#C084FC' : (isBusinessProfile ? '#B88728' : '#7C3AED')) : (isDarkMode ? '#A598B8' : mutedText) },
                             ]}
                         >
                             {safePercent}%
@@ -499,8 +500,8 @@ const OptionChip = ({
                                 styles.radioCircle,
                                 {
                                     borderColor: isSelected
-                                        ? (isDarkMode ? '#C084FC' : '#7C3AED')
-                                        : (isDarkMode ? '#5C4E75' : '#D1C8E5'),
+                                        ? (isDarkMode ? '#C084FC' : (isBusinessProfile ? '#B88728' : '#7C3AED'))
+                                        : (isDarkMode ? '#5C4E75' : (isBusinessProfile ? '#D4C4A3' : '#D1C8E5')),
                                     backgroundColor: isDarkMode ? 'transparent' : '#FFFFFF',
                                 },
                             ]}
@@ -509,7 +510,7 @@ const OptionChip = ({
                                 <View
                                     style={[
                                         styles.radioInner,
-                                        { backgroundColor: isDarkMode ? '#C084FC' : '#7C3AED' },
+                                        { backgroundColor: isDarkMode ? '#C084FC' : (isBusinessProfile ? '#B88728' : '#7C3AED') },
                                     ]}
                                 />
                             )}
@@ -517,11 +518,11 @@ const OptionChip = ({
                     </View>
                 </View>
 
-                {/* Progress Bar */}
+                {/* Progress Bar at Bottom */}
                 <View
                     style={[
                         styles.optionProgressTrack,
-                        { backgroundColor: isDarkMode ? '#352B44' : '#EFEBF8' },
+                        { backgroundColor: isDarkMode ? '#352B44' : (isBusinessProfile ? '#EDE6D6' : '#ECEAF8') },
                     ]}
                 >
                     <View
@@ -529,7 +530,7 @@ const OptionChip = ({
                             styles.optionProgressFill,
                             {
                                 width: `${safePercent}%`,
-                                backgroundColor: isDarkMode ? '#A855F7' : (isSelected ? '#7C3AED' : '#9333EA'),
+                                backgroundColor: isDarkMode ? '#A855F7' : (isBusinessProfile ? '#B88728' : (isSelected ? '#7C3AED' : '#9333EA')),
                             },
                         ]}
                     />
@@ -671,7 +672,7 @@ const BattleCard = memo(({ item, selectedOption, onCardPress, onOptionSelect, on
                     {/* Festive fireworks celebration illustration in top right */}
                     <FireworksDecoration />
 
-                    {/* Top Creator Row */}
+                    {/* Top Creator Row with inline timer as in mockup */}
                     <View style={styles.cardTopRow}>
                         <View style={styles.pollCreatorRowContainer}>
                             {item.creator ? (
@@ -686,19 +687,30 @@ const BattleCard = memo(({ item, selectedOption, onCardPress, onOptionSelect, on
                                         uri={normalizeImageUrl(item.creator.avatar) || DEFAULT_AVATAR}
                                         size={26}
                                         borderWidth={2}
-                                        borderColor={accent}
+                                        borderColor={isBusinessProfile ? '#B88728' : accent}
                                         fadeDuration={0}
                                     />
                                     <View style={styles.pollCreatorTextWrap}>
                                         <View style={styles.pollCreatorNameRow}>
-                                            <Text style={[styles.pollCreatorName, { color: isDarkMode ? '#EDE7F6' : (isBusinessProfile ? '#CBA257' : '#402090') }]} numberOfLines={1}>
+                                            <Text style={[styles.pollCreatorName, { color: isDarkMode ? '#EDE7F6' : (isBusinessProfile ? '#5C3E08' : '#402090') }]} numberOfLines={1}>
                                                 {item.creator.name}
                                             </Text>
                                             <Text style={styles.swordsBadge}>⚔️</Text>
                                         </View>
-                                        <Text style={[styles.pollCreatorHandle, mutedTextStyle]} numberOfLines={1}>
-                                            @{item.creator.userName}
-                                        </Text>
+                                        <View style={styles.pollCreatorSubRow}>
+                                            <Text style={[styles.pollCreatorHandle, { color: isBusinessProfile ? '#8C7A55' : mutedText }]} numberOfLines={1}>
+                                                @{item.creator.userName}
+                                            </Text>
+                                            {!!item.endTime && (
+                                                <>
+                                                    <Text style={[styles.pollDot, { color: isBusinessProfile ? '#8C7A55' : mutedText }]}> • </Text>
+                                                    <Icon name="time-outline" size={10} color={isBusinessProfile ? '#8C7A55' : mutedText} style={{ marginRight: 2 }} />
+                                                    <Text style={[styles.pollTimerText, { color: isBusinessProfile ? '#8C7A55' : mutedText }]}>
+                                                        {formatBattleCountdown(item.endTime, t)}
+                                                    </Text>
+                                                </>
+                                            )}
+                                        </View>
                                     </View>
                                 </TouchableOpacity>
                             ) : (
@@ -707,19 +719,30 @@ const BattleCard = memo(({ item, selectedOption, onCardPress, onOptionSelect, on
                                         uri={normalizeImageUrl(item.creator?.avatar) || DEFAULT_AVATAR}
                                         size={26}
                                         borderWidth={2}
-                                        borderColor={accent}
+                                        borderColor={isBusinessProfile ? '#B88728' : accent}
                                         fadeDuration={0}
                                     />
                                     <View style={styles.pollCreatorTextWrap}>
                                         <View style={styles.pollCreatorNameRow}>
-                                            <Text style={[styles.pollCreatorName, { color: isDarkMode ? '#EDE7F6' : (isBusinessProfile ? '#CBA257' : '#402090') }]} numberOfLines={1}>
+                                            <Text style={[styles.pollCreatorName, { color: isDarkMode ? '#EDE7F6' : (isBusinessProfile ? '#5C3E08' : '#402090') }]} numberOfLines={1}>
                                                 {item.creator?.name || t('battleCard.creator', 'Creator')}
                                             </Text>
                                             <Text style={styles.swordsBadge}>⚔️</Text>
                                         </View>
-                                        <Text style={[styles.pollCreatorHandle, mutedTextStyle]} numberOfLines={1}>
-                                            @{item.creator?.userName || 'user'}
-                                        </Text>
+                                        <View style={styles.pollCreatorSubRow}>
+                                            <Text style={[styles.pollCreatorHandle, { color: isBusinessProfile ? '#8C7A55' : mutedText }]} numberOfLines={1}>
+                                                @{item.creator?.userName || 'user'}
+                                            </Text>
+                                            {!!item.endTime && (
+                                                <>
+                                                    <Text style={[styles.pollDot, { color: isBusinessProfile ? '#8C7A55' : mutedText }]}> • </Text>
+                                                    <Icon name="time-outline" size={10} color={isBusinessProfile ? '#8C7A55' : mutedText} style={{ marginRight: 2 }} />
+                                                    <Text style={[styles.pollTimerText, { color: isBusinessProfile ? '#8C7A55' : mutedText }]}>
+                                                        {formatBattleCountdown(item.endTime, t)}
+                                                    </Text>
+                                                </>
+                                            )}
+                                        </View>
                                     </View>
                                 </View>
                             )}
@@ -732,17 +755,12 @@ const BattleCard = memo(({ item, selectedOption, onCardPress, onOptionSelect, on
                         />
                     </View>
 
-                    {/* Timer row */}
-                    <View style={styles.timerRow}>
-                        <TimerBadge endTime={item.endTime} ended={ended} t={t} />
-                    </View>
-
-                    {/* Question */}
-                    <Text style={[styles.question, { color: isDarkMode ? '#EDE7F6' : (isBusinessProfile ? '#CBA257' : '#402090') }]} numberOfLines={3}>
+                    {/* Question / Title */}
+                    <Text style={[styles.question, { color: isDarkMode ? '#EDE7F6' : (isBusinessProfile ? '#5C3E08' : '#402090') }]} numberOfLines={3}>
                         {item.title}
                     </Text>
 
-                    {/* Options */}
+                    {/* Options Side-by-Side */}
                     {item.options?.length > 0 && (
                         <View style={styles.pollOptions}>
                             {item.options.slice(0, 4).map((option, idx) => {
@@ -766,6 +784,7 @@ const BattleCard = memo(({ item, selectedOption, onCardPress, onOptionSelect, on
                                     <OptionChip
                                         key={`${item.id}-${option?.id || label || idx}`}
                                         option={option}
+                                        index={idx}
                                         isSelected={isSelected}
                                         disabled={ended}
                                         imageUrl={optionImageUrl}
@@ -780,44 +799,41 @@ const BattleCard = memo(({ item, selectedOption, onCardPress, onOptionSelect, on
                         </View>
                     )}
 
-                    {/* Soft modern footer matching mockup */}
-                    <View style={[styles.pollFooterRow, { borderTopColor: isDarkMode ? '#382A4C' : (isBusinessProfile ? '#E8D9BD' : '#EAE4F5') }]}>
-                        {/* Stakes */}
-                        <View style={[styles.footerStakePill, { backgroundColor: accentLight }]}>
-                            <Icon name="flash" size={11} color={accent} style={{ marginRight: 4 }} />
-                            <Text style={[styles.footerStakeText, { color: accent }]}>
-                                {t('battleCard.stakes', 'Stakes')}: <Text style={[styles.footerStakeAmount, { color: accent }]}>{formatAmount(item.stakeAmount || 0)}</Text>
+                    {/* Card Footer matching Image 2 mockup */}
+                    <View style={styles.pollFooterRow}>
+                        {/* Stakes Pill */}
+                        <View style={[styles.footerStakePill, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : (isBusinessProfile ? '#FBF8F0' : accentLight) }]}>
+                            <Icon name="flash" size={11} color={isBusinessProfile ? '#8C6010' : accent} style={{ marginRight: 4 }} />
+                            <Text style={[styles.footerStakeText, { color: isBusinessProfile ? '#8C6010' : accent }]}>
+                                {t('battleCard.stakes', 'Stakes')}: <Text style={[styles.footerStakeAmount, { color: isBusinessProfile ? '#8C6010' : accent }]}>{formatAmount(item.stakeAmount || 0)}</Text>
                             </Text>
                         </View>
 
-                        <View style={[styles.footerVerticalDivider, { backgroundColor: isDarkMode ? '#382A4C' : (isBusinessProfile ? '#E8D9BD' : '#EAE4F5') }]} />
-
-                        {/* Participants & Comments */}
-                        <View style={styles.footerStatsRow}>
+                        {/* Participants & Comments inline */}
+                        <View style={styles.footerStatsRowInline}>
                             <View style={styles.footerStatItem}>
-                                <Icon name="people-outline" size={14} color={mutedText} />
-                                <Text style={[styles.footerStatText, { color: isDarkMode ? '#EDE7F6' : (isBusinessProfile ? '#CBA257' : '#402090') }]}>
+                                <Icon name="people-outline" size={14} color={isBusinessProfile ? '#8C7A55' : mutedText} />
+                                <Text style={[styles.footerStatText, { color: isDarkMode ? '#EDE7F6' : (isBusinessProfile ? '#8C7A55' : '#402090') }]}>
                                     {formatBattleCount(item.totalParticipants || 0)}
                                 </Text>
                             </View>
-                            <Text style={[styles.footerDot, { color: mutedText }]}>•</Text>
+                            <Text style={[styles.footerDot, { color: isBusinessProfile ? '#8C7A55' : mutedText }]}>•</Text>
                             <View style={styles.footerStatItem}>
-                                <Icon name="chatbubble-outline" size={12} color={mutedText} />
-                                <Text style={[styles.footerStatText, { color: isDarkMode ? '#EDE7F6' : (isBusinessProfile ? '#CBA257' : '#402090') }]}>
+                                <Icon name="chatbubble-outline" size={12} color={isBusinessProfile ? '#8C7A55' : mutedText} />
+                                <Text style={[styles.footerStatText, { color: isDarkMode ? '#EDE7F6' : (isBusinessProfile ? '#8C7A55' : '#402090') }]}>
                                     {formatBattleCount(item.totalComments || 0)}
                                 </Text>
                             </View>
                         </View>
 
-                        <View style={[styles.footerVerticalDivider, { backgroundColor: isDarkMode ? '#382A4C' : (isBusinessProfile ? '#E8D9BD' : '#EAE4F5') }]} />
-
-                        {/* End Date */}
-                        <View style={styles.footerDateRow}>
-                            <Icon name="calendar-outline" size={13} color={mutedText} style={{ marginRight: 4 }} />
-                            <Text style={[styles.footerDateLabel, { color: mutedText }]}>
-                                {t('battleCard.ends', 'Ends')}: <Text style={[styles.footerDateVal, { color: isDarkMode ? '#EDE7F6' : (isBusinessProfile ? '#CBA257' : '#402090') }]}>{formattedEndDate || t('battleCard.noEndDate', '--/--')}</Text>
-                            </Text>
-                        </View>
+                        {/* Vote Now ➔ Button */}
+                        <TouchableOpacity
+                            style={[styles.voteNowBtn, { backgroundColor: isBusinessProfile ? '#B88728' : accent }]}
+                            onPress={() => onCardPress(item)}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={styles.voteNowBtnText}>Vote Now ➔</Text>
+                        </TouchableOpacity>
                     </View>
                 </TouchableOpacity>
 
@@ -979,6 +995,7 @@ const BattleCard = memo(({ item, selectedOption, onCardPress, onOptionSelect, on
                             <OptionChip
                                 key={`${item.id}-${option?.id || label || idx}`}
                                 option={option}
+                                index={idx}
                                 isSelected={isSelected}
                                 disabled={ended}
                                 imageUrl={optionImageUrl}
@@ -1441,6 +1458,104 @@ const BORDER = '#D3D1C7';
 const GREEN = '#22C55E';
 
 const styles = StyleSheet.create({
+    optionImageCard: {
+        flex: 1,
+        minWidth: 120,
+        borderRadius: 14,
+        overflow: 'hidden',
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+        marginBottom: 4,
+    },
+    optionLandscapeImageWrap: {
+        width: '100%',
+        height: 90,
+        position: 'relative',
+        backgroundColor: '#EDE8F5',
+    },
+    optionLandscapeImage: {
+        width: '100%',
+        height: '100%',
+    },
+    optionImageOverlay: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'rgba(0,0,0,0.48)',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 5,
+        gap: 6,
+    },
+    optionOverlayLabel: {
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '700',
+        flex: 1,
+    },
+    optionImageBottomWrap: {
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+    },
+    optionBottomPercent: {
+        fontSize: 12,
+        fontWeight: '800',
+        marginBottom: 3,
+    },
+    letterPill: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 6,
+    },
+    letterPillText: {
+        color: '#FFFFFF',
+        fontSize: 11,
+        fontWeight: '800',
+    },
+    pollCreatorSubRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 2,
+    },
+    pollDot: {
+        fontSize: 11,
+    },
+    pollTimerText: {
+        fontSize: 11,
+        fontWeight: '500',
+    },
+    footerStatsRowInline: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    voteNowBtn: {
+        borderRadius: 20,
+        paddingHorizontal: 13,
+        paddingVertical: 6,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    voteNowBtnText: {
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+
     card: {
         width: CARD_WIDTH,
         backgroundColor: '#fff',
@@ -1534,6 +1649,46 @@ const styles = StyleSheet.create({
         minWidth: 0,
         backgroundColor: '#fff',
         gap: 5,
+    },
+    optionContentRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: '100%',
+        minHeight: 26,
+    },
+    optionThumbnailWrap: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        overflow: 'hidden',
+        marginRight: 6,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0,0,0,0.03)',
+    },
+    optionThumbnail: {
+        width: '100%',
+        height: '100%',
+    },
+    optionTextContainer: {
+        flex: 1,
+        minWidth: 0,
+        marginRight: 4,
+    },
+    optionPercentInline: {
+        fontSize: 12,
+        fontWeight: '800',
+    },
+    optionChipSelectedBusiness: {
+        borderColor: '#CBA257',
+        backgroundColor: '#FFFFFF',
+    },
+    footerStatsRowCentered: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+        paddingTop: 6,
     },
     optionChipSelected: { borderColor: '#7C3AED', backgroundColor: '#F7F0FD' },
     optionChipTopRow: {
