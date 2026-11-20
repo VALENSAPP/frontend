@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import FastImage from 'react-native-fast-image';
+import LinearGradient from 'react-native-linear-gradient';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Feather from 'react-native-vector-icons/Feather';
@@ -776,17 +777,26 @@ const MyClosetDashboard = ({ navigation, userData, shopDraft }) => {
   const activeSellerOrders = recentOrders.length > 0 ? recentOrders : SAMPLE_SELLER_ORDERS;
   const activeBuyerOrders = buyerOrders.length > 0 ? buyerOrders : SAMPLE_BUYER_ORDERS;
 
-  // Colors aligned with the mockup
-  const screenBg = isDarkMode ? '#0F0C1B' : '#FAF8FD';
+  // Colors aligned with the mockup & UX standardization
+  const screenBg = isDarkMode ? '#0F0C1B' : '#ECE4F3';
   const cardBg = isDarkMode ? '#1E1B2E' : '#FFFFFF';
-  const cardBorder = isDarkMode ? '#2D2640' : '#EDE9FE';
+  const cardBorder = isDarkMode ? '#2D2640' : '#EAE4F5';
   const primaryText = isDarkMode ? '#FFFFFF' : '#1E1B4B';
   const secondaryText = isDarkMode ? '#94A3B8' : '#64748B';
-  const brandPurple = '#6B21A8';
-  const deepPurple = '#3B0764';
+  const brandPurple = '#402090';
+  const deepPurple = '#402090';
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: screenBg }]} edges={['top', 'left', 'right']}>
+    <View style={[styles.root, { backgroundColor: screenBg }]}>
+      {!isDarkMode ? (
+        <LinearGradient
+          colors={['#ECE4F3', '#FAF5FE']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+      ) : null}
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: isDarkMode ? '#0F0C1B' : 'transparent' }]} edges={['top', 'left', 'right']}>
       {/* ── Top Header ── */}
       <View style={styles.topHeader}>
         <TouchableOpacity
@@ -1417,12 +1427,16 @@ const MyClosetDashboard = ({ navigation, userData, shopDraft }) => {
         </View>
       </Modal>
     </SafeAreaView>
+  </View>
   );
 };
 
 export default MyClosetDashboard;
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   safeArea: {
     flex: 1,
   },

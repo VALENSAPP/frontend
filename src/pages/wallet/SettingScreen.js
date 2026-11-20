@@ -200,6 +200,11 @@ export const SettingsScreen = ({ navigation }) => {
           action: () => navigation.navigate('ShopSettings'),
         },
         {
+          label: t('walletSettings.servicesSettings', 'Services Settings'),
+          icon: 'briefcase-outline',
+          action: () => navigation.navigate('ServicesSettings'),
+        },
+        {
           label: t('walletSettings.verificationStatus'),
           icon: 'shield-checkmark',
           action: () => navigation.navigate('VerificationStatus'),

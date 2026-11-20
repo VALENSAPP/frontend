@@ -10,9 +10,12 @@ import { Appearance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSelector } from 'react-redux';
 import {
+  resolveTheme,
+  normalizeProfileType,
+  isBusinessProfileType,
   normalTheme,
-  normalDarkTheme,
   businessTheme,
+  normalDarkTheme,
   businessDarkTheme,
 } from './theme';
 
@@ -22,17 +25,6 @@ const ThemeContext = createContext();
 
 const getSystemIsDark = () => Appearance.getColorScheme() === 'dark';
 
-const resolveProfileTheme = (profileType, isDarkMode) => {
-  const normalized = String(profileType || '').trim().toLowerCase();
-  const isCompany = normalized === 'company' || normalized === 'business';
-
-  if (isCompany) {
-    return isDarkMode ? businessDarkTheme : businessTheme;
-  }
-
-  return isDarkMode ? normalDarkTheme : normalTheme;
-};
-
 const persistDarkMode = async value => {
   try {
     await AsyncStorage.setItem(DARK_MODE_STORAGE_KEY, JSON.stringify(!!value));
@@ -41,28 +33,39 @@ const persistDarkMode = async value => {
   }
 };
 
-export const ThemeProvider = ({ children }) => {
-  const reduxProfile = useSelector(state => state.userProfile.userProfile);
+export const ThemeProvider = ({ children, activeProfile: propActiveProfile }) => {
+  const reduxProfile = useSelector(state => state.userProfile?.userProfile);
   const [storedProfile, setStoredProfile] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(getSystemIsDark);
   const [isThemeLoaded, setIsThemeLoaded] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem('profile').then(type => {
-      if (type) setStoredProfile(type);
-    }).catch(() => {});
+    AsyncStorage.getItem('profile')
+      .then(type => {
+        if (type) setStoredProfile(type);
+      })
+      .catch(() => {});
   }, []);
 
+  // Primary source of truth is Redux state, with graceful fallbacks
   const activeProfile = useMemo(() => {
-    const raw = (reduxProfile && reduxProfile !== 'normal') ? reduxProfile : storedProfile;
-    const normalized = String(raw || '').trim().toLowerCase();
-    return (normalized === 'company' || normalized === 'business') ? 'company' : 'user';
-  }, [reduxProfile, storedProfile]);
+    if (reduxProfile !== undefined && reduxProfile !== null && reduxProfile !== '') {
+      return normalizeProfileType(reduxProfile);
+    }
+    if (propActiveProfile !== undefined && propActiveProfile !== null && propActiveProfile !== '') {
+      return normalizeProfileType(propActiveProfile);
+    }
+    if (storedProfile) {
+      return normalizeProfileType(storedProfile);
+    }
+    return 'user';
+  }, [reduxProfile, propActiveProfile, storedProfile]);
+
+  const isBusinessProfile = activeProfile === 'company';
 
   useEffect(() => {
     const loadTheme = async () => {
       try {
-        // Start from phone Settings (iOS + Android), then keep switch in sync.
         const systemDark = getSystemIsDark();
         setIsDarkMode(systemDark);
         await persistDarkMode(systemDark);
@@ -76,7 +79,7 @@ export const ThemeProvider = ({ children }) => {
     loadTheme();
   }, []);
 
-  // Phone Display dark/light change → update switch + app theme.
+  // Phone Display dark/light change → update theme in real-time
   useEffect(() => {
     const subscription = Appearance.addChangeListener(({ colorScheme }) => {
       const nextDark = colorScheme === 'dark';
@@ -93,12 +96,12 @@ export const ThemeProvider = ({ children }) => {
   }, [isDarkMode]);
 
   const theme = useMemo(
-    () => resolveProfileTheme(activeProfile, isDarkMode),
+    () => resolveTheme(activeProfile, isDarkMode),
     [activeProfile, isDarkMode],
   );
 
   const switchTheme = useCallback(profileType => {
-    // Kept for API compatibility with dev branch; profile is driven by Redux.
+    // Kept for API compatibility; profile switching is driven by Redux.
     void profileType;
   }, []);
 
@@ -124,4 +127,18 @@ export const ThemeProvider = ({ children }) => {
   );
 };
 
-export const useThemeContext = () => useContext(ThemeContext);
+export const useThemeContext = () => {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    return {
+      theme: normalTheme,
+      isDarkMode: false,
+      toggleDarkMode: () => {},
+      isThemeLoaded: true,
+      activeProfile: 'user',
+      isBusinessProfile: false,
+      switchTheme: () => {},
+    };
+  }
+  return context;
+};

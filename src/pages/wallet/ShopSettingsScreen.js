@@ -1,10 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import {
-  Alert,
   ActivityIndicator,
+  Dimensions,
   Image,
   Modal,
-  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -15,12 +14,14 @@ import {
   View,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import Svg, { Path } from 'react-native-svg';
 import { launchImageLibrary } from 'react-native-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useToast } from 'react-native-toast-notifications';
 import { useFocusEffect } from '@react-navigation/native';
 import { hideLoader, showLoader } from '../../redux/actions/LoaderAction';
+import { setProfileImg } from '../../redux/actions/ProfileImgAction';
 import { showToastMessage } from '../../components/displaytoastmessage';
 import { useBusinessProfileTheme } from '../../theme/useBusinessProfileTheme';
 import { useThemeContext } from '../../theme/ThemeContext';
@@ -28,13 +29,15 @@ import { useLanguage } from '../../i18n';
 import { BASE_URL } from '../../config/urls';
 import {
   createMyCloset,
-  deleteMyCloset,
   getMyClosetMe,
   updateMyCloset,
 } from '../../services/myCloset';
+import { EditProfile } from '../../services/createProfile';
+import { getUserCredentials } from '../../services/post';
 import PostLocationModal from '../../components/modals/PostLocationModal';
 import { validateUsername } from '../../utils/validation';
 
+// ─── Helpers & Utilities ───────────────────────────────────────────────────────
 const defaultState = {
   shopName: '',
   shopUsername: '',
@@ -66,7 +69,7 @@ const getFirstPresent = (source, keys) => {
   return '';
 };
 
-const unwrapMyClosetResponse = (source) => {
+const unwrapMyClosetResponse = source => {
   if (!source) return {};
   const level1 = source?.data ?? source;
   if (level1 && typeof level1 === 'object' && !Array.isArray(level1)) {
@@ -88,9 +91,9 @@ const normalizeShopData = source => {
     shopUsername: stripPrefix(
       getFirstPresent(data, ['shopUsername', 'username', 'userName', 'handle']),
     ),
-    description: getFirstPresent(data, ['description', 'shopDescription', 'about']),
+    description: getFirstPresent(data, ['description', 'shopDescription', 'about', 'bio']),
     shopLogo: typeof shopLogo === 'string' ? normalizeUrl(shopLogo) : shopLogo,
-    location: getFirstPresent(data, ['location', 'city', 'address', 'shopLocation']), // ← add
+    location: getFirstPresent(data, ['location', 'city', 'address', 'shopLocation']),
     shippingOptions: getFirstPresent(data, ['shippingOptions', 'shippingPolicy']),
     returnPolicy: getFirstPresent(data, ['returnPolicy', 'returnsPolicy']),
     paymentMethod: getFirstPresent(data, ['paymentMethod', 'paymentMethods']),
@@ -109,6 +112,30 @@ const toPickableFile = asset => {
   };
 };
 
+// ─── Decorative SVGs ──────────────────────────────────────────────────────────
+const DecorativeBurst = memo(({ color = '#A855F7', size = 20 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M8 4L4 8" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+    <Path d="M14 6L11 9" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+    <Path d="M19 11L14 13" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+  </Svg>
+));
+DecorativeBurst.displayName = 'DecorativeBurst';
+
+const CurvedUnderline = memo(({ color = '#A855F7', width = 140 }) => (
+  <Svg width={width} height={8} viewBox="0 0 140 8" fill="none">
+    <Path
+      d="M3 5C45 2 95 2 137 6"
+      stroke={color}
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      opacity={0.35}
+    />
+  </Svg>
+));
+CurvedUnderline.displayName = 'CurvedUnderline';
+
+// ─── Edit Modal ───────────────────────────────────────────────────────────────
 const EditModal = ({
   visible,
   title,
@@ -136,7 +163,14 @@ const EditModal = ({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <Pressable style={styles.modalBackdrop} onPress={onCancel}>
-        <Pressable style={[styles.modalCard, cardStyle, { borderColor: border, borderWidth: 1 }]} onPress={() => { }}>
+        <Pressable
+          style={[
+            styles.modalCard,
+            cardStyle,
+            { borderColor: border, borderWidth: 1 },
+          ]}
+          onPress={() => {}}
+        >
           <Text style={[styles.modalTitle, { color: labelColor }]}>{title}</Text>
           <TextInput
             value={draftValue}
@@ -145,6 +179,7 @@ const EditModal = ({
             placeholderTextColor={mutedText}
             multiline={multiline}
             textAlignVertical={multiline ? 'top' : 'center'}
+            autoFocus
             style={[
               styles.modalInput,
               multiline && styles.modalInputMultiline,
@@ -157,7 +192,7 @@ const EditModal = ({
           />
           <View style={styles.modalActions}>
             <TouchableOpacity
-              activeOpacity={0.9}
+              activeOpacity={0.85}
               onPress={onCancel}
               style={[
                 styles.modalSecondary,
@@ -165,15 +200,15 @@ const EditModal = ({
               ]}
             >
               <Text style={[styles.modalSecondaryText, { color: labelColor }]}>
-                {t('shopSettings.cancel')}
+                {t('shopSettings.cancel', 'Cancel')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              activeOpacity={0.9}
+              activeOpacity={0.85}
               onPress={() => onSave(draftValue)}
               style={[styles.modalPrimary, { backgroundColor: accent }]}
             >
-              <Text style={styles.modalPrimaryText}>{t('shopSettings.save')}</Text>
+              <Text style={styles.modalPrimaryText}>{t('shopSettings.save', 'Save')}</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -182,58 +217,79 @@ const EditModal = ({
   );
 };
 
-const Row = ({
-  label,
-  value,
-  onPress,
-  multiline = false,
+// ─── Settings Row Component ───────────────────────────────────────────────────
+const SettingsRow = memo(({
+  icon,
+  title,
   subtitle,
+  value,
+  hasValue,
+  accent,
+  isBusinessProfile,
   labelColor,
-  mutedText,
-  border,
+  onPress,
 }) => (
-  <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={styles.row}>
-    <View style={styles.rowCopy}>
-      <Text style={[styles.rowLabel, { color: labelColor }]}>{label}</Text>
-      {subtitle ? <Text style={[styles.rowSubtitle, { color: mutedText }]}>{subtitle}</Text> : null}
-      {value ? (
-        <Text
-          style={[
-            styles.rowValue,
-            { color: mutedText },
-            multiline && styles.rowValueMultiline,
-          ]}
-          numberOfLines={multiline ? 3 : 1}
-        >
-          {value}
-        </Text>
-      ) : null}
+  <TouchableOpacity activeOpacity={0.75} onPress={onPress} style={styles.rowItem}>
+    <View
+      style={[
+        styles.rowIconBox,
+        {
+          backgroundColor: isBusinessProfile
+            ? 'rgba(203, 162, 87, 0.10)'
+            : 'rgba(90, 45, 130, 0.08)',
+        },
+      ]}
+    >
+      <Ionicons name={icon} size={21} color={accent} />
     </View>
-    <View style={styles.rowRight}>
-      <Ionicons name="chevron-forward" size={18} color={mutedText} />
+    <View style={styles.rowContent}>
+      <Text style={[styles.rowTitle, { color: labelColor }]}>{title}</Text>
+      {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
+      <Text
+        style={[
+          styles.rowValue,
+          {
+            color: hasValue
+              ? (isBusinessProfile ? accent : '#5a2d82')
+              : '#9CA3AF',
+            fontWeight: hasValue ? '700' : '600',
+          },
+        ]}
+        numberOfLines={2}
+      >
+        {value}
+      </Text>
     </View>
+    <Ionicons name="chevron-forward" size={18} color="#9CA3AF" style={styles.rowChevron} />
   </TouchableOpacity>
-);
+));
+SettingsRow.displayName = 'SettingsRow';
 
+// ─── Main ShopSettingsScreen ──────────────────────────────────────────────────
 const ShopSettingsScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const toast = useToast();
-  const { bgStyle, cardStyle, accent, mutedText, border } =
+  const { isBusinessProfile, bgStyle, cardStyle, accent, mutedText, border, card } =
     useBusinessProfileTheme();
   const { isDarkMode } = useThemeContext();
   const { t } = useLanguage();
   const labelColor = isDarkMode ? '#ffffff' : '#111827';
+
   const [saving, setSaving] = useState(false);
   const [data, setData] = useState(defaultState);
+  const [initialData, setInitialData] = useState(null);
   const [activeField, setActiveField] = useState(null);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
 
+  // ── Load Shop / Profile Settings ──────────────────────────────────────────
   const loadShopSettings = useCallback(async () => {
     dispatch(showLoader());
     try {
-      const [apiResponse, draftValue] = await Promise.all([
+      const userId = await AsyncStorage.getItem('userId');
+      const [apiResponse, draftValue, userCreds] = await Promise.all([
         getMyClosetMe().catch(error => error?.response?.data || null),
         AsyncStorage.getItem('myClosetDraft'),
+        userId ? getUserCredentials(userId).catch(() => null) : Promise.resolve(null),
       ]);
 
       const normalizedApiData = normalizeShopData(apiResponse);
@@ -247,17 +303,31 @@ const ShopSettingsScreen = ({ navigation }) => {
         }
       }
 
-      setData(prev => ({
-        ...prev,
+      // Persona credentials fallback
+      const credsData = userCreds?.data?.user || userCreds?.data || userCreds;
+      const personaFallback = {
+        shopName: credsData?.displayName || credsData?.name || '',
+        shopUsername: stripPrefix(credsData?.username || credsData?.userName || ''),
+        description: credsData?.bio || credsData?.about || '',
+        shopLogo: credsData?.profileImage || credsData?.image || null,
+        location: credsData?.location || credsData?.city || '',
+      };
+
+      const merged = {
+        ...defaultState,
+        ...personaFallback,
         ...(normalizedDraft || {}),
         ...normalizedApiData,
-      }));
+      };
+
+      setData(merged);
+      setInitialData(merged);
     } catch (error) {
       console.warn('ShopSettings load error:', error);
       showToastMessage(
         toast,
         'danger',
-        error?.response?.data?.message || error?.message || t('shopSettings.toasts.loadFailed'),
+        error?.response?.data?.message || error?.message || t('shopSettings.toasts.loadFailed', 'Failed to load settings'),
       );
     } finally {
       dispatch(hideLoader());
@@ -270,11 +340,25 @@ const ShopSettingsScreen = ({ navigation }) => {
     }, [loadShopSettings]),
   );
 
+  // ── Change Detection ───────────────────────────────────────────────────────
+  const hasChanges = useMemo(() => {
+    if (!initialData) return false;
+    const nameDiff = String(data.shopName || '').trim() !== String(initialData.shopName || '').trim();
+    const usernameDiff = String(data.shopUsername || '').trim() !== String(initialData.shopUsername || '').trim();
+    const descDiff = String(data.description || '').trim() !== String(initialData.description || '').trim();
+    const locDiff = String(data.location || '').trim() !== String(initialData.location || '').trim();
+    const logoDiff = data.shopLogo !== initialData.shopLogo;
+
+    return nameDiff || usernameDiff || descDiff || locDiff || logoDiff;
+  }, [data, initialData]);
+
+  // ── Public Shop Link ───────────────────────────────────────────────────────
   const shopLink = useMemo(() => {
     const handle = String(data.shopUsername || '').trim().toLowerCase();
-    return handle ? `valens.app/${handle}` : `valens.app/${t('shopSettings.yourShopSlug')}`;
+    return handle ? `valens.app/${handle}` : `valens.app/${t('shopSettings.yourShopSlug', 'your-shop')}`;
   }, [data.shopUsername, t]);
 
+  // ── Logo / Photo Picking ───────────────────────────────────────────────────
   const handleImagePick = useCallback(async () => {
     try {
       const response = await launchImageLibrary({
@@ -295,18 +379,24 @@ const ShopSettingsScreen = ({ navigation }) => {
       }));
     } catch (error) {
       console.warn('Shop logo picker error:', error);
-      showToastMessage(toast, 'danger', t('shopSettings.toasts.photoLibraryUnavailable'));
+      showToastMessage(toast, 'danger', t('shopSettings.toasts.photoLibraryUnavailable', 'Photo library unavailable'));
     }
   }, [t, toast]);
 
+  // ── Save Functionality ─────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
+    if (!hasChanges) {
+      showToastMessage(toast, 'info', t('shopSettings.toasts.noChanges', 'No changes to save'));
+      return;
+    }
+
     const shopUsernameError = validateUsername(data.shopUsername, t);
     if (shopUsernameError) {
       showToastMessage(toast, 'danger', shopUsernameError);
       return;
     }
 
-    const payload = {
+    const closetPayload = {
       shopName: String(data.shopName || '').trim(),
       shopUsername: String(data.shopUsername || '').trim(),
       description: String(data.description || '').trim(),
@@ -322,133 +412,114 @@ const ShopSettingsScreen = ({ navigation }) => {
     setSaving(true);
     dispatch(showLoader());
     try {
-      let response = await updateMyCloset(payload);
+      let closetRes = await updateMyCloset(closetPayload);
 
-      if (response?.statusCode === 404 || response?.error) {
-        response = await createMyCloset(payload);
+      if (closetRes?.statusCode === 404 || closetRes?.error) {
+        closetRes = await createMyCloset(closetPayload);
       }
 
-      if (response?.statusCode === 200 || response?.statusCode === 201) {
+      // If Persona account, also sync personal profile details
+      if (!isBusinessProfile) {
+        try {
+          const profileForm = new FormData();
+          if (data.shopName) {
+            profileForm.append('displayName', String(data.shopName).trim());
+            profileForm.append('name', String(data.shopName).trim());
+          }
+          if (data.shopUsername) {
+            profileForm.append('username', String(data.shopUsername).trim());
+          }
+          if (data.description) {
+            profileForm.append('bio', String(data.description).trim());
+          }
+          if (data.location) {
+            profileForm.append('location', String(data.location).trim());
+          }
+          if (data.shopLogo?.uri && data.shopLogo.uri.startsWith('file://')) {
+            profileForm.append('image', {
+              uri: data.shopLogo.uri,
+              name: data.shopLogo.name || `profile-${Date.now()}.jpg`,
+              type: data.shopLogo.type || 'image/jpeg',
+            });
+          }
+          await EditProfile(profileForm).catch(e => console.warn('EditProfile sync error:', e));
+          if (data.shopLogo?.uri) {
+            dispatch(setProfileImg(data.shopLogo.uri));
+          }
+        } catch (profileErr) {
+          console.warn('Persona profile sync error:', profileErr);
+        }
+      }
+
+      if (closetRes?.statusCode === 200 || closetRes?.statusCode === 201 || closetRes?.success) {
         showToastMessage(
           toast,
           'success',
-          response?.message || t('shopSettings.toasts.saveSuccess'),
+          closetRes?.message || t('shopSettings.toasts.saveSuccess', 'Changes saved successfully'),
         );
 
-        if (payload.shopUsername) {
+        setInitialData({ ...data });
+
+        if (closetPayload.shopUsername) {
           await AsyncStorage.setItem(
             'myClosetDraft',
             JSON.stringify({
               ...data,
-              shopUsername: payload.shopUsername,
+              shopUsername: closetPayload.shopUsername,
             }),
           );
         }
-
         return;
       }
 
       showToastMessage(
         toast,
         'danger',
-        response?.message || t('shopSettings.toasts.saveFailed'),
+        closetRes?.message || t('shopSettings.toasts.saveFailed', 'Failed to save changes'),
       );
     } catch (error) {
       showToastMessage(
         toast,
         'danger',
-        error?.response?.data?.message || error?.message || t('shopSettings.toasts.saveFailed'),
+        error?.response?.data?.message || error?.message || t('shopSettings.toasts.saveFailed', 'Failed to save changes'),
       );
     } finally {
       setSaving(false);
       dispatch(hideLoader());
     }
-  }, [data, dispatch, t, toast]);
+  }, [data, dispatch, hasChanges, isBusinessProfile, t, toast]);
 
-  const handleDeleteCloset = useCallback(() => {
-    Alert.alert(
-      t('shopSettings.deleteAlert.title'),
-      t('shopSettings.deleteAlert.message'),
-      [
-        { text: t('shopSettings.cancel'), style: 'cancel' },
-        {
-          text: t('shopSettings.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            setSaving(true);
-            dispatch(showLoader());
-            try {
-              const response = await deleteMyCloset();
-              const deleted =
-                response?.statusCode === 200 ||
-                response?.statusCode === 204 ||
-                response === '' ||
-                response == null;
-
-              if (deleted) {
-                await AsyncStorage.multiRemove(['myClosetCreated', 'myClosetDraft']);
-                showToastMessage(
-                  toast,
-                  'success',
-                  response?.message || t('shopSettings.toasts.deleteSuccess'),
-                );
-                navigation.goBack();
-                return;
-              }
-
-              showToastMessage(
-                toast,
-                'danger',
-                response?.message || t('shopSettings.toasts.deleteFailed'),
-              );
-            } catch (error) {
-              showToastMessage(
-                toast,
-                'danger',
-                error?.response?.data?.message || error?.message || t('shopSettings.toasts.deleteFailed'),
-              );
-            } finally {
-              setSaving(false);
-              dispatch(hideLoader());
-            }
-          },
-        },
-      ],
-    );
-  }, [dispatch, navigation, t, toast]);
-
+  // ── Modal Field Configuration ──────────────────────────────────────────────
   const activeModalConfig = {
     shopName: {
-      title: t('shopSettings.modals.shopName.title'),
-      placeholder: t('shopSettings.modals.shopName.placeholder'),
+      title: isBusinessProfile
+        ? t('shopSettings.modals.shopName.title', 'Shop Name')
+        : t('shopSettings.rows.personalName', 'Display name'),
+      placeholder: isBusinessProfile
+        ? t('shopSettings.modals.shopName.placeholder', 'e.g. Valens Boutique')
+        : t('shopSettings.rows.personalNameSubtitle', 'Your personal display name'),
       multiline: false,
     },
     shopUsername: {
-      title: t('shopSettings.modals.shopUsername.title'),
-      placeholder: t('shopSettings.modals.shopUsername.placeholder'),
+      title: t('shopSettings.modals.shopUsername.title', 'Username'),
+      placeholder: t('shopSettings.modals.shopUsername.placeholder', 'e.g. my-shop'),
       multiline: false,
     },
     description: {
-      title: t('shopSettings.modals.description.title'),
-      placeholder: t('shopSettings.modals.description.placeholder'),
-      multiline: true,
-    },
-    shippingOptions: {
-      title: t('shopSettings.modals.shippingOptions.title'),
-      placeholder: t('shopSettings.modals.shippingOptions.placeholder'),
-      multiline: true,
-    },
-    paymentMethod: {
-      title: t('shopSettings.modals.paymentMethod.title'),
-      placeholder: t('shopSettings.modals.paymentMethod.placeholder'),
-      multiline: true,
-    },
-    shopPreferences: {
-      title: t('shopSettings.modals.shopPreferences.title'),
-      placeholder: t('shopSettings.modals.shopPreferences.placeholder'),
+      title: isBusinessProfile
+        ? t('shopSettings.modals.description.title', 'Shop Description')
+        : t('shopSettings.rows.personalBio', 'Bio / Description'),
+      placeholder: isBusinessProfile
+        ? t('shopSettings.modals.description.placeholder', 'What makes your shop special...')
+        : t('shopSettings.rows.personalBioSubtitle', 'Tell people about yourself...'),
       multiline: true,
     },
   }[activeField];
+
+  // Preview Image URI
+  const previewImageUri = data.shopLogo?.uri || (typeof data.shopLogo === 'string' ? data.shopLogo : null);
+
+  const cardBorderColor = isBusinessProfile ? '#E8D9BD' : 'rgba(90, 45, 130, 0.12)';
 
   return (
     <SafeAreaView style={[styles.safeArea, bgStyle]}>
@@ -457,189 +528,311 @@ const ShopSettingsScreen = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
+          {/* ── Banner Card (Card 1) ────────────────────────────────────────── */}
           <View
             style={[
-              styles.heroCard,
+              styles.bannerCard,
               cardStyle,
-              { borderColor: border },
+              { borderColor: cardBorderColor },
             ]}
           >
-            <Text style={[styles.sectionHeaderText, { color: accent }]}>
-              {t('shopSettings.shopInformation')}
-            </Text>
-            <Text style={[styles.heroSubtext, { color: mutedText }]}>
-              {t('shopSettings.shopInformationSubtitle')}
-            </Text>
-
-            <View style={styles.previewBlock}>
-              <View style={styles.previewLogoWrap}>
-                {data.shopLogo ? (
-                  <Image
-                    source={{ uri: data.shopLogo.uri || data.shopLogo }}
-                    style={styles.previewLogo}
-                  />
-                ) : (
-                  <View
-                    style={[
-                      styles.previewLogo,
-                      styles.previewLogoEmpty,
-                      {
-                        borderColor: border,
-                        backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : '#f5f3ff',
-                      },
-                    ]}
-                  >
-                    <Ionicons name="bag-handle-outline" size={26} color={accent} />
-                  </View>
-                )}
-              </View>
-              <View style={styles.previewCopy}>
-                <Text style={[styles.previewTitle, { color: labelColor }]} numberOfLines={1}>
-                  {data.shopName || t('shopSettings.yourShopFallback')}
+            <View style={styles.bannerTextCol}>
+              <View style={styles.bannerHeadingWrap}>
+                <Text
+                  style={[
+                    styles.bannerHeading,
+                    { color: isBusinessProfile ? accent : '#402090' },
+                  ]}
+                >
+                  {t('shopSettings.bannerHeading', 'Small details.\nBig shop energy.')}
                 </Text>
-                <Text style={[styles.previewHandle, { color: mutedText }]}>{shopLink}</Text>
-                <Text style={[styles.previewDescription, { color: mutedText }]} numberOfLines={2}>
-                  {data.description || t('shopSettings.addDescriptionFallback')}
-                </Text>
-              </View>
-            </View>
-
-            <View style={[styles.rowsCard, cardStyle]}>
-              <Row
-                label={t('shopSettings.rows.shopName')}
-                value={data.shopName || t('shopSettings.tapToAdd')}
-                onPress={() => setActiveField('shopName')}
-                labelColor={labelColor}
-                mutedText={mutedText}
-                border={border}
-              />
-              <View style={[styles.rowDivider, { backgroundColor: border }]} />
-              <Row
-                label={t('shopSettings.rows.username')}
-                value={`valens.app/${data.shopUsername || t('shopSettings.yourShopSlug')}`}
-                subtitle={t('shopSettings.rows.usernameSubtitle')}
-                onPress={() => setActiveField('shopUsername')}
-                labelColor={labelColor}
-                mutedText={mutedText}
-                border={border}
-              />
-              <View style={[styles.rowDivider, { backgroundColor: border }]} />
-              <Row
-                label={t('shopSettings.rows.description')}
-                value={data.description || t('shopSettings.rows.descriptionFallback')}
-                multiline
-                onPress={() => setActiveField('description')}
-                labelColor={labelColor}
-                mutedText={mutedText}
-                border={border}
-              />
-              <View style={[styles.rowDivider, { backgroundColor: border }]} />
-              <Row
-                label={t('shopSettings.rows.logo')}
-                value={data.shopLogo ? t('shopSettings.rows.logoUploaded') : t('shopSettings.rows.addLogo')}
-                subtitle={t('shopSettings.rows.logoSubtitle')}
-                onPress={handleImagePick}
-                labelColor={labelColor}
-                mutedText={mutedText}
-                border={border}
-              />
-              <View style={[styles.rowDivider, { backgroundColor: border }]} />
-              <Row
-                label={t('shopSettings.rows.location')}
-                value={data.location || t('shopSettings.rows.locationFallback')}
-                subtitle={t('shopSettings.rows.locationSubtitle')}
-                onPress={() => setLocationModalVisible(true)}
-                labelColor={labelColor}
-                mutedText={mutedText}
-                border={border}
-              />
-            </View>
-          </View>
-
-          {/* <View
-              style={[
-                styles.sectionCard,
-                cardStyle,
-                { borderColor: 'rgba(91, 33, 182, 0.10)' },
-              ]}
-            >
-              <Text style={[styles.sectionHeaderText, textStyle]}>
-                {t('shopSettings.moreSettings')}
-              </Text>
-              <View style={styles.rowsCard}>
-                <Row
-                  label={t('shopSettings.rows.shippingPolicy')}
-                  value={data.shippingOptions || data.returnPolicy || t('shopSettings.rows.shippingPolicyFallback')}
-                  subtitle={t('shopSettings.rows.shippingPolicySubtitle')}
-                  onPress={() => setActiveField('shippingOptions')}
-                />
-                <View style={styles.rowDivider} />
-                <Row
-                  label={t('shopSettings.rows.paymentMethods')}
-                  value={data.paymentMethod || t('shopSettings.rows.paymentMethodsFallback')}
-                  subtitle={t('shopSettings.rows.paymentMethodsSubtitle')}
-                  onPress={() => setActiveField('paymentMethod')}
-                />
-                <View style={styles.rowDivider} />
-                <Row
-                  label={t('shopSettings.rows.shopPreferences')}
-                  value={data.shopPreferences || t('shopSettings.rows.shopPreferencesFallback')}
-                  subtitle={t('shopSettings.rows.shopPreferencesSubtitle')}
-                  onPress={() => setActiveField('shopPreferences')}
-                />
-                <View style={styles.rowDivider} />
-                <View style={styles.notificationRow}>
-                  <View style={styles.rowCopy}>
-                    <Text style={styles.rowLabel}>{t('shopSettings.rows.notifications')}</Text>
-                    <Text style={styles.rowSubtitle}>
-                      {t('shopSettings.rows.notificationsSubtitle')}
-                    </Text>
-                  </View>
-                  <Switch
-                    value={data.notificationsEnabled}
-                    onValueChange={value =>
-                      setData(prev => ({ ...prev, notificationsEnabled: value }))
-                    }
-                    thumbColor="#fff"
-                    trackColor={{ false: '#e5e7eb', true: text }}
-                  />
+                <View style={styles.burstWrap}>
+                  <DecorativeBurst color={isBusinessProfile ? accent : '#A855F7'} size={21} />
                 </View>
               </View>
-            </View> */}
 
-          <View style={styles.footerCard}>
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={handleSave}
-              disabled={saving}
+              <Text
+                style={[
+                  styles.bannerBody,
+                  { color: isBusinessProfile ? '#8C733E' : '#4B5563' },
+                ]}
+              >
+                {t(
+                  'shopSettings.bannerDescription',
+                  "Give your shop a name, add your logo, and tell shoppers what makes it special. These are the details they'll see when they visit.",
+                )}
+              </Text>
+
+              <View style={styles.taglineWrap}>
+                <Text
+                  style={[
+                    styles.bannerTagline,
+                    { color: isBusinessProfile ? accent : '#5a2d82' },
+                  ]}
+                >
+                  {t(
+                    'shopSettings.bannerTagline',
+                    'Dralens brought the cart.\nYou bring the good stuff!',
+                  )}
+                </Text>
+                <CurvedUnderline color={isBusinessProfile ? accent : '#A855F7'} width={135} />
+              </View>
+            </View>
+
+            <Image
+              source={
+                isBusinessProfile
+                  ? require('../../assets/Valens Stickers/Valens Stickers/PNG/shopping_gold.png')
+                  : require('../../assets/Valens Stickers/Valens Stickers/WEBP/Pack 2/shopping.webp')
+              }
+              style={styles.bannerMascot}
+              resizeMode="contain"
+            />
+          </View>
+
+          {/* ── Shop Preview Card (Card 2) ──────────────────────────────────── */}
+          <View
+            style={[
+              styles.previewCard,
+              cardStyle,
+              { borderColor: cardBorderColor },
+            ]}
+          >
+            <View
               style={[
-                styles.saveButton,
-                { backgroundColor: accent, opacity: saving ? 0.8 : 1 },
-              ]}
-            >
-              {saving ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.saveButtonText}>{t('shopSettings.saveChanges')}</Text>
-              )}
-            </TouchableOpacity>
-            {/* <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={handleDeleteCloset}
-              disabled={saving}
-              style={[
-                styles.deleteButton,
+                styles.previewIconBox,
                 {
-                  borderColor: isDarkMode ? 'rgba(248, 113, 113, 0.45)' : '#fecaca',
-                  backgroundColor: isDarkMode ? 'rgba(220, 38, 38, 0.12)' : '#fff1f2',
+                  borderColor: isBusinessProfile ? '#E8D9BD' : 'rgba(90, 45, 130, 0.18)',
+                  backgroundColor: isBusinessProfile ? '#FAF7F0' : '#FAF5FF',
                 },
               ]}
             >
-              <Text style={styles.deleteButtonText}>{t('shopSettings.deleteMyCloset')}</Text>
-            </TouchableOpacity> */}
+              {previewImageUri ? (
+                <Image source={{ uri: previewImageUri }} style={styles.previewImage} resizeMode="cover" />
+              ) : (
+                <Ionicons
+                  name={isBusinessProfile ? 'bag-handle-outline' : 'bag-handle-outline'}
+                  size={28}
+                  color={accent}
+                />
+              )}
+            </View>
+
+            <View style={styles.previewTextCol}>
+              <View
+                style={[
+                  styles.previewPill,
+                  {
+                    backgroundColor: isBusinessProfile
+                      ? 'rgba(203, 162, 87, 0.12)'
+                      : 'rgba(90, 45, 130, 0.10)',
+                  },
+                ]}
+              >
+                <Text style={[styles.previewPillText, { color: accent }]}>
+                  {t('shopSettings.shopPreviewPill', 'Shop preview')}
+                </Text>
+              </View>
+
+              <Text
+                style={[
+                  styles.previewTitle,
+                  { color: isBusinessProfile ? accent : labelColor },
+                ]}
+                numberOfLines={1}
+              >
+                {data.shopName || t('shopSettings.yourShopFallback', 'Your Shop')}
+              </Text>
+
+              <Text
+                style={[
+                  styles.previewLink,
+                  { color: isBusinessProfile ? '#8C733E' : '#6B7280' },
+                ]}
+                numberOfLines={1}
+              >
+                {shopLink}
+              </Text>
+
+              <Text
+                style={[
+                  styles.previewDescription,
+                  { color: isBusinessProfile ? '#A38A5A' : '#9CA3AF' },
+                ]}
+                numberOfLines={1}
+              >
+                {data.description || t('shopSettings.previewDefaultStory', "Your shop's story starts here.")}
+              </Text>
+            </View>
+          </View>
+
+          {/* ── Shop Information Section (Card 3) ───────────────────────────── */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[styles.sectionHeading, { color: accent }]}>
+              {t('shopSettings.shopInformation', 'Shop information')}
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.infoCard,
+              cardStyle,
+              { borderColor: cardBorderColor },
+            ]}
+          >
+            {/* Row 1: Shop Name / Display Name */}
+            <SettingsRow
+              icon={isBusinessProfile ? 'storefront-outline' : 'person-outline'}
+              title={
+                isBusinessProfile
+                  ? t('shopSettings.rows.shopName', 'Shop name')
+                  : t('shopSettings.rows.personalName', 'Display name')
+              }
+              subtitle={
+                isBusinessProfile
+                  ? t('shopSettings.rows.shopNameSubtitle', 'Pick a name shoppers will remember.')
+                  : t('shopSettings.rows.personalNameSubtitle', 'Your personal display name shown to others.')
+              }
+              value={data.shopName || t('shopSettings.tapToAdd', 'Tap to add')}
+              hasValue={Boolean(data.shopName)}
+              accent={accent}
+              isBusinessProfile={isBusinessProfile}
+              labelColor={labelColor}
+              onPress={() => setActiveField('shopName')}
+            />
+            <View
+              style={[
+                styles.rowDivider,
+                { backgroundColor: isBusinessProfile ? '#E8D9BD' : 'rgba(90, 45, 130, 0.08)' },
+              ]}
+            />
+
+            {/* Row 2: Username */}
+            <SettingsRow
+              icon="link-outline"
+              title={t('shopSettings.rows.username', 'Username')}
+              subtitle={
+                isBusinessProfile
+                  ? t('shopSettings.rows.usernameSubtitleNew', 'Your public shop link. Make it easy to share.')
+                  : t('shopSettings.rows.personalUsernameSubtitle', 'Your public profile link. Make it easy to share.')
+              }
+              value={data.shopUsername ? `valens.app/${data.shopUsername}` : 'valens.app/your-shop'}
+              hasValue={Boolean(data.shopUsername)}
+              accent={accent}
+              isBusinessProfile={isBusinessProfile}
+              labelColor={labelColor}
+              onPress={() => setActiveField('shopUsername')}
+            />
+            <View
+              style={[
+                styles.rowDivider,
+                { backgroundColor: isBusinessProfile ? '#E8D9BD' : 'rgba(90, 45, 130, 0.08)' },
+              ]}
+            />
+
+            {/* Row 3: Shop Description / Bio */}
+            <SettingsRow
+              icon="document-text-outline"
+              title={
+                isBusinessProfile
+                  ? t('shopSettings.rows.description', 'Shop description')
+                  : t('shopSettings.rows.personalBio', 'Shop description')
+              }
+              subtitle={
+                isBusinessProfile
+                  ? t('shopSettings.rows.descriptionSubtitle', 'What do you sell? Give shoppers a reason to explore.')
+                  : t('shopSettings.rows.personalBioSubtitle', 'Tell shoppers what makes your collection special.')
+              }
+              value={data.description || t('shopSettings.tapToDescribe', 'Tap to describe your shop')}
+              hasValue={Boolean(data.description)}
+              accent={accent}
+              isBusinessProfile={isBusinessProfile}
+              labelColor={labelColor}
+              onPress={() => setActiveField('description')}
+            />
+            <View
+              style={[
+                styles.rowDivider,
+                { backgroundColor: isBusinessProfile ? '#E8D9BD' : 'rgba(90, 45, 130, 0.08)' },
+              ]}
+            />
+
+            {/* Row 4: Shop Logo / Profile Photo */}
+            <SettingsRow
+              icon="image-outline"
+              title={
+                isBusinessProfile
+                  ? t('shopSettings.rows.logo', 'Shop logo')
+                  : t('shopSettings.rows.personalPhoto', 'Shop logo')
+              }
+              subtitle={
+                isBusinessProfile
+                  ? t('shopSettings.rows.logoSubtitleNew', "Your shop's signature look. A square image works best.")
+                  : t('shopSettings.rows.personalPhotoSubtitle', 'Your signature look. A square image works best.')
+              }
+              value={
+                data.shopLogo
+                  ? (isBusinessProfile ? t('shopSettings.rows.logoUploaded', 'Logo uploaded') : t('shopSettings.rows.personalPhotoUploaded', 'Photo uploaded'))
+                  : t('shopSettings.addLogo', 'Add a logo')
+              }
+              hasValue={Boolean(data.shopLogo)}
+              accent={accent}
+              isBusinessProfile={isBusinessProfile}
+              labelColor={labelColor}
+              onPress={handleImagePick}
+            />
+            <View
+              style={[
+                styles.rowDivider,
+                { backgroundColor: isBusinessProfile ? '#E8D9BD' : 'rgba(90, 45, 130, 0.08)' },
+              ]}
+            />
+
+            {/* Row 5: Location */}
+            <SettingsRow
+              icon="location-outline"
+              title={t('shopSettings.rows.location', 'Location')}
+              subtitle={
+                isBusinessProfile
+                  ? t('shopSettings.rows.locationSubtitleNew', "Let shoppers know where you're based. Shown on your public shop page.")
+                  : t('shopSettings.rows.personalLocationSubtitle', "Let shoppers know where you're based. Shown on your public page.")
+              }
+              value={data.location || t('shopSettings.tapToAddLocation', 'Tap to add your location')}
+              hasValue={Boolean(data.location)}
+              accent={accent}
+              isBusinessProfile={isBusinessProfile}
+              labelColor={labelColor}
+              onPress={() => setLocationModalVisible(true)}
+            />
+          </View>
+
+          {/* ── Save Changes Button ────────────────────────────────────────── */}
+          <View style={styles.actionWrap}>
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={handleSave}
+              disabled={saving || !hasChanges}
+              style={[
+                styles.saveButton,
+                {
+                  backgroundColor: accent,
+                  opacity: saving ? 0.75 : !hasChanges ? 0.5 : 1,
+                  shadowColor: accent,
+                },
+              ]}
+            >
+              {saving ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.saveButtonText}>
+                  {t('shopSettings.saveChanges', 'Save changes')}
+                </Text>
+              )}
+            </TouchableOpacity>
           </View>
         </ScrollView>
 
+        {/* ── Location Modal ──────────────────────────────────────────────── */}
         <PostLocationModal
           visible={locationModalVisible}
           initialValue={data.location}
@@ -651,6 +844,7 @@ const ShopSettingsScreen = ({ navigation }) => {
           }}
         />
 
+        {/* ── Edit Modal ──────────────────────────────────────────────────── */}
         <EditModal
           visible={Boolean(activeModalConfig)}
           title={activeModalConfig?.title || ''}
@@ -683,6 +877,7 @@ const ShopSettingsScreen = ({ navigation }) => {
 
 export default ShopSettingsScreen;
 
+// ─── Stylesheet ───────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -690,188 +885,232 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 6,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.8)',
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-  },
-  headerSpacer: {
-    width: 42,
+    paddingTop: 8,
   },
   scrollContent: {
-    paddingBottom: 60,
+    paddingBottom: 72,
   },
-  loadingWrap: {
+
+  // ── Banner Card ──
+  bannerCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1.5,
+  },
+  bannerTextCol: {
     flex: 1,
+    paddingRight: 8,
+  },
+  bannerHeadingWrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+  },
+  bannerHeading: {
+    fontSize: 20,
+    fontWeight: '800',
+    lineHeight: 25,
+    letterSpacing: -0.2,
+  },
+  burstWrap: {
+    marginLeft: 4,
+    marginTop: -2,
+  },
+  bannerBody: {
+    fontSize: 12.5,
+    lineHeight: 17,
+    fontWeight: '400',
+    marginBottom: 8,
+  },
+  taglineWrap: {
+    alignSelf: 'flex-start',
+  },
+  bannerTagline: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    fontStyle: 'italic',
+    lineHeight: 16,
+  },
+  bannerMascot: {
+    width: 130,
+    height: 130,
+    marginLeft: 4,
+  },
+
+  // ── Preview Card ──
+  previewCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1.5,
+  },
+  previewIconBox: {
+    width: 68,
+    height: 68,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    overflow: 'hidden',
   },
-  loadingText: {
-    color: '#6b7280',
-    fontSize: 14,
-    fontWeight: '600',
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
   },
-  heroCard: {
-    borderRadius: 24,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 14,
+  previewTextCol: {
+    flex: 1,
+    marginLeft: 14,
+    justifyContent: 'center',
   },
-  sectionCard: {
-    borderRadius: 24,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 14,
-  },
-  sectionHeaderText: {
-    fontSize: 18,
-    fontWeight: '800',
+  previewPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
     marginBottom: 4,
   },
-  heroSubtext: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 14,
-  },
-  previewBlock: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  previewLogoWrap: {
-    marginRight: 12,
-  },
-  previewLogo: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  previewLogoEmpty: {
-    borderWidth: 1,
-    borderStyle: 'dashed',
-  },
-  previewCopy: {
-    flex: 1,
+  previewPillText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   previewTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
-    marginBottom: 2,
+    lineHeight: 21,
   },
-  previewHandle: {
-    fontSize: 13,
-    marginBottom: 6,
+  previewLink: {
+    fontSize: 12.5,
     fontWeight: '600',
+    lineHeight: 17,
+    marginTop: 1,
   },
   previewDescription: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    fontWeight: '400',
+    lineHeight: 16,
+    marginTop: 2,
   },
-  rowsCard: {
-    borderRadius: 20,
+
+  // ── Info Section ──
+  sectionHeaderRow: {
+    marginBottom: 10,
+    marginTop: 4,
+  },
+  sectionHeading: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  infoCard: {
+    borderRadius: 18,
+    borderWidth: 1,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1.5,
   },
-  row: {
-    minHeight: 72,
-    paddingVertical: 14,
-    paddingHorizontal: 6,
+
+  // ── Settings Row ──
+  rowItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
-  rowCopy: {
+  rowIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  rowContent: {
     flex: 1,
-    paddingRight: 12,
+    paddingRight: 8,
   },
-  rowLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 6,
+  rowTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 19,
   },
   rowSubtitle: {
     fontSize: 12,
+    color: '#6B7280',
     lineHeight: 16,
+    marginVertical: 2,
   },
   rowValue: {
-    marginTop: 6,
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    lineHeight: 17,
+    marginTop: 1,
   },
-  rowValueMultiline: {
-    lineHeight: 19,
-  },
-  rowRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  rowChevron: {
+    marginLeft: 4,
   },
   rowDivider: {
     height: 1,
-    marginLeft: 6,
+    marginLeft: 72,
   },
-  notificationRow: {
-    minHeight: 72,
-    paddingVertical: 14,
-    paddingHorizontal: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  footerCard: {
-    paddingTop: 2,
+
+  // ── Action Wrap & Save Button ──
+  actionWrap: {
+    marginTop: 22,
+    marginBottom: 20,
   },
   saveButton: {
-    minHeight: 52,
-    borderRadius: 16,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   saveButtonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
   },
-  deleteButton: {
-    minHeight: 52,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 12,
-    borderWidth: 1,
-  },
-  deleteButtonText: {
-    color: '#dc2626',
-    fontSize: 16,
-    fontWeight: '800',
-  },
+
+  // ── Modal Styles ──
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(17, 24, 39, 0.45)',
-    padding: 20,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
+    padding: 20,
   },
   modalCard: {
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: 18,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
   },
   modalTitle: {
     fontSize: 18,
@@ -879,44 +1118,39 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   modalInput: {
-    minHeight: 50,
     borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     fontSize: 15,
+    minHeight: 46,
   },
   modalInputMultiline: {
-    minHeight: 110,
-    textAlignVertical: 'top',
+    minHeight: 96,
   },
   modalActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 14,
+    justifyContent: 'flex-end',
     gap: 10,
+    marginTop: 16,
   },
   modalSecondary: {
-    flex: 1,
-    minHeight: 48,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
   },
   modalSecondaryText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
   modalPrimary: {
-    flex: 1,
-    minHeight: 48,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 10,
   },
   modalPrimaryText: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
   },
 });

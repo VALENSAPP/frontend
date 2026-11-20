@@ -127,6 +127,25 @@ export const VALENS_KNOWLEDGE_BASE = [
 ];
 
 /**
+ * Checks if a query directly matches one of the predefined static questions or key prompts.
+ * @param {string} query
+ * @returns {object|null}
+ */
+export function isStaticQuestionMatch(query) {
+  if (!query || typeof query !== 'string') return null;
+  const clean = query.toLowerCase().trim().replace(/[?!.]+$/, '');
+  for (const item of VALENS_KNOWLEDGE_BASE) {
+    const q = item.question.toLowerCase().trim().replace(/[?!.]+$/, '');
+    if (clean === q) return item;
+    for (const kw of item.keywords) {
+      if (kw.length >= 6 && clean === kw) return item;
+      if (kw.length >= 10 && clean.includes(kw)) return item;
+    }
+  }
+  return null;
+}
+
+/**
  * Searches the local knowledge base for the best matching response.
  * @param {string} query 
  * @returns {object|null}

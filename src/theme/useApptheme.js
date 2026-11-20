@@ -1,44 +1,35 @@
 import { useThemeContext } from './ThemeContext';
-
 import {
-  businessTheme,
-  businessDarkTheme,
+  resolveTheme,
   normalTheme,
-  normalDarkTheme,
+  isBusinessProfileType,
 } from './theme';
 
-const resolveTheme = (profileType, isDarkMode) => {
-  const normalized =
-    typeof profileType === 'string' ? profileType.toLowerCase().trim() : '';
-
-  if (normalized === 'company' || normalized === 'business') {
-    return isDarkMode ? businessDarkTheme : businessTheme;
-  }
-
-  if (normalized === 'user' || normalized === 'normal') {
-    return isDarkMode ? normalDarkTheme : normalTheme;
-  }
-
-  return null;
-};
-
+/**
+ * Hook providing access to the current or overridden theme tokens and helper styles.
+ *
+ * @param {string|object} [profileTypeOverride] - Optional profile override ('company', 'business', 'user', 'normal')
+ * @returns {object} Theme tokens + backward-compatible helper styles
+ */
 export const useAppTheme = profileTypeOverride => {
-  const { isDarkMode, theme: contextTheme, activeProfile } = useThemeContext();
+  const context = useThemeContext();
+  const {
+    isDarkMode = false,
+    theme: contextTheme,
+    activeProfile = 'user',
+  } = context || {};
 
-  const normalizedProfileType =
-    typeof profileTypeOverride === 'string'
-      ? profileTypeOverride.toLowerCase().trim()
-      : undefined;
-  // Map legacy 'normal' → 'user', 'business' → 'company'
-  const resolvedProfileType =
-    normalizedProfileType === 'normal'
-      ? 'user'
-      : normalizedProfileType === 'business'
-        ? 'company'
-        : (normalizedProfileType || activeProfile || 'user');
+  let resolvedProfileType = activeProfile || 'user';
+  if (profileTypeOverride !== undefined && profileTypeOverride !== null) {
+    resolvedProfileType = isBusinessProfileType(profileTypeOverride) ? 'company' : 'user';
+  }
 
-  const resolvedTheme =
-    resolveTheme(resolvedProfileType, isDarkMode) ?? contextTheme;
+  let resolvedTheme = null;
+  if (profileTypeOverride !== undefined && profileTypeOverride !== null) {
+    resolvedTheme = resolveTheme(resolvedProfileType, isDarkMode);
+  } else {
+    resolvedTheme = contextTheme || resolveTheme(activeProfile, isDarkMode) || normalTheme;
+  }
 
   const isBusinessProfile = resolvedProfileType === 'company';
 
@@ -48,25 +39,25 @@ export const useAppTheme = profileTypeOverride => {
     activeProfile: resolvedProfileType,
     isBusinessProfile,
     bgStyle: {
-      backgroundColor: resolvedTheme.bg,
+      backgroundColor: resolvedTheme?.screenBackground || resolvedTheme?.bg,
     },
     textStyle: {
-      color: resolvedTheme.text,
+      color: resolvedTheme?.textPrimary || resolvedTheme?.text,
     },
     cardStyle: {
-      backgroundColor: resolvedTheme.card,
+      backgroundColor: resolvedTheme?.cardBackground || resolvedTheme?.card,
     },
     borderStyle: {
-      borderColor: resolvedTheme.border,
+      borderColor: resolvedTheme?.borderColor || resolvedTheme?.border,
     },
     mutedTextStyle: {
-      color: resolvedTheme.mutedText,
+      color: resolvedTheme?.textSecondary || resolvedTheme?.mutedText,
     },
     accentStyle: {
-      color: resolvedTheme.accent,
+      color: resolvedTheme?.primary || resolvedTheme?.accent,
     },
     buttonBgStyle: {
-      backgroundColor: resolvedTheme.accent,
+      backgroundColor: resolvedTheme?.buttonBackground || resolvedTheme?.accent,
     },
   };
 };

@@ -9,12 +9,13 @@ import {
   Dimensions,
   ActivityIndicator,
   AppState,
+  Image,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import Video from 'react-native-video';
 import FastImage from 'react-native-fast-image';
-import Svg, { ClipPath, Polygon, Image as SvgImage, Defs } from 'react-native-svg';
+import Svg, { ClipPath, Polygon, Image as SvgImage, Defs, Path, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSelector } from 'react-redux';
 import { useAppTheme } from '../../theme/useApptheme';
@@ -57,7 +58,7 @@ const mixWithWhite = (hex, amount = 0.85) => {
 
 const withAlpha = (hex, alpha = 0.12) => {
   const normalized = String(hex || '').replace('#', '');
-  if (normalized.length !== 6) return `rgba(201,161,90,${alpha})`;
+  if (normalized.length !== 6) return `rgba(203,162,87,${alpha})`;
   const r = parseInt(normalized.slice(0, 2), 16);
   const g = parseInt(normalized.slice(2, 4), 16);
   const b = parseInt(normalized.slice(4, 6), 16);
@@ -227,14 +228,23 @@ const PrivateCircle = memo(({ isOwnProfile = false, onStartPress, route, userDat
   const reduxProfile = useSelector(state => state.userProfile.userProfile);
   const [loggedInProfileType, setLoggedInProfileType] = useState(null);
 
+  const skipPrivateCircleApi = route?.params?.skipPrivateCircleApi === true;
+  const isWalletPrivateCircle = skipPrivateCircleApi && !userData?.id;
+
   const resolvedThemeProfile = useMemo(() => {
+    // When accessed from Wallet / Drawer, use the business / creator owner theme
+    if (isWalletPrivateCircle) {
+      return 'company';
+    }
     // Prefer the *viewed* profile so a business viewer doesn't paint a simple profile gold.
     if (userData?.profile) {
       return normalizeProfileType(userData.profile);
     }
     const fromViewer = reduxProfile && reduxProfile !== 'normal' ? reduxProfile : loggedInProfileType;
     return normalizeProfileType(fromViewer || 'user');
-  }, [userData?.profile, reduxProfile, loggedInProfileType]);
+  }, [isWalletPrivateCircle, userData?.profile, reduxProfile, loggedInProfileType]);
+
+  const isCompanyProfile = resolvedThemeProfile === 'company' || resolvedThemeProfile === 'business';
 
   const { bgStyle, textStyle, text, cardStyle, accent, mutedText, border, card, icon } = useAppTheme(
     resolvedThemeProfile,
@@ -242,8 +252,6 @@ const PrivateCircle = memo(({ isOwnProfile = false, onStartPress, route, userDat
   const { t } = useLanguage();
   const navigation = useNavigation();
   const isFocused = useIsFocused();
-  const skipPrivateCircleApi = route?.params?.skipPrivateCircleApi === true;
-  const isWalletPrivateCircle = skipPrivateCircleApi && !userData?.id;
   const privateCircleRefreshAt = route?.params?.privateCircleRefreshAt;
   const isOwnContent = isOwnProfile || isWalletPrivateCircle;
 
@@ -620,14 +628,55 @@ const PrivateCircle = memo(({ isOwnProfile = false, onStartPress, route, userDat
   );
 
   const previewMembers = dashboardMembers;
-  const isAccessActive = circleAccessActive ?? isMember;
+  const isAccessActive = circleAccessActive ?? (isWalletPrivateCircle ? true : isMember);
   // Own profile with an existing circle should manage it — not show onboarding CTA.
   const showStartCircleCta = isOwnProfile && hasPrivateCircle === false;
   const showOwnerDashboard =
     isWalletPrivateCircle || (isOwnProfile && hasPrivateCircle === true);
 
-  // ── Info card (shown when not a member OR no posts) ───────────────────────
-  // ─── Outside PrivateCircle, at file level ─────────────────────────────────────
+  // ── SVGs for Empty States ───────────────────────────────────────────────────
+const SparklesIcon = memo(({ color = '#CBA257', size = 38 }) => (
+  <Svg width={size} height={size} viewBox="0 0 38 38" fill="none">
+    <Path
+      d="M20 6C20 12 24 16 30 16C24 16 20 20 20 26C20 20 16 16 10 16C16 16 20 12 20 6Z"
+      fill={color}
+    />
+    <Path
+      d="M30 4C30 7 32 9 35 9C32 9 30 11 30 14C30 11 28 9 25 9C28 9 30 7 30 4Z"
+      fill={color}
+    />
+    <Path
+      d="M10 24C10 26.5 11.5 28 14 28C11.5 28 10 29.5 10 32C10 29.5 8.5 28 6 28C8.5 28 10 26.5 10 24Z"
+      fill={color}
+    />
+  </Svg>
+));
+SparklesIcon.displayName = 'SparklesIcon';
+
+const InviteMembersIcon = memo(({ color = '#5a2d82', size = 42 }) => (
+  <Svg width={size} height={size} viewBox="0 0 44 40" fill="none">
+    <Path d="M16 5L14 9" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    <Path d="M22 3L22 7" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    <Path d="M28 5L30 9" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    <Circle cx={17} cy={17} r={4.5} stroke={color} strokeWidth={2} />
+    <Path
+      d="M9.5 32C9.5 27 13 23.5 17 23.5C21 23.5 24.5 27 24.5 32"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+    />
+    <Circle cx={27} cy={17} r={4.5} stroke={color} strokeWidth={2} />
+    <Path
+      d="M21 32C21.5 28.5 24 23.5 27 23.5C31 23.5 34.5 27 34.5 32"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+    />
+  </Svg>
+));
+InviteMembersIcon.displayName = 'InviteMembersIcon';
+
+// ── Info card (shown when not a member OR no posts) ───────────────────────
   const InfoCard = memo(({
     bgStyle,
     cardStyle,
@@ -641,6 +690,7 @@ const PrivateCircle = memo(({ isOwnProfile = false, onStartPress, route, userDat
     showStartCircleCta,
     showOwnerDashboard,
     isWalletPrivateCircle,
+    isCompanyProfile,
     onStartPress,
     bullets,
     t,
@@ -676,8 +726,8 @@ const PrivateCircle = memo(({ isOwnProfile = false, onStartPress, route, userDat
             </View>
           </LinearGradient>
 
-            <View style={styles.cardBody}>
-              <Text style={[styles.title, textStyle]}>{t('privateCircle.ownTitle')}</Text>
+          <View style={styles.cardBody}>
+            <Text style={[styles.title, textStyle]}>{t('privateCircle.ownTitle')}</Text>
             <Text style={[styles.paragraph, textStyle]}>{t('privateCircle.ownComingSoon')}</Text>
             <Text style={[styles.paragraph, textStyle]}>{t('privateCircle.ownChoose')}</Text>
             <Text style={[styles.paragraph, textStyle]}>{t('privateCircle.ownDescription')}</Text>
@@ -702,129 +752,172 @@ const PrivateCircle = memo(({ isOwnProfile = false, onStartPress, route, userDat
           </View>
         </View>
       ) : (
-        <View>
-          <View style={[styles.card, cardStyle, { borderColor: withAlpha(text, 0.12) }]}>
-            <LinearGradient
-              colors={[withAlpha(accent, 0.16), withAlpha(accent, 0.06)]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={styles.leftRail}
-            >
+        <View style={styles.screenInner}>
+          {/* Card 1: Private Circle Access Card */}
+          <View style={[styles.accessCard, cardStyle, { borderColor: border }]}>
+            <View style={styles.accessHeaderRow}>
+              <Text style={[styles.accessTitle, textStyle]}>
+                {t('privateCircle.guestTitle')}
+              </Text>
               <View
                 style={[
-                  styles.railIconBubble,
-                  { backgroundColor: withAlpha(accent, 0.18) },
+                  styles.statusPill,
+                  {
+                    backgroundColor: isAccessActive ? '#DCFCE7' : '#FEE2E2',
+                    borderColor: isAccessActive ? '#86EFAC' : '#FCA5A5',
+                  },
                 ]}
               >
-                <Ionicons name="lock-closed" size={34} color={accent} />
-              </View>
-            </LinearGradient>
-
-              <View style={styles.cardBody}>
-                <View style={styles.statusHeader}>
-                <Text style={[styles.title, styles.statusTitle, textStyle]}>
-                  {t('privateCircle.guestTitle')}
-                </Text>
                 <View
                   style={[
-                    styles.statusPill,
-                    {
-                      backgroundColor: isAccessActive ? '#DCFCE7' : '#FEE2E2',
-                      borderColor: isAccessActive ? '#86EFAC' : '#FCA5A5',
-                    },
+                    styles.statusDot,
+                    { backgroundColor: isAccessActive ? '#22C55E' : '#EF4444' },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusPillText,
+                    { color: isAccessActive ? '#15803D' : '#B91C1C' },
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.statusDot,
-                      { backgroundColor: isAccessActive ? '#22C55E' : '#EF4444' },
-                    ]}
-                  />
-                  <Text style={[styles.statusPillText, { color: isAccessActive ? '#15803D' : '#B91C1C' }]}>
-                    {isAccessActive ? t('privateCircle.statusActive') : t('privateCircle.statusInactive')}
-                  </Text>
-                </View>
+                  {isAccessActive ? t('privateCircle.statusActive') : t('privateCircle.statusInactive')}
+                </Text>
               </View>
-              <Text style={[styles.paragraph, textStyle]}>
-                {t('privateCircle.accessDescription')}
-              </Text>
             </View>
-          </View>
-          <View style={styles.dashboardWrap}>
-            <View style={[styles.dashboardPanel, cardStyle, { borderColor: withAlpha(text, 0.1) }]}>
-              <Text style={[styles.miniSectionTitle, textStyle]}>{t('privateCircle.overview')}</Text>
-              <View style={styles.overviewGrid}>
-                <View style={[styles.overviewTile, cardStyle, { borderColor: withAlpha(text, 0.12) }]}>
-                  <Ionicons name="people-outline" size={18} color={accent} />
-                  <Text style={[styles.overviewNumber, textStyle]}>{dashboardMemberCount}</Text>
-                  <Text style={[styles.overviewLabel, { color: mutedText }]}>{t('privateCircle.members')}</Text>
-                </View>
-                <View style={[styles.overviewTile, cardStyle, { borderColor: withAlpha(text, 0.12) }]}>
-                  <Ionicons name="document-text-outline" size={18} color={accent} />
-                  <Text style={[styles.overviewNumber, textStyle]}>{dashboardPostCount}</Text>
-                  <Text style={[styles.overviewLabel, { color: mutedText }]}>{t('privateCircle.posts')}</Text>
-                </View>
+
+            <View style={styles.accessContentRow}>
+              <Image
+                source={
+                  isCompanyProfile
+                    ? require('../../assets/Valens Stickers/Valens Stickers/PNG/private_gold.png')
+                    : require('../../assets/Valens Stickers/Valens Stickers/WEBP/Pack 3/private.webp')
+                }
+                style={styles.accessMascot}
+                resizeMode="contain"
+              />
+              <View style={styles.accessTextCol}>
+                <Text style={[styles.accessPromoTitle, textStyle]}>
+                  {t('privateCircle.promoHeading', 'Your people. Your little corner of Valens.')}
+                </Text>
+                <Text style={[styles.accessPromoBody, textStyle]}>
+                  {t(
+                    'privateCircle.promoBody',
+                    'Invite friends, family, and trusted connections to share posts only your circle can see. You choose who gets in — no invitation, no peeking!',
+                  )}
+                </Text>
+                <Text style={[styles.accessPromoTagline, textStyle]}>
+                  {t('privateCircle.promoTagline', 'Dralens is on guest-list duty.')}
+                </Text>
               </View>
             </View>
           </View>
+
+          {/* Section 2: Overview */}
+          <View style={styles.sectionWrap}>
+            <Text style={[styles.sectionHeading, textStyle]}>
+              {t('privateCircle.overview')}
+            </Text>
+            <View style={styles.overviewRow}>
+              <View style={[styles.overviewTileCard, cardStyle, { borderColor: border }]}>
+                <Ionicons name="people-outline" size={22} color={accent} />
+                <Text style={[styles.overviewTileCount, textStyle]}>{dashboardMemberCount}</Text>
+                <Text style={[styles.overviewTileLabel, textStyle]}>{t('privateCircle.members')}</Text>
+              </View>
+              <View style={[styles.overviewTileCard, cardStyle, { borderColor: border }]}>
+                <Ionicons name="document-text-outline" size={22} color={accent} />
+                <Text style={[styles.overviewTileCount, textStyle]}>{dashboardPostCount}</Text>
+                <Text style={[styles.overviewTileLabel, textStyle]}>{t('privateCircle.posts')}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Section 3: Recent activity (for owner / wallet) */}
           {showOwnerDashboard ? (
-            <View >
-              {isWalletPrivateCircle ? (
-                <View style={[styles.dashboardPanel, cardStyle, { borderColor: withAlpha(text, 0.1) }]}>
-                  <View style={styles.previewSectionHeader}>
-                    <Text style={[styles.miniSectionTitle, textStyle]}>{t('privateCircle.recentActivity')}</Text>
+            <View style={styles.sectionWrap}>
+              <Text style={[styles.sectionHeading, textStyle]}>
+                {t('privateCircle.recentActivity')}
+              </Text>
+              <View style={[styles.contentCard, cardStyle, { borderColor: border }]}>
+                {recentActivities.length === 0 ? (
+                  <View style={styles.emptyStateWrap}>
+                    <SparklesIcon color={accent} size={38} />
+                    <Text style={[styles.emptyStateText, textStyle]}>
+                      {t('privateCircle.recentActivityEmpty', "Quiet for now. Your circle's story starts here.")}
+                    </Text>
                   </View>
-                  {recentActivities.map((activity) => (
+                ) : (
+                  recentActivities.map((activity) => (
                     <View key={activity.id} style={styles.activityRow}>
                       <View style={[styles.activityDot, { backgroundColor: accent }]} />
                       <View style={styles.activityTextWrap}>
                         <Text style={[styles.activityName, textStyle]}>{activity.name}</Text>
-                        <Text style={[styles.activityMeta, { color: mutedText }]}>{activity.body || activity.action}</Text>
+                        <Text style={[styles.activityMeta, { color: mutedText }]}>
+                          {activity.body || activity.action}
+                        </Text>
                       </View>
                       <Text style={[styles.activityTime, { color: mutedText }]}>{activity.time}</Text>
                     </View>
-                  ))}
-                </View>
-              ) : null}
+                  ))
+                )}
+              </View>
+            </View>
+          ) : null}
 
-              <View style={[styles.dashboardPanel, cardStyle, { borderColor: withAlpha(text, 0.1) }]}>
-                <View style={styles.previewSectionHeader}>
-                  <Text style={[styles.miniSectionTitle, textStyle]}>{t('privateCircle.members')}</Text>
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    style={[styles.inviteButton, { backgroundColor: withAlpha(accent, 0.12) }]}
-                    onPress={openAddMemberScreen}
-                  >
-                    <Ionicons name="person-add-outline" size={13} color={accent} />
-                    <Text style={[styles.inviteButtonText, { color: accent }]}>{t('privateCircle.addMember')}</Text>
-                  </TouchableOpacity>
-                </View>
-                {previewMembers.map((member) => (
-                  <View key={member.id} style={styles.memberRow}>
-                    <HexagonImage uri={member.image} size={34} borderColor={withAlpha(text, 0.28)} />
-                    <Text style={[styles.memberName, textStyle]} numberOfLines={1}>
-                      {member.name}
+          {/* Section 4: Members (for owner / wallet) */}
+          {showOwnerDashboard ? (
+            <View style={styles.sectionWrap}>
+              <View style={styles.sectionHeadingRow}>
+                <Text style={[styles.sectionHeading, textStyle, { marginBottom: 0 }]}>
+                  {t('privateCircle.members')}
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={[styles.addMemberBtn, { backgroundColor: withAlpha(accent, 0.12) }]}
+                  onPress={openAddMemberScreen}
+                >
+                  <Ionicons name="person-add-outline" size={13} color={accent} />
+                  <Text style={[styles.addMemberBtnText, { color: accent }]}>
+                    {t('privateCircle.addMember')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={[styles.contentCard, cardStyle, { borderColor: border }]}>
+                {previewMembers.length === 0 ? (
+                  <View style={styles.emptyStateWrap}>
+                    <InviteMembersIcon color={accent} size={42} />
+                    <Text style={[styles.emptyStateText, textStyle]}>
+                      {t('privateCircle.membersEmpty', 'Invite your first member to get things started.')}
                     </Text>
-                    <TouchableOpacity
-                      activeOpacity={0.85}
-                      disabled={removingMemberIds.includes(String(member.id))}
-                      onPress={() => handleRemoveMember(member.id)}
-                      style={[
-                        styles.removeMemberButton,
-                        {
-                          borderColor: withAlpha(text, 0.2),
-                          opacity: removingMemberIds.includes(String(member.id)) ? 0.6 : 1,
-                        },
-                      ]}
-                    >
-                      {removingMemberIds.includes(String(member.id)) ? (
-                        <ActivityIndicator size="small" color={text} />
-                      ) : (
-                        <Ionicons name="close" size={14} color={text} />
-                      )}
-                    </TouchableOpacity>
                   </View>
-                ))}
+                ) : (
+                  previewMembers.map((member) => (
+                    <View key={member.id} style={styles.memberRow}>
+                      <HexagonImage uri={member.image} size={34} borderColor={withAlpha(text, 0.28)} />
+                      <Text style={[styles.memberName, textStyle]} numberOfLines={1}>
+                        {member.name}
+                      </Text>
+                      <TouchableOpacity
+                        activeOpacity={0.85}
+                        disabled={removingMemberIds.includes(String(member.id))}
+                        onPress={() => handleRemoveMember(member.id)}
+                        style={[
+                          styles.removeMemberButton,
+                          {
+                            borderColor: withAlpha(text, 0.2),
+                            opacity: removingMemberIds.includes(String(member.id)) ? 0.6 : 1,
+                          },
+                        ]}
+                      >
+                        {removingMemberIds.includes(String(member.id)) ? (
+                          <ActivityIndicator size="small" color={text} />
+                        ) : (
+                          <Ionicons name="close" size={14} color={text} />
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                )}
               </View>
             </View>
           ) : null}
@@ -848,6 +941,7 @@ const PrivateCircle = memo(({ isOwnProfile = false, onStartPress, route, userDat
     showStartCircleCta,
     showOwnerDashboard,
     isWalletPrivateCircle,
+    isCompanyProfile,
     onStartPress,
     bullets,
     t,
@@ -910,9 +1004,14 @@ export default PrivateCircle;
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: {
-    paddingHorizontal: 10,
-    paddingTop: 5,
+    paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 40,
+  },
+  screenInner: {
+    maxWidth: 560,
+    alignSelf: 'center',
+    width: '100%',
   },
   card: {
     maxWidth: 560,
@@ -965,63 +1064,157 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   ctaText: { color: '#fff', fontSize: 15, fontWeight: '800' },
-  statusHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginBottom: 6,
+
+  /* Mockup styles */
+  accessCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
-  statusTitle: { flex: 1, minWidth: 0, marginBottom: 0 },
-  statusCopy: { flex: 1, minWidth: 0 },
-  statusSubtitle: { fontSize: 11, lineHeight: 15, opacity: 0.78 },
+  accessHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  accessTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 999,
     borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 3.5,
     flexShrink: 0,
   },
-  statusDot: { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
-  statusPillText: { fontSize: 10, fontWeight: '800' },
-  dashboardWrap: {
-    maxWidth: 560,
-    alignSelf: 'center',
-    width: '100%',
-    marginTop: 12,
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 5,
   },
-  dashboardPanel: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 2,
+  statusPillText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
-  miniSectionTitle: { fontSize: 20, fontWeight: '800', marginBottom: 8 },
-  overviewGrid: { flexDirection: 'row', gap: 8 },
-  overviewTile: {
-    flex: 1,
-    minHeight: 76,
-    borderRadius: 12,
-    borderWidth: 1,
+  accessContentRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  overviewNumber: { fontSize: 24, fontWeight: '900', marginTop: 5 },
-  overviewLabel: { fontSize: 12, fontWeight: '700', marginTop: 2 },
-  previewSectionHeader: {
+  accessMascot: {
+    width: 125,
+    height: 125,
+  },
+  accessTextCol: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  accessPromoTitle: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    lineHeight: 18.5,
+  },
+  accessPromoBody: {
+    fontSize: 12,
+    fontWeight: '400',
+    lineHeight: 16.5,
+    marginVertical: 6,
+  },
+  accessPromoTagline: {
+    fontSize: 12,
+    fontWeight: '700',
+    fontStyle: 'italic',
+    lineHeight: 16,
+  },
+  sectionWrap: {
+    marginBottom: 16,
+  },
+  sectionHeading: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  sectionHeadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 10,
   },
-  previewLink: { fontSize: 12, fontWeight: '800' },
+  overviewRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  overviewTileCard: {
+    flex: 1,
+    minHeight: 88,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1.5,
+  },
+  overviewTileCount: {
+    fontSize: 26,
+    fontWeight: '800',
+    marginTop: 4,
+  },
+  overviewTileLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  contentCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  emptyStateWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  emptyStateText: {
+    fontSize: 13.5,
+    lineHeight: 18,
+    fontWeight: '400',
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  addMemberBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4.5,
+  },
+  addMemberBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 4,
+  },
   activityRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1032,14 +1225,6 @@ const styles = StyleSheet.create({
   activityName: { fontSize: 14, fontWeight: '800' },
   activityMeta: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   activityTime: { fontSize: 10, color: '#9CA3AF', marginLeft: 8 },
-  inviteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  inviteButtonText: { fontSize: 10, fontWeight: '800', marginLeft: 4 },
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1056,6 +1241,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 });
+
 
 // ─── Styles: Grid ─────────────────────────────────────────────────────────────
 const gridStyles = StyleSheet.create({

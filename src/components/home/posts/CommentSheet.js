@@ -694,82 +694,6 @@ export default function CommentSheet({
     [comments],
   );
 
-  const fulfillDralensComment = useCallback(async (commentItem) => {
-    if (!commentItem?.id || pendingAiRepliesRef.current.has(commentItem.id)) return;
-    pendingAiRepliesRef.current.add(commentItem.id);
-
-    try {
-      const rawText = commentItem.text || '';
-      const userQuery = rawText.replace(/@dralens\s*/gi, '').trim() || rawText;
-      if (!userQuery) return;
-
-      const imagePayload = buildImagePayload();
-      const response = await postDralensReply({
-        postId,
-        commentId: commentItem.id,
-        userQuery,
-        postText: postText || '',
-        authorUsername: commentItem.username || postOwnerUsername || '',
-        parentCommentContext: commentItem.text || postText || '',
-        image: imagePayload,
-      });
-
-      const isSuccess = response?.status === 'success' || response?.success === true || (response && !response?.error && !response?.message);
-      if (!isSuccess || !response?.reply_text) return;
-
-      const aiReply = {
-        id: `dralens-${commentItem.id}-${Date.now()}`,
-        isDralensAi: true,
-        userId: 'dralens-bot',
-        username: response.bot_name || 'Dralens AI',
-        avatar: 'dralens_ai',
-        text: response.reply_text,
-        time: t('commentSheet.justNow') || 'Just now',
-        parentId: commentItem.id,
-        replies: [],
-        likeCount: 0,
-        dislikeCount: 0,
-      };
-
-      try {
-        const storageKey = `@dralens_replies_${postId}`;
-        const existingRaw = await AsyncStorage.getItem(storageKey);
-        const existing = existingRaw ? JSON.parse(existingRaw) : [];
-        if (!existing.some(r => r.id === aiReply.id || (r.parentId === commentItem.id && r.text === aiReply.text))) {
-          existing.push(aiReply);
-          await AsyncStorage.setItem(storageKey, JSON.stringify(existing));
-        }
-      } catch (storageErr) {
-        console.warn('Failed saving auto-fulfilled reply:', storageErr);
-      }
-
-      setComments(prev =>
-        prev.map(c => {
-          const isMatchingRoot = String(c.id) === String(commentItem.id);
-          const isMatchingChild =
-            Array.isArray(c.replies) &&
-            c.replies.some(r => String(r.id) === String(commentItem.id));
-
-          if (isMatchingRoot || isMatchingChild) {
-            const currentReplies = c.replies || [];
-            if (currentReplies.some(r => r.isDralensAi || r.text === aiReply.text)) return c;
-            return {
-              ...c,
-              replies: [...currentReplies, aiReply],
-            };
-          }
-          return c;
-        })
-      );
-      const rootId = getRootCommentId(commentItem);
-      if (rootId) {
-        setExpandedReplies(prev => ({ ...prev, [rootId]: true }));
-      }
-    } catch (err) {
-      console.warn('fulfillDralensComment error:', err);
-    }
-  }, [postId, postText, postOwnerUsername, buildImagePayload, t, getRootCommentId]);
-
   const toast = useToast();
   const { t, currentLanguage } = useLanguage();
   const insets = useSafeAreaInsets();
@@ -879,28 +803,6 @@ export default function CommentSheet({
         if (Object.keys(autoExpanded).length > 0) {
           setExpandedReplies(prev => ({ ...autoExpanded, ...prev }));
         }
-
-        // Auto-fulfill any @dralens comments from server that don't have an AI reply yet
-        tree.forEach(root => {
-          if (
-            root.text &&
-            root.text.toLowerCase().includes('@dralens') &&
-            !(root.replies && root.replies.some(r => r.isDralensAi))
-          ) {
-            fulfillDralensComment(root);
-          }
-          if (root.replies) {
-            root.replies.forEach(child => {
-              if (
-                child.text &&
-                child.text.toLowerCase().includes('@dralens') &&
-                !(child.replies && child.replies.some(r => r.isDralensAi))
-              ) {
-                fulfillDralensComment(child);
-              }
-            });
-          }
-        });
       } else {
         showToastMessage(toast, 'danger', t('commentSheet.errorLoadFailed'));
       }
@@ -1414,39 +1316,6 @@ export default function CommentSheet({
       setTimeout(() => {
         inputRef.current?.focus();
       }, 80);
-
-      // Auto-analyze specific comment and suggest a relevant reply that user can edit & post
-      if (target.text && target.text.trim()) {
-        setIsGeneratingSuggestion(true);
-        try {
-          const imagePayload = buildImagePayload();
-          const response = await postDralensReply({
-            postId,
-            commentId: target.id,
-            userQuery: 'Suggest a friendly, engaging, relevant reply to this comment',
-            postText: postText || '',
-            authorUsername: target.username || '',
-            parentCommentContext: target.text,
-            image: imagePayload,
-          });
-
-          if (response?.reply_text) {
-            const cleanSuggestion = response.reply_text.trim();
-            const curNow = replyTextRef.current || '';
-            // If user hasn't typed their own text yet, populate the suggested reply
-            if (curNow === '@dralens ' || curNow === '@dralens' || curNow === '' || curNow === baseReply) {
-              const fullSuggested = `@dralens ${cleanSuggestion}`;
-              replyTextRef.current = fullSuggested;
-              setReplyText(fullSuggested);
-              showToastMessage(toast, 'normal', 'Dralens suggested a reply. You can edit it before posting.');
-            }
-          }
-        } catch (sugErr) {
-          console.warn('AI suggestion error:', sugErr);
-        } finally {
-          setIsGeneratingSuggestion(false);
-        }
-      }
     } else {
       setReplyingToComment(null);
       const curComment = commentTextRef.current || '';
@@ -1552,9 +1421,13 @@ export default function CommentSheet({
         image: imagePayload,
       });
 
-      const isSuccess = response?.status === 'success' || response?.success === true || (response && !response?.error && !response?.message);
-      if (!isSuccess || !response?.reply_text) {
-        throw new Error(response?.message || 'Dralens request failed');
+      const payload = response?.data || response;
+      console.log('[CommentSheet] handleSend Dralens response payload:', payload);
+
+      const isSuccess = payload?.status === 'success' || payload?.success === true || (payload && !payload?.error && !payload?.message);
+      if (!isSuccess || !payload?.reply_text) {
+        console.warn('[CommentSheet] handleSend Dralens failed: isSuccess =', isSuccess, 'reply_text =', payload?.reply_text);
+        throw new Error(payload?.message || 'Dralens request failed');
       }
 
       // 4. Construct Dralens AI reply object
@@ -1562,9 +1435,9 @@ export default function CommentSheet({
         id: tempAiReplyId,
         isDralensAi: true,
         userId: 'dralens-bot',
-        username: response.bot_name || 'Dralens AI',
+        username: payload.bot_name || 'Dralens AI',
         avatar: 'dralens_ai',
-        text: response.reply_text,
+        text: payload.reply_text,
         time: t('commentSheet.justNow') || 'Just now',
         parentId: threadId || realUserCommentId,
         replies: [],

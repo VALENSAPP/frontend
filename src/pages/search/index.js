@@ -1887,7 +1887,7 @@ const SearchScreen = () => {
                 <Icon name="search" size={20} color={mutedText} style={{ marginRight: 8 }} />
                 <TextInput
                   style={[styles.searchInput, { color: text }]}
-                  placeholder={t('search.searchPlaceholder')}
+                  placeholder={t('search.searchUsersPlaceholder', 'Search users...')}
                   placeholderTextColor={mutedText}
                   value={searchText}
                   onChangeText={handleSearch}

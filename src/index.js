@@ -3,7 +3,7 @@ import MainStack from './navigations/RootNavigator';
 import { loggedOut, loggedIn } from './redux/actions/LoginAction';
 import { useDispatch, useSelector } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Linking, AppState, DeviceEventEmitter, View, BackHandler } from 'react-native';
+import { Linking, AppState, DeviceEventEmitter, View } from 'react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Splash from './pages/splashSceen/Splash';
 import { hideLoader } from './redux/actions/LoaderAction';
@@ -138,6 +138,8 @@ export default function Main({ onSplashFinish }) {
   /** Session bootstrap must run once per app process — re-running after login can wipe a valid session. */
   const sessionBootstrapStartedRef = useRef(false);
   const checkKycAndShowWelcomeModalRef = useRef(null);
+  const verificationDismissedRef = useRef(false);
+  const activeVerificationUserIdRef = useRef(null);
 
   const requestPostSplashPermissions = React.useCallback(() => {
     if (postSplashPermissionsRequestedRef.current) return;
@@ -254,6 +256,8 @@ export default function Main({ onSplashFinish }) {
   const checkKycAndShowWelcomeModal = React.useCallback(async () => {
     try {
       if (!isLoggedIn) {
+        verificationDismissedRef.current = false;
+        activeVerificationUserIdRef.current = null;
         setWelcomeModalVisible(false);
         setlockModal(false);
         return;
@@ -261,6 +265,11 @@ export default function Main({ onSplashFinish }) {
 
       const id = await AsyncStorage.getItem('userId');
       if (!id) return;
+
+      if (activeVerificationUserIdRef.current && activeVerificationUserIdRef.current !== id) {
+        verificationDismissedRef.current = false;
+      }
+      activeVerificationUserIdRef.current = id;
 
       const [hasShownWelcome, hasShownLegacy, storedProfileType] = await Promise.all([
         AsyncStorage.getItem(KYC_WELCOME_SHOWN_KEY),
@@ -292,8 +301,15 @@ export default function Main({ onSplashFinish }) {
       const firstLog = firstLogRaw === true || String(firstLogRaw || '').toLowerCase() === 'true';
 
       setWelcomeModalVisible(kycApproved && firstLog);
-      setlockModal(!kycApproved)
-      setVerificationProfileType(profile)
+      if (kycApproved) {
+        verificationDismissedRef.current = false;
+        setlockModal(false);
+      } else if (!verificationDismissedRef.current) {
+        setlockModal(true);
+      } else {
+        setlockModal(false);
+      }
+      setVerificationProfileType(profile);
     } catch (error) {
     }
   }, [isLoggedIn]);
@@ -317,9 +333,34 @@ export default function Main({ onSplashFinish }) {
   }, [isLoggedIn, verificationProfileType]);
 
   const handleVerificationLater = React.useCallback(() => {
+    verificationDismissedRef.current = true;
     setlockModal(false);
-    BackHandler.exitApp();
   }, []);
+  const handleVerificationDeny = React.useCallback(async () => {
+    try {
+      setlockModal(false);
+      verificationDismissedRef.current = false;
+      activeVerificationUserIdRef.current = null;
+      lockLogoutInFlight.current = false;
+      dispatch(setUserProfile('normal'));
+      const keys = await AsyncStorage.getAllKeys();
+      const keysToRemove = keys.filter(
+        key => key !== 'hasLaunchedBefore' && key !== 'darkMode',
+      );
+      await AsyncStorage.multiRemove(keysToRemove);
+      await AsyncStorage.setItem('isLoggedIn', 'false');
+      dispatch(loggedOut());
+      setTimeout(() => {
+        try {
+          if (navigationRef.current?.isReady()) {
+            navigationRef.current.navigate('Login');
+          }
+        } catch (_) {}
+      }, 100);
+    } catch (err) {
+      console.warn('Verification deny logout error:', err);
+    }
+  }, [dispatch]);
 
   const handleWelcomeModalClose = async () => {
     if (welcomeModalCloseInFlight.current) return;
@@ -352,6 +393,8 @@ export default function Main({ onSplashFinish }) {
       if (!isLock) return;
 
       lockLogoutInFlight.current = true;
+      verificationDismissedRef.current = false;
+      activeVerificationUserIdRef.current = null;
       const storedProfileType = await AsyncStorage.getItem('profile');
       const normalizedProfileType = String(storedProfileType || verificationProfileType || '').toLowerCase();
       setVerificationProfileType(
@@ -405,7 +448,13 @@ export default function Main({ onSplashFinish }) {
   }, [blockedVerificationProfile, isLoading, isLoggedIn, isNavigationReady]);
 
   useEffect(() => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn) {
+      verificationDismissedRef.current = false;
+      activeVerificationUserIdRef.current = null;
+      setlockModal(false);
+      setWelcomeModalVisible(false);
+      return;
+    }
     checkKycAndShowWelcomeModal();
     const intervalId = setInterval(() => {
       checkKycAndShowWelcomeModal();
@@ -866,6 +915,7 @@ export default function Main({ onSplashFinish }) {
         profileType={verificationProfileType}
         onDoNow={handleVerificationDoNow}
         onLater={handleVerificationLater}
+        onDeny={handleVerificationDeny}
       />
       <DralensAiModal />
     </ThemeProvider>

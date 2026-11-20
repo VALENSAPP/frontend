@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BASE_URL, AI_API_URL } from '../../config/urls';
-import { findKnowledgeBaseMatch } from './valensKnowledgeBase';
+import { findKnowledgeBaseMatch, isStaticQuestionMatch } from './valensKnowledgeBase';
 
 /**
  * Backend endpoints provided for Dralens AI chat:
@@ -13,10 +13,8 @@ export const DRALENS_BACKEND_BASE = AI_API_URL;
 // Candidate endpoints in priority order
 const BACKEND_CANDIDATES = [
   AI_API_URL,
-  'http://192.168.1.15:8081/api/v1',
-  'http://192.168.29.203:8081/api/v1',
-  `${BASE_URL}/api/v1`,
-  `${BASE_URL}`,
+  'https://dev-ai.valens.app/api/v1',
+  'https://dev-ai.valens.app',
 ];
 
 let activeBaseUrl = BACKEND_CANDIDATES[0];
@@ -45,28 +43,36 @@ async function getHeaders() {
  */
 function parseAiResponse(data) {
   if (!data) return null;
+  console.log('[Dralens AI] parseAiResponse raw input:', JSON.stringify(data));
   const payload = data.data || data;
 
   // Case 1: Already structured with steps array
   if (Array.isArray(payload.steps) && payload.steps.length > 0) {
-    return {
-      intro: payload.intro || payload.message || payload.reply || '',
+    const result = {
+      intro: payload.intro || payload.message || payload.reply || payload.reply_text || '',
       steps: payload.steps,
       outro: payload.outro || '',
     };
+    console.log('[Dralens AI] parseAiResponse matched Case 1 (structured steps):', result);
+    return result;
   }
 
   const rawText =
     payload.intro ||
     payload.message ||
     payload.reply ||
+    payload.reply_text ||
     payload.response ||
     payload.answer ||
     payload.result ||
     payload.content ||
+    payload.text ||
     (typeof payload === 'string' ? payload : '');
 
-  if (!rawText) return null;
+  if (!rawText) {
+    console.warn('[Dralens AI] parseAiResponse could not extract raw text from payload:', payload);
+    return null;
+  }
 
   // Case 2: Parse numbered steps from markdown / plain text (e.g. "1. Step one\n2. Step two")
   const stepRegex = /^\s*(\d+)[\.\)]\s*(.+)$/gm;
@@ -79,15 +85,19 @@ function parseAiResponse(data) {
     const lastStepEnd = rawText.indexOf(lastMatch[0]) + lastMatch[0].length;
     const outro = rawText.substring(lastStepEnd).trim();
     const steps = matches.map((m) => m[2].trim());
-    return {
+    const result = {
       intro: intro || 'Here are the steps:',
       steps,
       outro,
     };
+    console.log('[Dralens AI] parseAiResponse matched Case 2 (parsed numbered steps):', result);
+    return result;
   }
 
   // Case 3: Plain conversational text
-  return { intro: rawText };
+  const result = { intro: rawText };
+  console.log('[Dralens AI] parseAiResponse matched Case 3 (plain text):', result);
+  return result;
 }
 
 /**
@@ -108,21 +118,25 @@ export async function getDralensWelcome() {
   for (const base of urlsToTry) {
     const url = `${base.replace(/\/+$/, '')}/dralens-chat/welcome`;
     try {
+      console.log('[Dralens AI] Calling Welcome API:', url);
       const response = await axios.get(url, {
         headers,
         timeout: 4000,
       });
 
+      console.log('[Dralens AI] Welcome API Response:', response?.status, response?.data);
+
       if (response?.data) {
         activeBaseUrl = base;
         const payload = response.data.data || response.data;
-        return {
+        const welcomeData = {
           message:
             payload.message ||
             payload.welcome ||
             payload.welcomeMessage ||
             payload.intro ||
             payload.greeting ||
+            payload.reply_text ||
             payload.text,
           suggestions:
             payload.suggestions ||
@@ -132,9 +146,11 @@ export async function getDralensWelcome() {
             payload.prompts ||
             (Array.isArray(payload) ? payload : undefined),
         };
+        console.log('[Dralens AI] Formatted Welcome Data:', welcomeData);
+        return welcomeData;
       }
     } catch (err) {
-      // Try next candidate
+      console.warn(`[Dralens AI] Welcome API Error from ${url}:`, err?.response?.data || err?.message || err);
     }
   }
 
@@ -154,6 +170,17 @@ export async function askDralensAi(userMessage, history = []) {
   if (!trimmed) {
     return {
       intro: 'Hi! How can I help you today with Valens?',
+    };
+  }
+
+  // 1. Static Questions (Local Knowledge Base has verified instant replies for these)
+  const staticMatch = isStaticQuestionMatch(trimmed);
+  if (staticMatch) {
+    console.log('[Dralens AI] Matched static Knowledge Base question:', staticMatch.question);
+    return {
+      intro: staticMatch.intro,
+      steps: staticMatch.steps,
+      outro: staticMatch.outro,
     };
   }
 
@@ -184,6 +211,11 @@ export async function askDralensAi(userMessage, history = []) {
   for (const base of urlsToTry) {
     const url = `${base.replace(/\/+$/, '')}/dralens-chat`;
     try {
+      console.log('[Dralens AI] Calling Chat API:', url, {
+        message: trimmed,
+        history: formattedHistory,
+      });
+
       const response = await axios.post(
         url,
         {
@@ -196,16 +228,20 @@ export async function askDralensAi(userMessage, history = []) {
         }
       );
 
+      console.log('[Dralens AI] Chat API Response:', response?.status, response?.data);
+
       const parsed = parseAiResponse(response?.data);
       if (parsed && (parsed.intro || parsed.steps)) {
         activeBaseUrl = base;
+        console.log('[Dralens AI] Final Chat Parsed Result:', parsed);
         return parsed;
       }
     } catch (err) {
-      // Try next candidate endpoint
+      console.warn(`[Dralens AI] Chat API Error from ${url}:`, err?.response?.data || err?.message || err);
     }
   }
 
+  console.log('[Dralens AI] Backend API did not return valid response, checking Knowledge Base fallback...');
   // 2. Grounded Fallback via verified local Knowledge Base
   const kbMatch = findKnowledgeBaseMatch(trimmed);
   if (kbMatch) {

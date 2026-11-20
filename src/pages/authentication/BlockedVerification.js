@@ -7,12 +7,17 @@ import {
   View,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useDispatch } from 'react-redux';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loggedOut } from '../../redux/actions/LoginAction';
+import { setUserProfile } from '../../redux/actions/UserProfileAction';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useLanguage } from '../../i18n';
 
 export default function BlockedVerification() {
   const navigation = useNavigation();
   const route = useRoute();
+  const dispatch = useDispatch();
   const { t } = useLanguage();
   const normalizedProfileType = String(route?.params?.profile || 'user').toLowerCase();
   const profileType =
@@ -29,6 +34,24 @@ export default function BlockedVerification() {
     }
 
     navigation.navigate('KycVerifyAuth', { profile: 'user', fromRoute: 'BlockedVerification' });
+  };
+
+  const handleLoginAnotherAccount = async () => {
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const keysToRemove = keys.filter(
+        key => key !== 'hasLaunchedBefore' && key !== 'darkMode',
+      );
+      await AsyncStorage.multiRemove(keysToRemove);
+      dispatch(setUserProfile('normal'));
+      dispatch(loggedOut());
+    } catch (_e) {
+      // non-fatal
+    }
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Login' }],
+    });
   };
 
   return (
@@ -62,6 +85,16 @@ export default function BlockedVerification() {
               {t('blockedVerification.completeButton', {
                 verificationType,
               })}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleLoginAnotherAccount}
+            style={[styles.secondaryButton, { borderColor: accent }]}
+          >
+            <Text style={[styles.secondaryButtonText, { color: accent }]}>
+              {t('blockedVerification.loginAnotherAccount', 'Log in with another account')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -131,5 +164,19 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '900',
+  },
+  secondaryButton: {
+    width: '100%',
+    minHeight: 48,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    marginTop: 12,
+    borderWidth: 1.5,
+  },
+  secondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
