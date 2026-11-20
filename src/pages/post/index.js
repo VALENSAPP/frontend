@@ -1,4 +1,4 @@
-import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useRoute, useIsFocused } from '@react-navigation/native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Pressable, TextInput, Alert, ScrollView, Dimensions, Linking, Platform, DeviceEventEmitter } from 'react-native';
@@ -46,6 +46,7 @@ const normalizePreviewVideoUri = (uri) => {
 
 export default function PostScreen({ navigation }) {
   const [selectedMedia, setSelectedMedia] = useState([]);
+  const isFocused = useIsFocused();
   const [galleryImages, setGalleryImages] = useState([]);
   const [showTypeModal, setShowTypeModal] = useState(true);
   const [isCropping, setIsCropping] = useState(false);
@@ -465,7 +466,13 @@ const cropImage = (imageUri, index) => {
 
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('POST_UPLOAD_RESET', clearUploadState);
-    return () => subscription.remove();
+    const addTabSubscription = DeviceEventEmitter.addListener('ADD_TAB_PRESS', () => {
+      setShowTypeModal(true);
+    });
+    return () => {
+      subscription.remove();
+      addTabSubscription.remove();
+    };
   }, [clearUploadState]);
 
   const galleryImagesRef = useRef([]);
@@ -908,26 +915,28 @@ const cropImage = (imageUri, index) => {
       </View>
       {!isCropping && (
       <PostTypeModal
-        visible={showTypeModal && !isPrivateEntry && !isFlipEntry}
+        visible={isFocused && showTypeModal && !isPrivateEntry && !isFlipEntry}
         setShowTypeModal={setShowTypeModal}
         onClose={() => {
           setShowTypeModal(false);
-          if (navigation.canGoBack()) {
-            navigation.goBack();
-            return;
-          }
+          const parentNav = navigation.getParent?.() || navigation;
 
           if (returnTo && typeof returnTo === 'object' && returnTo?.tab) {
-            navigation.navigate(returnTo.tab);
+            parentNav.navigate(
+              returnTo.tab,
+              returnTo.screen
+                ? { screen: returnTo.screen, params: returnTo.params }
+                : undefined,
+            );
             return;
           }
 
           if (typeof returnTo === 'string' && returnTo.length) {
-            navigation.navigate(returnTo);
+            parentNav.navigate(returnTo);
             return;
           }
 
-          navigation.navigate('HomeMain');
+          parentNav.navigate('HomeMain', { screen: 'Home' });
         }}
         onSelect={handleSelectType}
       />
