@@ -2085,6 +2085,7 @@ export function BattleLiveScreen({ navigation, route }) {
   const canVote = isBattleVotingOpen && !hasVoted && !checkingVote;
   const showResultsBar =
     hasVoted ||
+    totalItemVotes > 0 ||
     isBattleFinished ||
     isBattleExpired ||
     !!route?.params?.showResultsBar ||
@@ -2317,9 +2318,10 @@ export function BattleLiveScreen({ navigation, route }) {
     }
   }, [battle?.createdBy, battleId, currentUserId, loadBattle]);
 
-  const handleVote = async () => {
-    const item = [leftItem, rightItem].find(entry => (entry?.participantId || entry?.id) === selectedParticipantId);
-    const targetParticipantId = item?.participantId || item?.id || selectedParticipantId;
+  const handleVote = async (targetParticipantIdParam) => {
+    const chosenId = targetParticipantIdParam || selectedParticipantId;
+    const item = [leftItem, rightItem].find(entry => (entry?.participantId || entry?.id) === chosenId);
+    const targetParticipantId = item?.participantId || item?.id || chosenId;
     if (checkingVote || hasVoted || votedParticipantId) {
       Alert.alert(
         t('battle.errors.voteFailedTitle') || 'Could not submit vote',
@@ -2334,6 +2336,7 @@ export function BattleLiveScreen({ navigation, route }) {
       );
       return;
     }
+    setSelectedParticipantId(targetParticipantId);
     setVotingParticipantId(targetParticipantId);
     try {
       const response = await voteOnBattle(battleId, targetParticipantId);
@@ -2637,11 +2640,11 @@ export function BattleLiveScreen({ navigation, route }) {
 
   return (
     <KeyboardAwareScrollView
-      style={[styles.screen, bgStyle]}
-      contentContainerStyle={styles.scrollContent}
+      style={[styles.screen, bgStyle, { paddingTop: Platform.OS === 'android' ? 8 : 4 }]}
+      contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 14, paddingBottom: 16, gap: 4 }]}
       showsVerticalScrollIndicator={false}
       enableOnAndroid
-      extraScrollHeight={20}
+      extraScrollHeight={10}
       keyboardShouldPersistTaps="handled"
     >
       <Header
@@ -2660,8 +2663,8 @@ export function BattleLiveScreen({ navigation, route }) {
       />
 
       <View style={liveStyles.topRow}>
-        <View style={[liveStyles.categoryPill, { borderColor: accent }]}>
-          <Text style={[liveStyles.categoryPillText, { color: accent }]}>{battle?.category || t('battle.opinionBattle')}</Text>
+        <View style={[liveStyles.categoryPill, { borderColor: brandAccent }]}>
+          <Text style={[liveStyles.categoryPillText, { color: brandAccent }]}>{battle?.category || t('battle.opinionBattle')}</Text>
         </View>
         {!isCreator ? (
           <TouchableOpacity
@@ -2669,7 +2672,7 @@ export function BattleLiveScreen({ navigation, route }) {
             style={liveStyles.daysLeftRow}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="flag-outline" size={18} color={accent} />
+            <Ionicons name="flag-outline" size={17} color={brandAccent} />
           </TouchableOpacity>
         ) : null}
         <View style={liveStyles.daysLeftRow}>
@@ -2680,14 +2683,14 @@ export function BattleLiveScreen({ navigation, route }) {
 
       {(battle?.creatorName || battle?.creatorAvatar || battle?.creatorShopName || battle?.sellerName) ? (
         <TouchableOpacity activeOpacity={0.8} onPress={()=> handleSellerPress()} style={liveStyles.creatorRow}>
-          <HexAvatar uri={battle.creatorAvatar} size={44} borderWidth={1} borderColor={accent} />
+          <HexAvatar uri={battle.creatorAvatar} size={36} borderWidth={1.5} borderColor={brandAccent} />
           <View style={liveStyles.creatorDetails}>
-            <Text style={[liveStyles.creatorLabel, { color: mutedText }]}>{t('battle.battleBy') || 'Battle By'}</Text>
-            <Text style={[liveStyles.creatorName, { color: primaryText }]} numberOfLines={1}>
+            <Text style={[liveStyles.creatorLabel, { color: mutedText, fontSize: 10 }]}>{t('battle.battleBy') || 'Battle By'}</Text>
+            <Text style={[liveStyles.creatorName, { color: primaryText, fontSize: 13, fontWeight: '800' }]} numberOfLines={1}>
               {battle.creatorName || battle.sellerName || battle.creatorShopName || 'Valens User'}
             </Text>
             {battle.creatorShopName ? (
-              <Text style={[liveStyles.creatorShop, { color: mutedText }]} numberOfLines={1}>
+              <Text style={[liveStyles.creatorShop, { color: mutedText, fontSize: 11 }]} numberOfLines={1}>
                 {battle.creatorShopName}
               </Text>
             ) : null}
@@ -2698,7 +2701,7 @@ export function BattleLiveScreen({ navigation, route }) {
       <LinearGradient
         colors={isDarkMode
           ? (isBusinessProfile ? ['#3A3018', '#261F0E'] : ['#351A5A', '#24103E'])
-          : (isBusinessProfile ? ['#B8924F', '#CBA257'] : ['#5B2D9D', '#402090'])}
+          : (isBusinessProfile ? ['#B8924F', '#CBA257'] : ['#5227A3', '#402090'])}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[liveStyles.battleHeroCard, { shadowColor: brandAccent }]}
@@ -2711,7 +2714,7 @@ export function BattleLiveScreen({ navigation, route }) {
           right={showWinnerCard ? runnerUpItem : rightItem}
           showWinner={showWinnerCard}
           winnerPercent={Number.isFinite(winnerPercent) ? Math.round(winnerPercent) : null}
-          accent={accent}
+          accent={brandAccent}
           textColor="#FFFFFF"
           isDarkMode={isDarkMode}
           inHeroCard={true}
@@ -2724,8 +2727,8 @@ export function BattleLiveScreen({ navigation, route }) {
 
       {/* About this battle section */}
       {battleDescription ? (
-        <View style={{ marginTop: 8 }}>
-          <Text style={[liveStyles.commentsTitle, { color: primaryText, marginBottom: 4 }]}>
+        <View style={{ marginTop: 4 }}>
+          <Text style={[liveStyles.commentsTitle, { color: primaryText, marginBottom: 2, fontSize: 12 }]}>
             {t('battle.aboutTitle', 'About this battle')}
           </Text>
           <View
@@ -2733,19 +2736,21 @@ export function BattleLiveScreen({ navigation, route }) {
               styles.aboutCard,
               {
                 borderColor: border || BORDER,
-                paddingHorizontal: 12,
-                paddingVertical: 8,
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 12,
+                backgroundColor: surface,
               },
             ]}
           >
-            <Text style={[styles.aboutText, { color: subtleMuted, fontSize: 12, lineHeight: 17 }]}>
+            <Text style={[styles.aboutText, { color: subtleMuted, fontSize: 11, lineHeight: 15 }]}>
               {battleDescription}
             </Text>
           </View>
         </View>
       ) : null}
 
-      {/* Compact Side-by-Side Voting Buttons matching image13.png */}
+      {/* Compact Side-by-Side Voting Buttons */}
       <View style={liveStyles.voteButtonsRow}>
         {[leftItem, rightItem].map((item, index) => {
           const participantKey = item?.participantId || item?.id;
@@ -2756,9 +2761,9 @@ export function BattleLiveScreen({ navigation, route }) {
           return (
             <TouchableOpacity
               key={participantKey || index}
-              activeOpacity={0.88}
+              activeOpacity={0.85}
               disabled={!canVote || isThisVoting || hasVoted}
-              onPress={() => setSelectedParticipantId(participantKey)}
+              onPress={() => handleVote(participantKey)}
               style={[
                 liveStyles.voteButtonWrap,
                 isSelected && liveStyles.voteButtonWrapSelected,
@@ -2772,24 +2777,24 @@ export function BattleLiveScreen({ navigation, route }) {
                     backgroundColor: isThisVoted
                       ? '#16A34A'
                       : isSelected
-                        ? (isDarkMode ? (isBusinessProfile ? '#8C6510' : '#5B21B6') : brandAccent)
+                        ? (isDarkMode ? (isBusinessProfile ? '#8C6510' : '#402090') : brandAccent)
                         : (isDarkMode ? '#241D30' : (isBusinessProfile ? '#FAF7F0' : '#EDE6F7')),
                     borderWidth: 1,
                     borderColor: isThisVoted
                       ? '#16A34A'
                       : isSelected
                         ? brandAccent
-                        : (isDarkMode ? '#382A4C' : (isBusinessProfile ? '#E8D9BD' : '#E0D4F5')),
+                        : (isDarkMode ? '#382A4C' : (isBusinessProfile ? '#E8D9BD' : '#D4C5EA')),
                   },
                 ]}
               >
                 {isThisVoting ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={isThisVoted || isSelected ? '#fff' : brandAccent} />
                 ) : (
                   <>
                     <Ionicons
                       name={isThisVoted ? 'checkmark-circle' : 'thumbs-up'}
-                      size={15}
+                      size={14}
                       color={isThisVoted || isSelected ? '#FFFFFF' : (isDarkMode ? (isBusinessProfile ? '#F3E2B8' : '#C084FC') : brandAccent)}
                     />
                     <Text style={[liveStyles.voteButtonText, { color: isThisVoted || isSelected ? '#FFFFFF' : (isDarkMode ? '#EDE9FE' : brandAccent) }]}>
@@ -2806,40 +2811,11 @@ export function BattleLiveScreen({ navigation, route }) {
         })}
       </View>
 
-
-      {canVote && !hasVoted ? (
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={handleVote}
-          disabled={!selectedParticipantId || votingParticipantId}
-          style={[
-            liveStyles.submitVoteWrap,
-            (!selectedParticipantId || votingParticipantId) && { opacity: 0.5 },
-          ]}
-        >
-          <LinearGradient
-
-            colors={[brandAccent, accent]}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={liveStyles.submitVoteButton}
-          >
-            {votingParticipantId ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text style={liveStyles.submitVoteText}>
-                {t('battleInProgress.voteInBattle') || t('battle.vote') || 'Vote in battle'}
-              </Text>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
-      ) : null}
-
       {showResultsBar ? (
         <View style={[liveStyles.progressCard, { borderColor: border || BORDER, backgroundColor: surface }]}>
           <View style={liveStyles.progressTopRow}>
             <View>
-              <Text style={[liveStyles.progressPctLeft, { color: accent }]}>{leftVotePercent}%</Text>
+              <Text style={[liveStyles.progressPctLeft, { color: brandAccent }]}>{leftVotePercent}%</Text>
               <Text style={[liveStyles.progressVotes, { color: subtleMuted }]}>
                 {leftVoteCount} {t('battleInProgress.votesLabel')}
               </Text>
@@ -2857,10 +2833,10 @@ export function BattleLiveScreen({ navigation, route }) {
           </View>
           <View style={liveStyles.progressBottomRow}>
             <View style={[liveStyles.sideTagLeft, !isDarkMode && { backgroundColor: '#e8f5e9' }, isDarkMode && { backgroundColor: 'rgba(34,197,94,0.22)' }]}>
-              <Text style={[liveStyles.sideTagText, isDarkMode ? { color: '#86EFAC' } : { color: '#374151' }]}>{leftItem?.name || leftItem?.label || 'Option 1'}</Text>
+              <Text style={[liveStyles.sideTagText, isDarkMode ? { color: '#86EFAC' } : { color: '#166534' }]}>{leftItem?.name || leftItem?.label || 'Option 1'}</Text>
             </View>
             <View style={[liveStyles.sideTagRight, !isDarkMode && { backgroundColor: '#fde8e8' }, isDarkMode && { backgroundColor: 'rgba(239,68,68,0.22)' }]}>
-              <Text style={[liveStyles.sideTagText, isDarkMode ? { color: '#FCA5A5' } : { color: '#374151' }]}>{rightItem?.name || rightItem?.label || 'Option 2'}</Text>
+              <Text style={[liveStyles.sideTagText, isDarkMode ? { color: '#FCA5A5' } : { color: '#991B1B' }]}>{rightItem?.name || rightItem?.label || 'Option 2'}</Text>
             </View>
           </View>
         </View>
@@ -2960,28 +2936,22 @@ export function BattleLiveScreen({ navigation, route }) {
         </View>
       </Modal>
 
-      {/* Stats row: views / comments / likes */}
+      {/* Stats row: views / comments */}
       <View style={[liveStyles.statsRow, { backgroundColor: surface, borderColor: border || BORDER, borderWidth: StyleSheet.hairlineWidth }]}>
         <View style={liveStyles.statItem}>
-          <Ionicons name="eye-outline" size={16} color={subtleMuted} />
+          <Ionicons name="eye-outline" size={14} color={subtleMuted} />
           <Text style={[liveStyles.statValue, { color: primaryText }]}>{battle?.totalViews ?? 0}</Text>
           <Text style={[liveStyles.statLabel, { color: subtleMuted }]}>{t('battle.stats.views') || 'Views'}</Text>
         </View>
         <View style={[liveStyles.statDivider, { backgroundColor: border || BORDER }]} />
         <View style={liveStyles.statItem}>
-          <Ionicons name="chatbubble-outline" size={16} color={subtleMuted} />
+          <Ionicons name="chatbubble-outline" size={14} color={subtleMuted} />
           <Text style={[liveStyles.statValue, { color: primaryText }]}>{battle?.totalComments ?? comments.length}</Text>
           <Text style={[liveStyles.statLabel, { color: subtleMuted }]}>{t('battle.stats.comments') || 'Comments'}</Text>
         </View>
-        {/* <View style={[liveStyles.statDivider, { backgroundColor: border || BORDER }]} /> */}
-        {/* <View style={liveStyles.statItem}>
-          <Ionicons name="heart-outline" size={16} color={subtleMuted} />
-          <Text style={[liveStyles.statValue, { color: primaryText }]}>{battle?.totalLikes ?? 0}</Text>
-          <Text style={[liveStyles.statLabel, { color: subtleMuted }]}>{t('battle.stats.likes') || 'Likes'}</Text>
-        </View> */}
       </View>
 
-      {/* Comments section — GET/POST/DELETE /marketplace-battles/{battleId}/comments */}
+      {/* Comments section */}
       <View style={[liveStyles.commentsCard, { backgroundColor: surface, borderColor: border || BORDER }]}>
         <View style={liveStyles.commentsHeaderRow}>
           <Text style={[liveStyles.commentsTitle, { color: primaryText }]}>
@@ -3149,9 +3119,12 @@ export function BattleLiveScreen({ navigation, route }) {
         </View>
       </View>
 
-      <View style={styles.footerActions}>
+      <View style={[styles.footerActions, { marginTop: 4, paddingBottom: Platform.OS === 'android' ? 10 : 4 }]}>
         <TouchableOpacity activeOpacity={0.9} onPress={handleDonePress} style={styles.footerActionFlex}>
-          <LinearGradient colors={[brandAccent, accent]} style={styles.primaryButton}>
+          <LinearGradient
+            colors={isBusinessProfile ? ['#B8924F', '#CBA257'] : ['#4A249D', '#402090']}
+            style={[styles.primaryButton, { height: 44, borderRadius: 14, marginTop: 0 }]}
+          >
             <Text style={styles.primaryButtonText}>{t('battle.done') || 'Done'}</Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -3161,7 +3134,10 @@ export function BattleLiveScreen({ navigation, route }) {
             onPress={() => navigation.navigate('BattleResultsScreen', { battleId })}
             style={styles.footerActionFlex}
           >
-            <LinearGradient colors={[brandAccent, accent]} style={styles.primaryButton}>
+            <LinearGradient
+              colors={isBusinessProfile ? ['#B8924F', '#CBA257'] : ['#4A249D', '#402090']}
+              style={[styles.primaryButton, { height: 44, borderRadius: 14, marginTop: 0 }]}
+            >
               <Text style={styles.primaryButtonText}>{t('battle.viewResults') || 'View Results'}</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -3182,63 +3158,63 @@ export function BattleLiveScreen({ navigation, route }) {
 // Styles specific to the redesigned BattleLiveScreen (kept separate from the
 // legacy `styles` StyleSheet used by the other screens in this file).
 const liveStyles = StyleSheet.create({
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2, marginBottom: 6 },
-  categoryPill: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 },
-  categoryPillText: { fontSize: 12, fontWeight: '800' },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 0, marginBottom: 4 },
+  categoryPill: { borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
+  categoryPillText: { fontSize: 11, fontWeight: '800' },
   daysLeftRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  daysLeftText: { fontSize: 12, fontWeight: '600', color: MUTED },
-  question: { fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 3 },
-  questionSub: { fontSize: 12, fontWeight: '600', color: MUTED, textAlign: 'center', marginBottom: 8 },
+  daysLeftText: { fontSize: 11, fontWeight: '600', color: MUTED },
+  question: { fontSize: 16, fontWeight: '800', textAlign: 'center', marginBottom: 2 },
+  questionSub: { fontSize: 11, fontWeight: '600', color: MUTED, textAlign: 'center', marginBottom: 6 },
 
   battleHeroCard: {
-    borderRadius: 22,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    marginTop: 4,
-    marginBottom: 6,
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    marginTop: 2,
+    marginBottom: 4,
     shadowColor: '#402090',
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.16,
-    shadowRadius: 14,
+    shadowRadius: 10,
     elevation: 4,
   },
   battleHeroQuestion: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
     color: '#FFFFFF',
     textAlign: 'center',
-    marginBottom: 3,
+    marginBottom: 2,
   },
   battleHeroSub: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
     color: 'rgba(255,255,255,0.85)',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
 
-  voteButtonsRow: { flexDirection: 'row', gap: 10, marginTop: 8, marginBottom: 4 },
-  voteButtonWrap: { flex: 1, borderRadius: 14, overflow: 'hidden' },
+  voteButtonsRow: { flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 4 },
+  voteButtonWrap: { flex: 1, borderRadius: 12, overflow: 'hidden' },
   voteButtonWrapSelected: { transform: [{ scale: 1.01 }] },
-  voteButtonInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 42, paddingHorizontal: 10, borderRadius: 14 },
-  voteButtonText: { fontSize: 13, fontWeight: '800' },
-  voteButtonCount: { fontSize: 13, fontWeight: '900', marginLeft: 2 },
-  submitVoteWrap: { marginTop: 8, borderRadius: 14, overflow: 'hidden' },
-  submitVoteButton: { minHeight: 42, alignItems: 'center', justifyContent: 'center' },
-  submitVoteText: { color: '#fff', fontSize: 14, fontWeight: '900' },
+  voteButtonInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 38, paddingHorizontal: 8, borderRadius: 12 },
+  voteButtonText: { fontSize: 12, fontWeight: '800' },
+  voteButtonCount: { fontSize: 12, fontWeight: '900', marginLeft: 2 },
+  submitVoteWrap: { marginTop: 6, borderRadius: 12, overflow: 'hidden' },
+  submitVoteButton: { minHeight: 38, alignItems: 'center', justifyContent: 'center' },
+  submitVoteText: { color: '#fff', fontSize: 13, fontWeight: '900' },
 
-  progressCard: { borderRadius: 14, borderWidth: 1, borderColor: '#E5DFEC', padding: 10, marginTop: 8, marginBottom: 10, marginHorizontal: 2 },
-  progressTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-  progressPctLeft: { fontSize: 18, fontWeight: '700' },
-  progressPctRight: { fontSize: 18, fontWeight: '700', color: '#ef4444' },
-  progressVotes: { fontSize: 10, color: MUTED, marginTop: 1 },
-  progressBarTrack: { height: 8, borderRadius: 99, overflow: 'hidden', flexDirection: 'row', gap: 1, marginBottom: 6 },
-  progressBarLeft: { backgroundColor: '#22c55e', borderTopLeftRadius: 99, borderBottomLeftRadius: 99 },
+  progressCard: { borderRadius: 12, borderWidth: 1, borderColor: '#EAE4F5', padding: 8, marginTop: 4, marginBottom: 4, marginHorizontal: 1 },
+  progressTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
+  progressPctLeft: { fontSize: 15, fontWeight: '800' },
+  progressPctRight: { fontSize: 15, fontWeight: '800', color: '#ef4444' },
+  progressVotes: { fontSize: 9, color: MUTED, marginTop: 1 },
+  progressBarTrack: { height: 6, borderRadius: 99, overflow: 'hidden', flexDirection: 'row', gap: 1, marginBottom: 4 },
+  progressBarLeft: { backgroundColor: '#402090', borderTopLeftRadius: 99, borderBottomLeftRadius: 99 },
   progressBarRight: { backgroundColor: '#ef4444', borderTopRightRadius: 99, borderBottomRightRadius: 99 },
   progressBottomRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  sideTagLeft: { backgroundColor: '#e8f5e9', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
-  sideTagRight: { backgroundColor: '#fde8e8', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
-  sideTagText: { fontSize: 10, fontWeight: '600', color: '#374151' },
+  sideTagLeft: { backgroundColor: '#e8f5e9', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 },
+  sideTagRight: { backgroundColor: '#fde8e8', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 },
+  sideTagText: { fontSize: 10, fontWeight: '600', color: '#166534' },
 
   manageBattleCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderWidth: 1, borderColor: '#FECACA', padding: 14, marginBottom: 14 },
   manageBattleIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FEF2F2' },
@@ -3350,20 +3326,20 @@ const liveStyles = StyleSheet.create({
   },
 
 
-  statsRow: { flexDirection: 'row', alignItems: 'center', borderRadius: 16, paddingVertical: 12, marginTop: 18, marginBottom: 14 },
-  statItem: { flex: 1, alignItems: 'center', gap: 3 },
-  statDivider: { width: 1, height: 28 },
-  statValue: { fontSize: 14, fontWeight: '800' },
-  statLabel: { fontSize: 10, fontWeight: '600' },
+  statsRow: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, paddingVertical: 6, paddingHorizontal: 10, marginTop: 4, marginBottom: 4 },
+  statItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  statDivider: { width: 1, height: 16 },
+  statValue: { fontSize: 12, fontWeight: '800' },
+  statLabel: { fontSize: 11, fontWeight: '600' },
 
-  commentsCard: { borderRadius: 18, borderWidth: 1, padding: 14, marginBottom: 16 },
-  commentsHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  creatorRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  commentsCard: { borderRadius: 14, borderWidth: 1, padding: 10, marginBottom: 6 },
+  commentsHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  creatorRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
   creatorDetails: { flex: 1, justifyContent: 'center' },
-  creatorLabel: { fontSize: 12, fontWeight: '700', marginBottom: 2 },
-  creatorName: { fontSize: 15, fontWeight: '900' },
-  creatorShop: { fontSize: 12, fontWeight: '600', marginTop: 2 },
-  commentsTitle: { fontSize: 15, fontWeight: '800' },
+  creatorLabel: { fontSize: 11, fontWeight: '700', marginBottom: 1 },
+  creatorName: { fontSize: 14, fontWeight: '800' },
+  creatorShop: { fontSize: 11, fontWeight: '600', marginTop: 1 },
+  commentsTitle: { fontSize: 13, fontWeight: '800' },
   commentsNotice: { alignItems: 'center', paddingVertical: 12, gap: 8 },
   emptyCommentsText: { fontSize: 12, fontWeight: '600', color: MUTED, textAlign: 'center', paddingVertical: 14 },
 
@@ -4422,7 +4398,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   itemThumbWrapInHero: {
+    width: 96,
+    height: 96,
+    borderRadius: 14,
     backgroundColor: '#FFFFFF',
+    marginBottom: 4,
   },
   itemThumb: {
     width: '92%',
@@ -4449,15 +4429,15 @@ const styles = StyleSheet.create({
   },
   yellowPricePill: {
     backgroundColor: '#F59E0B',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginTop: 4,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginTop: 2,
     alignSelf: 'center',
   },
   yellowPriceText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
   },
   vsBubble: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 0 },

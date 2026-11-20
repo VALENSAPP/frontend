@@ -574,7 +574,7 @@ export default function EventFlow({
               <Ionicons name="checkmark" size={44} color="#FFFFFF" />
             </LinearGradient>
             <Ionicons name="star" size={14} color={colors.isBusiness ? '#F3E2B8' : '#C084FC'} style={{ position: 'absolute', top: 4, left: 24 }} />
-            <Ionicons name="sparkles" size={18} color={colors.isBusiness ? '#DFBA74' : '#E879F9'} style={{ position: 'absolute', top: 10, right: 28 }} />
+            <Ionicons name="sparkles" size={18} color={colors.accent} style={{ position: 'absolute', top: 10, right: 28 }} />
             <Ionicons name="sparkles" size={14} color={colors.isBusiness ? '#C9A15A' : '#C4B5FD'} style={{ position: 'absolute', bottom: 16, right: 20 }} />
           </View>
 

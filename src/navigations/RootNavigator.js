@@ -226,7 +226,7 @@ const CustomDrawerContent = (props) => {
           <TextGradient
             style={{ fontWeight: "bold", fontSize: 23 }}
             locations={[0, 1]}
-            colors={isCompanyProfile ? ["#CBA257", "#CBA257"] : ["#513189bd", "#e54ba0"]}
+            colors={isCompanyProfile ? ["#CBA257", "#CBA257"] : ["#402090", "#5B2D9D"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             text="VALENS"

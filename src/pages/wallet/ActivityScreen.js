@@ -41,7 +41,7 @@ export const ActivityScreen = ({ navigation }) => {
   } = useBusinessProfileTheme();
   const { t } = useLanguage();
   const brandColor = isBusinessProfile ? '#CBA257' : '#402090';
-  const screenBg = isDarkMode ? '#120F1D' : (isBusinessProfile ? '#FAF7F0' : '#FAF7FD');
+  const screenBg = isDarkMode ? '#120F1D' : (isBusinessProfile ? '#FAF7F0' : '#FAF5FE');
   const activeLabelColor = contrastOn(accent || brandColor);
 
   const filters = [
@@ -417,7 +417,7 @@ export const ActivityScreen = ({ navigation }) => {
             renderItem={renderActivityItem}
             keyExtractor={(item) => item.id.toString()}
             scrollEnabled={false}
-            ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+            ItemSeparatorComponent={() => <View style={{ height: 5 }} />}
           />
         </View>
       </ScrollView>
@@ -430,111 +430,111 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 10 : 6,
-    paddingBottom: 40,
+    paddingTop: Platform.OS === 'android' ? 6 : 4,
+    paddingBottom: 24,
   },
 
   // Hide Notification Banner
   hideNotificationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 6,
-    marginBottom: 14,
-    padding: 14,
-    borderRadius: 18,
+    marginHorizontal: 14,
+    marginTop: 4,
+    marginBottom: 8,
+    padding: 10,
+    borderRadius: 14,
     borderWidth: 1,
     shadowColor: '#000',
     shadowOpacity: 0.03,
-    shadowRadius: 8,
+    shadowRadius: 6,
     elevation: 1,
   },
   eyeIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   bannerTextColumn: {
     flex: 1,
   },
   bannerTitleText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     marginBottom: 2,
   },
   bannerSubtitleText: {
-    fontSize: 12,
+    fontSize: 11,
   },
 
   // Filter Pills matching image18.png
   filtersScrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingHorizontal: 14,
+    paddingBottom: 8,
   },
   filterPillButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 20,
-    marginRight: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 16,
+    marginRight: 6,
     borderWidth: 1,
   },
   filterPillText: {
-    fontSize: 13,
+    fontSize: 12,
   },
 
   // Activity Section
   sectionContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
   },
   sectionTitleText: {
-    fontSize: 19,
+    fontSize: 16,
     fontWeight: '800',
-    marginBottom: 10,
+    marginBottom: 6,
     letterSpacing: -0.2,
   },
 
-  // Activity Item Card matching image18.png
+  // Activity Item Card - Slimmer matching user requirement
   activityCardItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
     borderWidth: 1,
     shadowColor: '#402090',
     shadowOpacity: 0.03,
-    shadowRadius: 6,
+    shadowRadius: 4,
     elevation: 1,
   },
   activityBadgeCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   actorAvatarContainer: {
     position: 'relative',
-    marginRight: 12,
+    marginRight: 10,
   },
   actorAvatarImage: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
   },
   miniBadgeCircle: {
     position: 'absolute',
     bottom: -2,
     right: -2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 13,
+    height: 13,
+    borderRadius: 6.5,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
@@ -545,8 +545,8 @@ const styles = StyleSheet.create({
     paddingRight: 6,
   },
   activityActionText: {
-    fontSize: 14,
-    lineHeight: 18,
+    fontSize: 12.5,
+    lineHeight: 16,
   },
   userNameBold: {
     fontWeight: '800',
@@ -555,16 +555,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   activitySubtitleText: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '500',
-    marginTop: 2,
+    marginTop: 1,
+    lineHeight: 14,
   },
   activityRightSide: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   activityTimeText: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '500',
   },
 });
