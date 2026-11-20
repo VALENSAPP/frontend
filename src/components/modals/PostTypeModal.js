@@ -47,28 +47,18 @@ const PostTypeModal = ({ visible, onClose, onSelect, setShowTypeModal }) => {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    let rafId;
+    let timerId;
 
     if (visible) {
       fetchCreditsLeft();
       loadProfileType();
       resetNestedModals();
-      const interactionHandle = InteractionManager.runAfterInteractions(() => {
-        if (cancelled) return;
-        rafId = requestAnimationFrame(() => {
-          if (!cancelled) {
-            sheetRef.current?.open();
-          }
-        });
-      });
+      timerId = setTimeout(() => {
+        sheetRef.current?.open();
+      }, 50);
 
       return () => {
-        cancelled = true;
-        if (rafId != null) cancelAnimationFrame(rafId);
-        if (interactionHandle && typeof interactionHandle.cancel === 'function') {
-          interactionHandle.cancel();
-        }
+        if (timerId) clearTimeout(timerId);
       };
     }
 
@@ -129,6 +119,15 @@ const PostTypeModal = ({ visible, onClose, onSelect, setShowTypeModal }) => {
       requestAnimationFrame(() => sheetRef.current?.open());
     });
   }, [visible]);
+
+  const handleModalClose = useCallback(() => {
+    sheetRef.current?.close();
+    resetNestedModals();
+    setShowTypeModal(false);
+    if (onClose) {
+      onClose();
+    }
+  }, [onClose, resetNestedModals, setShowTypeModal]);
 
   const handlePostTypeSheetClose = () => {
     if (pendingActivateMissionAfterSheetCloseRef.current) {
@@ -221,13 +220,13 @@ const PostTypeModal = ({ visible, onClose, onSelect, setShowTypeModal }) => {
             bgStyle,
           ],
         }}
-        onRequestClose={() => { }}
+        onRequestClose={handleModalClose}
         closeOnPressMask={false}
-        closeOnPressBack={false}
+        closeOnPressBack={true}
       >
         <View style={styles.container}>
           <View style={styles.headerRow}>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <TouchableOpacity onPress={handleModalClose} style={styles.closeBtn}>
               <Icon name="close-outline" size={28} color={text} />
             </TouchableOpacity>
 

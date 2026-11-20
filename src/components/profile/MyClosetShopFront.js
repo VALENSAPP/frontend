@@ -14,6 +14,7 @@ import {
   Linking,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
+import LinearGradient from 'react-native-linear-gradient';
 import ImageZoom from 'react-native-image-pan-zoom';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -43,7 +44,7 @@ import { AutoScrollBattleRow } from '../search/Battlecard';
 import HexAvatar from '../home/story.js/HexAvatar';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
-const CARD_W = (SCREEN_W - 48) / 3;
+const CARD_W = Math.floor((SCREEN_W - 24 - 16) / 3);
 const SHOP_LOGO_PREVIEW_SIZE = Math.min(SCREEN_W * 0.9, 340);
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -547,9 +548,9 @@ const EbookRowItem = React.memo(({
       </View>
       <View style={s.ebookCardBody}>
         <Text style={[s.ebookTitle, { color: text }]} numberOfLines={1}>{title}</Text>
-        <Text style={[s.ebookDesc, { color: mutedText }]} numberOfLines={2}>{description}</Text>
+        <Text style={[s.ebookDesc, { color: mutedText }]} numberOfLines={1}>{description}</Text>
         <View style={s.ebookMetaRow}>
-          <View>
+          <View style={s.ebookMetaLeft}>
             <Text style={[s.ebookMeta, { color: text }]}>📚 {item?.tableContent?.length || 0} Chapters</Text>
             <Text style={[s.ebookPriceTag, { color: text }]}>{priceLabel}</Text>
           </View>
@@ -560,7 +561,7 @@ const EbookRowItem = React.memo(({
           ) : null}
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={mutedText} />
+      <Ionicons name="chevron-forward" size={16} color={mutedText} style={{ marginLeft: 6 }} />
     </TouchableOpacity>
   );
 });
@@ -668,6 +669,7 @@ const MyClosetShopFront = ({ navigation, userData, shopDraft, isOwnProfile = tru
 
   const targetUserId = userData?.id;
 
+  const isBusiness = normalizeProfileType(userData?.profile) === 'company';
   const {
     textStyle,
     bgStyle,
@@ -677,10 +679,16 @@ const MyClosetShopFront = ({ navigation, userData, shopDraft, isOwnProfile = tru
     border,
     mutedText,
     cardStyle,
-  } = useAppTheme(normalizeProfileType(userData?.profile) === 'company' ? 'company' : 'user');
+  } = useAppTheme(isBusiness ? 'company' : 'user');
   const { isDarkMode } = useThemeContext();
   const brand = accent || text;
-  const thumbSurface = isDarkMode ? border : '#f5f3ee';
+  const pageBg = isDarkMode
+    ? (isBusiness ? '#12100C' : '#0F0C1B')
+    : (isBusiness ? '#FAF7F0' : '#FAF5FE');
+  const bannerGradientColors = isDarkMode
+    ? (isBusiness ? ['#201C14', '#2B2317'] : ['#1C172B', '#241D38'])
+    : (isBusiness ? ['#FFFDF9', '#FAF7F0'] : ['#F6EEFD', '#FFFFFF']);
+  const thumbSurface = isDarkMode ? border : (isBusiness ? '#F5F0E6' : '#F4EEFD');
   const loadingOverlayColor = isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(245,243,238,0.72)';
   const logoSurface = isDarkMode ? 'rgba(255,255,255,0.08)' : '#f5f3ff';
 
@@ -796,6 +804,9 @@ const MyClosetShopFront = ({ navigation, userData, shopDraft, isOwnProfile = tru
   const shopLogo = useMemo(() => {
     return closetDetails?.shopLogo || '';
   }, [closetDetails?.shopLogo]);
+  const avatarUri = useMemo(() => {
+    return shopLogo || userData?.image || '';
+  }, [shopLogo, userData?.image]);
   const shopLocation = useMemo(() => {
     return closetDetails?.location || '';
   }, [closetDetails?.location]);
@@ -1002,19 +1013,31 @@ const MyClosetShopFront = ({ navigation, userData, shopDraft, isOwnProfile = tru
     <>
     <ScrollView
       nestedScrollEnabled={true}
-      style={[s.root, bgStyle]}
-      contentContainerStyle={s.content}
+      style={[s.root, { backgroundColor: pageBg }]}
+      contentContainerStyle={[s.content, { backgroundColor: pageBg }]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
 
       {/* ── Banner ── */}
-      {userData?.profile !== 'user' ? (
-        <View
-          style={[s.banner, cardStyle, { borderColor: border, borderWidth: StyleSheet.hairlineWidth }]}
+      <View
+        style={[
+          s.bannerContainer,
+          {
+            borderColor: isBusiness ? '#E8D9BD' : '#E8E1F5',
+            backgroundColor: isDarkMode ? card : '#FFFFFF',
+          },
+        ]}
+      >
+        <LinearGradient
+          colors={bannerGradientColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={s.bannerGradient}
         >
-          <View style={s.bannerTopRow}>
-            {shopLogo ? (
+          <View style={s.bannerInnerRow}>
+            {/* Left Avatar */}
+            {avatarUri ? (
               <TouchableOpacity
                 activeOpacity={0.9}
                 style={s.hexAvatarWrap}
@@ -1023,8 +1046,8 @@ const MyClosetShopFront = ({ navigation, userData, shopDraft, isOwnProfile = tru
                 accessibilityLabel="View shop logo"
               >
                 <HexAvatar
-                  uri={shopLogo}
-                  size={100}
+                  uri={avatarUri}
+                  size={64}
                   borderWidth={2}
                   borderColor={brand}
                   preserveAspectRatio="xMidYMid slice"
@@ -1036,86 +1059,71 @@ const MyClosetShopFront = ({ navigation, userData, shopDraft, isOwnProfile = tru
                 style={[s.bannerIcon, { backgroundColor: `${brand}18` }]}
                 onPress={goStorefront}
               >
-                <Ionicons name="storefront-outline" size={26} color={brand} />
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity activeOpacity={0.9} style={s.bannerBody} onPress={goStorefront}>
-              <Text style={[s.bannerTitle, { color: text }]}>{shopName}</Text>
-              <Text style={[s.bannerSub, { color: mutedText }]}>
-                {shopDescription ? shopDescription : t('myClosetShopFront.shopOwnerBannerSubtitle')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {!!shopLocation && (
-            <>
-              <View style={[s.bannerDivider, { backgroundColor: border }]} />
-              <TouchableOpacity
-                activeOpacity={0.7}
-                accessibilityRole="link"
-                accessibilityLabel={`Open ${shopLocation} in maps`}
-                onPress={openLocationInMaps}
-                style={s.bannerLocation}
-              >
-                <Ionicons name="location-outline" size={17} color={text} />
-                <Text style={[s.bannerLocationText, { color: text }]}>{shopLocation}</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      ) : (
-        <View
-          style={[s.banner, cardStyle, { borderColor: border, borderWidth: StyleSheet.hairlineWidth }]}
-        >
-          <View style={s.bannerTopRow}>
-            {shopLogo ? (
-              <TouchableOpacity
-                activeOpacity={0.9}
-                style={s.hexAvatarWrap}
-                onPress={() => setLogoPreviewVisible(true)}
-                accessibilityRole="imagebutton"
-                accessibilityLabel="View shop logo"
-              >
-                <HexAvatar
-                  uri={shopLogo}
-                  size={100}
-                  borderWidth={2}
-                  borderColor={brand}
-                  preserveAspectRatio="xMidYMid slice"
+                <Ionicons
+                  name={isBusiness ? 'storefront-outline' : 'bag-handle'}
+                  size={24}
+                  color={brand}
                 />
               </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                activeOpacity={0.9}
-                style={[s.bannerIcon, { backgroundColor: `${brand}18` }]}
-                onPress={goStorefront}
-              >
-                <Ionicons name="bag-handle" size={26} color={brand} />
-              </TouchableOpacity>
             )}
-            <TouchableOpacity activeOpacity={0.9} style={s.bannerBody} onPress={goStorefront}>
-              <Text style={[s.bannerTitle, { color: text }]}>{shopName}</Text>
-              <Text style={[s.bannerSub, { color: mutedText }]}>
-                {shopDescription ? shopDescription : t('myClosetShopFront.userBannerSubtitle')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {!!shopLocation && (
-            <>
-              <View style={[s.bannerDivider, { backgroundColor: border }]} />
-              <TouchableOpacity
-                activeOpacity={0.7}
-                accessibilityRole="link"
-                accessibilityLabel={`Open ${shopLocation} in maps`}
-                onPress={openLocationInMaps}
-                style={s.bannerLocation}
-              >
-                <Ionicons name="location-outline" size={17} color={text} />
-                <Text style={[s.bannerLocationText, { color: text }]}>{shopLocation}</Text>
+
+            {/* Middle Content: Title, Description, Location Pill */}
+            <View style={s.bannerBody}>
+              <TouchableOpacity activeOpacity={0.9} onPress={goStorefront}>
+                <Text style={[s.bannerTitle, { color: text }]} numberOfLines={1}>
+                  {shopName}
+                </Text>
+                <Text
+                  style={[s.bannerSub, { color: mutedText }]}
+                  numberOfLines={4}
+                >
+                  {shopDescription
+                    ? shopDescription
+                    : (isBusiness
+                      ? t('myClosetShopFront.shopOwnerBannerSubtitle')
+                      : t('myClosetShopFront.userBannerSubtitle'))}
+                </Text>
               </TouchableOpacity>
-            </>
-          )}
-        </View>
-      )}
+
+              {!!shopLocation && (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  accessibilityRole="link"
+                  accessibilityLabel={`Open ${shopLocation} in maps`}
+                  onPress={openLocationInMaps}
+                  style={[
+                    s.bannerLocationPill,
+                    {
+                      borderColor: isBusiness ? '#E8D9BD' : '#E0D7F5',
+                      backgroundColor: isBusiness
+                        ? 'rgba(203, 162, 87, 0.08)'
+                        : 'rgba(64, 32, 144, 0.05)',
+                    },
+                  ]}
+                >
+                  <Ionicons name="location-outline" size={12} color={brand} />
+                  <Text style={[s.bannerLocationPillText, { color: text }]} numberOfLines={1}>
+                    {shopLocation}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Right Mascot: Dralens Bees */}
+            <View style={s.bannerMascotWrap} pointerEvents="none">
+              <Image
+                source={
+                  isBusiness
+                    ? require('../../assets/icons/pngicons/GoldenBeee.png')
+                    : require('../../assets/Valens Stickers/Valens Stickers/PNG/friends.png')
+                }
+                style={s.bannerMascotImg}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
+        </LinearGradient>
+      </View>
 
       {/* ── E-books Section ── */}
       {(ebooksLoading || ebooks.length > 0) && (
@@ -1406,24 +1414,24 @@ export default MyClosetShopFront;
 
 const s = StyleSheet.create({
   pinnedSection: {
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
-    padding: 14,
-    marginBottom: 30,
+    padding: 10,
+    marginBottom: 14,
     marginHorizontal: 12,
   },
   pinnedCard: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 12,
-    paddingBottom: 12,
+    gap: 10,
+    marginTop: 8,
+    paddingBottom: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
   pinnedThumbWrap: {
-    width: 84,
-    height: 84,
-    borderRadius: 16,
+    width: 68,
+    height: 68,
+    borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#f5f3ef',
   },
@@ -1510,6 +1518,26 @@ const s = StyleSheet.create({
   content: { paddingBottom: 60 },
 
   /* banner */
+  bannerContainer: {
+    marginHorizontal: 12,
+    marginTop: 8,
+    marginBottom: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+    shadowColor: '#402090',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  bannerGradient: {
+    padding: 12,
+    borderRadius: 18,
+  },
+  bannerInnerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   hexAvatarWrap: {
     marginRight: 10,
     alignItems: 'center',
@@ -1550,27 +1578,71 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10
+    marginRight: 10,
   },
-  banner: {
-    margin: 12, padding: 14,
-    borderRadius: 16,
+  bannerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
-  bannerTopRow: { flexDirection: 'row', alignItems: 'center' },
-  bannerIcon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  bannerBody: { flex: 1 },
-  bannerTitle: { fontSize: 16, fontWeight: '800', marginBottom: 3 },
-  bannerSub: { fontSize: 12, lineHeight: 17 },
-  bannerDivider: { height: StyleSheet.hairlineWidth, marginTop: 10, marginBottom: 10 },
-  bannerLocation: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  bannerLocationText: { flex: 1, fontSize: 12, lineHeight: 16, fontWeight: '800' },
+  bannerBody: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+  },
+  bannerTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  bannerSub: {
+    fontSize: 11.5,
+    lineHeight: 15.5,
+    marginBottom: 4,
+  },
+  bannerLocationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 4,
+    marginTop: 2,
+  },
+  bannerLocationPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  bannerMascotWrap: {
+    width: 90,
+    height: 90,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+    alignSelf: 'center',
+  },
+  bannerMascotImg: {
+    width: '100%',
+    height: '100%',
+  },
 
   /* section */
-  section: { marginBottom: 20 },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 12 },
+  section: { marginBottom: 14 },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
   sectionLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionEmoji: { fontSize: 16 },
-  sectionTitle: { fontSize: 17, fontWeight: '800' },
+  sectionTitle: { fontSize: 16, fontWeight: '800' },
   seeAll: { fontSize: 13, fontWeight: '600' },
 
   /* battle slide */
@@ -1615,9 +1687,9 @@ const s = StyleSheet.create({
   dot: { height: 7, width: 7, borderRadius: 4 },
 
   /* items grid */
-  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 12 },
-  tile: { width: CARD_W },
-  tileThumb: { width: '100%', aspectRatio: 1, borderRadius: 14, overflow: 'hidden', marginBottom: 6 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 8 },
+  tile: { width: CARD_W, marginBottom: 8 },
+  tileThumb: { width: '100%', aspectRatio: 1, borderRadius: 12, overflow: 'hidden', marginBottom: 4 },
   addTile: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -1632,19 +1704,19 @@ const s = StyleSheet.create({
     bottom: 0,
     zIndex: 5,
     backgroundColor: '#fbbf24',
-    paddingVertical: 6,
+    paddingVertical: 3,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 3,
     elevation: 2,
   },
-  winnerChipText: { fontSize: 9, fontWeight: '900', color: '#111827', letterSpacing: 0.2 },
+  winnerChipText: { fontSize: 9.5, fontWeight: '900', color: '#111827', letterSpacing: 0.2 },
   fighterImgWrap: { width: '100%', height: '100%' },
   fighterThumbPlaceholder: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   heart: { position: 'absolute', top: 7, right: 7, borderRadius: 20, padding: 4 },
-  tileName: { fontSize: 12, fontWeight: '700' },
-  tilePrice: { fontSize: 13, fontWeight: '800', marginTop: 1 },
+  tileName: { fontSize: 11.5, fontWeight: '700' },
+  tilePrice: { fontSize: 12.5, fontWeight: '800', marginTop: 1 },
 
   /* empty / loading */
   center: { alignItems: 'center', paddingVertical: 40, gap: 10 },
@@ -1666,22 +1738,22 @@ const s = StyleSheet.create({
   ebookCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 10,
+    borderRadius: 14,
+    padding: 10,
+    marginBottom: 8,
     borderWidth: 1,
     shadowColor: '#000',
     shadowOpacity: 0.03,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
   ebookCoverContainer: {
-    width: 60,
-    height: 84,
+    width: 52,
+    height: 52,
     borderRadius: 10,
     overflow: 'hidden',
-    marginRight: 12,
+    marginRight: 10,
   },
   ebookCoverImage: {
     width: '100%',
@@ -1704,20 +1776,25 @@ const s = StyleSheet.create({
   ebookTitle: {
     fontSize: 14,
     fontWeight: '800',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   ebookDesc: {
     fontSize: 11,
-    lineHeight: 15,
-    marginBottom: 6,
+    lineHeight: 14,
+    marginBottom: 4,
   },
   ebookMetaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  ebookMetaLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   ebookMeta: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: '700',
   },
   ebookPriceStatus: {
@@ -1728,17 +1805,16 @@ const s = StyleSheet.create({
   ebookPriceTag: {
     fontSize: 12,
     fontWeight: '800',
-    marginTop: 2,
   },
   ebookOwnedBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
     backgroundColor: '#DEF7EC',
     borderRadius: 6,
   },
   ebookOwnedBadgeText: {
     color: '#03543F',
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '800',
   },
 });

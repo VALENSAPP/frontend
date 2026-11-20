@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import {
   View,
+  Image,
+  Platform,
   Text,
   StyleSheet,
   ScrollView,
@@ -11,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useLanguage } from '../../i18n';
 import { useBusinessProfileTheme } from '../../theme/useBusinessProfileTheme';
@@ -166,6 +169,17 @@ const ManageSubscribersScreen = () => {
   const statGap = 10;
   const statCardWidth = Math.floor((width - 32 - statGap) / 2);
 
+  const isBusiness = Boolean(theme.isBusinessProfile);
+  const brandColor = isBusiness ? '#CBA257' : '#402090';
+  const pageBg = theme.isDarkMode
+    ? (isBusiness ? '#12100C' : '#0F0C1B')
+    : (isBusiness ? '#FAF7F0' : '#FAF5FE');
+  const cardBorderColor = isBusiness ? '#E8D9BD' : '#EAE4F5';
+  const subtleCardBg = theme.isDarkMode ? theme.card : '#FFFFFF';
+  const innerBoxBg = theme.isDarkMode ? 'rgba(255,255,255,0.03)' : (isBusiness ? '#FAF7F0' : '#F9F6FE');
+  const innerBoxBorder = theme.isDarkMode ? 'rgba(255,255,255,0.08)' : (isBusiness ? '#EFE5D2' : '#EDE4F7');
+  const dividerColor = theme.isDarkMode ? 'rgba(255,255,255,0.1)' : (isBusiness ? '#E8D9BD' : '#E8E1F5');
+
   const [mode, setMode] = useState(route.params?.initialMode || 'subscribers');
   const [query, setQuery] = useState(route.params?.query || '');
   const [statusFilter, setStatusFilter] = useState(route.params?.statusFilter || 'all');
@@ -287,14 +301,19 @@ const ManageSubscribersScreen = () => {
       style={[
         styles.statCard,
         {
-          backgroundColor: theme.card,
-          borderColor: theme.border,
+          backgroundColor: subtleCardBg,
+          borderColor: cardBorderColor,
           borderBottomColor: color,
           width: statCardWidth,
         },
       ]}>
-      <View style={[styles.statIconWrap, { backgroundColor: `${color}22` }]}>
-        <Ionicons name={icon} size={16} color={color} />
+      <View style={styles.statTopRow}>
+        <View style={[styles.statIconWrap, { backgroundColor: `${color}18` }]}>
+          <Ionicons name={icon} size={15} color={color} />
+        </View>
+        <Text style={[styles.statPct, { color: theme.mutedText }]} numberOfLines={1}>
+          {t('manageSubscribers.pctOfTotal', { pct: stats[key].pct })}
+        </Text>
       </View>
       <Text
         style={[styles.statLabel, { color: theme.mutedText }]}
@@ -302,10 +321,7 @@ const ManageSubscribersScreen = () => {
         ellipsizeMode="tail">
         {statusLabel(key)}
       </Text>
-      <Text style={[styles.statCount, { color: theme.text }]}>{stats[key].count}</Text>
-      <Text style={[styles.statPct, { color: theme.mutedText }]} numberOfLines={1}>
-        {t('manageSubscribers.pctOfTotal', { pct: stats[key].pct })}
-      </Text>
+      <Text style={[styles.statCount, { color: brandColor }]}>{stats[key].count}</Text>
     </View>
   );
 
@@ -335,10 +351,11 @@ const ManageSubscribersScreen = () => {
 
   const renderRow = row => {
     const colors = STATUS_COLORS[row.status] || STATUS_COLORS.active;
+    const isRowActive = row.status === STATUS.active;
     return (
       <View
         key={row.id}
-        style={[styles.personCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        style={[styles.personCard, { backgroundColor: subtleCardBg, borderColor: cardBorderColor }]}>
         <View style={styles.personTop}>
           <TouchableOpacity
             style={styles.profileLink}
@@ -347,9 +364,9 @@ const ManageSubscribersScreen = () => {
             accessibilityRole="link"
             accessibilityLabel={`View ${row.name}'s profile`}
           >
-            <HexAvatar uri={row.avatar} size={44} borderWidth={0} />
+            <HexAvatar uri={row.avatar} size={42} borderWidth={1.5} borderColor={brandColor} />
             <View style={styles.personMeta}>
-              <Text style={[styles.handle, { color: theme.text }]} numberOfLines={1}>
+              <Text style={[styles.handle, { color: brandColor }]} numberOfLines={1}>
                 {row.handle}
               </Text>
               <Text style={[styles.fullName, { color: theme.mutedText }]} numberOfLines={1}>
@@ -357,50 +374,67 @@ const ManageSubscribersScreen = () => {
               </Text>
             </View>
           </TouchableOpacity>
-          <View style={[styles.badge, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-            <Text style={[styles.badgeText, { color: colors.fg }]}>{statusLabel(row.status)}</Text>
+          <View style={[
+            styles.badge,
+            {
+              backgroundColor: isRowActive ? '#E8F7EE' : colors.bg,
+              borderColor: isRowActive ? '#A3E6BA' : colors.border,
+            }
+          ]}>
+            <Text style={[styles.badgeText, { color: isRowActive ? '#10B981' : colors.fg }]}>
+              {statusLabel(row.status)}
+            </Text>
           </View>
         </View>
 
-        <View style={styles.detailGrid}>
-          <View style={styles.detailCell}>
-            <Text style={[styles.detailLabel, { color: theme.mutedText }]}>
+        {/* Faint divider line matching mockup */}
+        <View style={[styles.cardDivider, { backgroundColor: dividerColor }]} />
+
+        {/* 3-column detail section matching mockup */}
+        <View style={styles.detailRow}>
+          <View style={styles.detailCol}>
+            <Text style={[styles.detailColLabel, { color: theme.mutedText }]}>
               {t('manageSubscribers.currentPrice')}
             </Text>
-            <Text style={[styles.detailValue, { color: theme.text }]}>
-              {t('manageSubscribers.priceMonth', { price: row.price.toFixed(2) })}
+            <Text style={[styles.detailColValue, { color: brandColor }]} numberOfLines={1}>
+              ${Number(row.price || 0).toFixed(2)} / month
             </Text>
-            {row.nextPrice ? (
-              <Text style={[styles.detailHint, { color: theme.accent }]}>
-                {t('manageSubscribers.willChangeTo', { price: row.nextPrice.toFixed(2) })}
-              </Text>
-            ) : null}
           </View>
-          <View style={styles.detailCell}>
-            <Text style={[styles.detailLabel, { color: theme.mutedText }]}>
+
+          <View style={[styles.detailColDivider, { backgroundColor: dividerColor }]} />
+
+          <View style={styles.detailCol}>
+            <Text style={[styles.detailColLabel, { color: theme.mutedText }]}>
               {t('manageSubscribers.nextBilling')}
             </Text>
-            <Text style={[styles.detailValue, { color: theme.text }]}>{row.nextBilling}</Text>
+            <Text style={[styles.detailColValue, { color: brandColor }]} numberOfLines={1}>
+              {row.nextBilling}
+            </Text>
             {row.nextBillingHint ? (
-              <Text style={[styles.detailHint, { color: theme.mutedText }]}>
+              <Text style={[styles.detailColHint, { color: theme.mutedText }]}>
                 {t('manageSubscribers.inDays', { days: row.nextBillingHint })}
               </Text>
             ) : null}
           </View>
-          <View style={styles.detailCell}>
-            <Text style={[styles.detailLabel, { color: theme.mutedText }]}>
+
+          <View style={[styles.detailColDivider, { backgroundColor: dividerColor }]} />
+
+          <View style={styles.detailCol}>
+            <Text style={[styles.detailColLabel, { color: theme.mutedText }]}>
               {t('manageSubscribers.joined')}
             </Text>
-            <Text style={[styles.detailValue, { color: theme.text }]}>{row.joined}</Text>
+            <Text style={[styles.detailColValue, { color: brandColor }]} numberOfLines={1}>
+              {row.joined}
+            </Text>
           </View>
         </View>
 
         {isSubscriberView && row.status !== STATUS.canceled && row.status !== STATUS.expired && (
-          <View style={{ marginTop: 16 }}>
+          <View style={{ marginTop: 10 }}>
             <TouchableOpacity
-              style={[styles.outlineBtn, { borderColor: theme.border }]}
+              style={[styles.outlineBtn, { borderColor: cardBorderColor, borderRadius: 10, paddingVertical: 6 }]}
               onPress={() => navigation.navigate('CancelSubscriptionFlow', { subscription: row, onCancelSuccess: () => handleCancelSuccess(row.id) })}>
-              <Text style={[styles.outlineBtnText, { color: theme.text }]}>Cancel Subscription</Text>
+              <Text style={[styles.outlineBtnText, { color: theme.mutedText, fontSize: 12 }]}>Cancel Subscription</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -410,12 +444,12 @@ const ManageSubscribersScreen = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg }]} edges={['top', 'left', 'right']}>
-      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]} edges={['top', 'left', 'right']}>
+      <View style={[styles.header, { borderBottomColor: cardBorderColor, backgroundColor: subtleCardBg }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={12}>
-          <Ionicons name="chevron-back" size={24} color={theme.text} />
+          <Ionicons name="chevron-back" size={24} color={brandColor} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
+        <Text style={[styles.headerTitle, { color: brandColor }]} numberOfLines={1}>
           {isSubscriberView
             ? t('manageSubscribers.mySubscriptionsTitle')
             : t('manageSubscribers.title')}
@@ -436,24 +470,38 @@ const ManageSubscribersScreen = () => {
         <View style={styles.modeRow}>
           <TouchableOpacity
             onPress={() => setMode('subscribers')}
-            style={[styles.outlineBtn, {
-              borderColor: theme.accent,
-              backgroundColor: !isSubscriberView ? theme.accent : 'transparent'
+            activeOpacity={0.8}
+            style={[styles.modeBtn, {
+              borderColor: !isSubscriberView ? brandColor : cardBorderColor,
+              backgroundColor: !isSubscriberView ? brandColor : subtleCardBg,
             }]}>
-            <Text style={[styles.outlineBtnText, {
-              color: !isSubscriberView ? '#fff' : theme.accent
+            <Ionicons
+              name="people-outline"
+              size={16}
+              color={!isSubscriberView ? '#fff' : brandColor}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[styles.modeBtnText, {
+              color: !isSubscriberView ? '#fff' : brandColor
             }]} numberOfLines={1}>
               {t('manageSubscribers.viewMySubscribers')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setMode('subscriptions')}
-            style={[styles.outlineBtn, {
-              borderColor: theme.accent,
-              backgroundColor: isSubscriberView ? theme.accent : 'transparent'
+            activeOpacity={0.8}
+            style={[styles.modeBtn, {
+              borderColor: isSubscriberView ? brandColor : cardBorderColor,
+              backgroundColor: isSubscriberView ? brandColor : subtleCardBg,
             }]}>
-            <Text style={[styles.outlineBtnText, {
-              color: isSubscriberView ? '#fff' : theme.accent
+            <Ionicons
+              name="receipt-outline"
+              size={16}
+              color={isSubscriberView ? '#fff' : brandColor}
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[styles.modeBtnText, {
+              color: isSubscriberView ? '#fff' : brandColor
             }]} numberOfLines={1}>
               {t('manageSubscribers.viewMySubscriptions')}
             </Text>
@@ -468,32 +516,49 @@ const ManageSubscribersScreen = () => {
         ) : null}
 
         {!isSubscriberView ? (
-          <View style={[styles.banner, { backgroundColor: `${theme.accent}18`, borderColor: `${theme.accent}44` }]}>
-            <View style={styles.bannerCopy}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Ionicons name="information-circle" size={22} color={theme.accent} />
-                <Text style={[styles.bannerTitle, { color: theme.text }]}>
-                  {t('manageSubscribers.priceUpdateTitle')}
-                </Text>
+          <View style={[styles.bannerContainer, { borderColor: cardBorderColor }]}>
+            <LinearGradient
+              colors={
+                theme.isDarkMode
+                  ? (isBusiness ? ['#251F18', '#1A1713'] : ['#201736', '#171026'])
+                  : (isBusiness ? ['#FAF5E8', '#F5ECE0'] : ['#F6EEFD', '#EAE0FB'])
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.bannerGradient}
+            >
+              <View style={styles.bannerCopy}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <Ionicons name="information-circle" size={20} color={brandColor} />
+                  <Text style={[styles.bannerTitle, { color: brandColor }]}>
+                    {t('manageSubscribers.priceUpdateTitle')}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={[styles.bannerBtn, { backgroundColor: subtleCardBg, borderColor: brandColor }]}
+                  onPress={() => navigation.navigate('SubscriptionUpdateSummary', {
+                    currentPrice: 9.9,
+                    newPrice: 14.9,
+                  })}>
+                  <Text style={[styles.bannerBtnText, { color: brandColor }]}>
+                    {t('manageSubscribers.viewUpdateDetails')}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              {/* <Text style={[styles.bannerBody, { color: theme.mutedText }]}>
-                {t('manageSubscribers.priceUpdateBody', { from: '9.90', to: '14.90' })}
-              </Text> */}
-            </View>
-            <TouchableOpacity
-              style={[styles.bannerBtn, { backgroundColor: theme.card, borderColor: theme.accent }]}
-              onPress={() => navigation.navigate('SubscriptionUpdateSummary', {
-                currentPrice: 9.9,
-                newPrice: 14.9,
-              })}>
-              <Text style={[styles.bannerBtnText, { color: theme.accent }]}>
-                {t('manageSubscribers.viewUpdateDetails')}
-              </Text>
-            </TouchableOpacity>
+
+              <View style={styles.bannerArtWrap}>
+                <Image
+                  source={require('../../assets/icons/pngicons/calendar_update_3d.png')}
+                  style={styles.bannerArt}
+                  resizeMode="contain"
+                />
+              </View>
+            </LinearGradient>
           </View>
         ) : null}
 
-        <View style={[styles.searchRow, { borderColor: theme.border, backgroundColor: theme.card }]}>
+        <View style={[styles.searchRow, { borderColor: cardBorderColor, backgroundColor: subtleCardBg }]}>
           <Ionicons name="search-outline" size={18} color={theme.mutedText} />
           <TextInput
             value={query}
@@ -505,39 +570,46 @@ const ManageSubscribersScreen = () => {
             }
             placeholderTextColor={theme.mutedText}
             style={[styles.searchInput, { color: theme.text }]}
+            returnKeyType="search"
+            autoCorrect={false}
           />
+          {query.length > 0 ? (
+            <TouchableOpacity onPress={() => setQuery('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={16} color={theme.mutedText} />
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <View style={styles.filterRow}>
           <TouchableOpacity
-            style={[styles.filterChip, { borderColor: theme.border, backgroundColor: theme.card }]}
+            style={[styles.filterChip, { borderColor: cardBorderColor, backgroundColor: subtleCardBg }]}
             onPress={() => {
               setShowSortMenu(false);
               setShowStatusMenu(v => !v);
             }}>
-            <Text style={[styles.filterChipText, { color: theme.text }]} numberOfLines={1}>
+            <Text style={[styles.filterChipText, { color: brandColor }]} numberOfLines={1}>
               {statusFilter === 'all'
                 ? t('manageSubscribers.allStatus')
                 : statusLabel(statusFilter)}
             </Text>
-            <Ionicons name="chevron-down" size={14} color={theme.mutedText} />
+            <Ionicons name="chevron-down" size={14} color={brandColor} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.filterChip, { borderColor: theme.border, backgroundColor: theme.card }]}
+            style={[styles.filterChip, { borderColor: cardBorderColor, backgroundColor: subtleCardBg }]}
             onPress={() => {
               setShowStatusMenu(false);
               setShowSortMenu(v => !v);
             }}>
-            <Text style={[styles.filterChipText, { color: theme.text }]} numberOfLines={1}>
+            <Text style={[styles.filterChipText, { color: brandColor }]} numberOfLines={1}>
               {t(`manageSubscribers.sort.${sortBy}`)}
             </Text>
-            <Ionicons name="chevron-down" size={14} color={theme.mutedText} />
+            <Ionicons name="chevron-down" size={14} color={brandColor} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.filterChip, { borderColor: theme.border, backgroundColor: theme.card }]}
+            style={[styles.filterChip, { borderColor: cardBorderColor, backgroundColor: subtleCardBg }]}
             onPress={() => setShowFilters(v => !v)}>
-            <Ionicons name="options-outline" size={16} color={theme.text} />
-            <Text style={[styles.filterChipText, { color: theme.text }]}>
+            <Ionicons name="options-outline" size={16} color={brandColor} />
+            <Text style={[styles.filterChipText, { color: brandColor }]}>
               {t('manageSubscribers.filters')}
             </Text>
           </TouchableOpacity>
@@ -677,99 +749,233 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 14,
   },
+  modeRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+  },
+  modeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 44,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    paddingHorizontal: 8,
+  },
+  modeBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
   statCard: {
     borderWidth: 1,
-    borderBottomWidth: 3,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    marginBottom: 10,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 10,
+    marginBottom: 12,
+    shadowColor: '#402090',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   statIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
   },
   statLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 6,
+    fontSize: 13.5,
+    fontWeight: '700',
+    marginBottom: 2,
   },
-  statCount: { fontSize: 24, fontWeight: '800', lineHeight: 28 },
-  statPct: { fontSize: 11, marginTop: 4 },
-  banner: {
+  statCount: {
+    fontSize: 26,
+    fontWeight: '800',
+    lineHeight: 32,
+  },
+  statPct: {
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+  statBottomStripe: {
+    height: 4,
+    borderRadius: 2,
+    marginTop: 10,
+    width: '100%',
+  },
+  bannerContainer: {
+    borderRadius: 16,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
+    overflow: 'hidden',
     marginBottom: 14,
-    gap: 8,
+    shadowColor: '#402090',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  bannerCopy: { flex: 1, gap: 4 },
-  bannerTitle: { fontSize: 14, fontWeight: '700' },
-  bannerBody: { fontSize: 12, lineHeight: 17 },
+  bannerGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+  },
+  bannerCopy: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  bannerTitle: {
+    fontSize: 14.5,
+    fontWeight: '800',
+  },
   bannerBtn: {
     alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 6.5,
   },
-  bannerBtnText: { fontSize: 12, fontWeight: '700' },
+  bannerBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  bannerArtWrap: {
+    width: 72,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bannerArt: {
+    width: 72,
+    height: 72,
+  },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 44,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 46,
+    minHeight: 46,
     gap: 8,
     marginBottom: 10,
   },
-  searchInput: { flex: 1, fontSize: 14, paddingVertical: 0 },
-  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  searchInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: 14,
+    paddingVertical: 0,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
   filterChip: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 10,
-    paddingVertical: 8,
-    flexGrow: 1,
+    height: 38,
   },
-  filterChipText: { fontSize: 12, fontWeight: '600', flexShrink: 1 },
+  filterChipText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
   menu: { borderWidth: 1, borderRadius: 10, marginBottom: 10, overflow: 'hidden' },
   menuItem: { paddingHorizontal: 14, paddingVertical: 12 },
   filterHint: { fontSize: 12, marginBottom: 10 },
   empty: { textAlign: 'center', marginVertical: 24, fontSize: 14 },
   personCard: {
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 10,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    shadowColor: '#402090',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  personTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  profileLink: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 0 },
-  personMeta: { flex: 1, minWidth: 0 },
-  handle: { fontSize: 14, fontWeight: '700' },
-  fullName: { fontSize: 12, marginTop: 2 },
+  personTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  profileLink: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minWidth: 0,
+  },
+  personMeta: {
+    flex: 1,
+    minWidth: 0,
+  },
+  handle: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  fullName: {
+    fontSize: 12,
+    marginTop: 1,
+  },
   badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3.5,
+    borderRadius: 12,
     borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    maxWidth: 120,
   },
-  badgeText: { fontSize: 11, fontWeight: '700' },
-  pendingNote: { marginTop: 6, fontSize: 11, fontWeight: '600' },
-  detailGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 12, gap: 10 },
-  detailCell: { width: '30%', flexGrow: 1, minWidth: 90 },
-  detailLabel: { fontSize: 11, marginBottom: 2 },
-  detailValue: { fontSize: 13, fontWeight: '700' },
-  detailHint: { fontSize: 11, marginTop: 2 },
+  badgeText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  cardDivider: {
+    height: 1,
+    marginVertical: 10,
+    width: '100%',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingTop: 2,
+  },
+  detailCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  detailColDivider: {
+    width: 1,
+    height: 28,
+    marginHorizontal: 8,
+    alignSelf: 'center',
+  },
+  detailColLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginBottom: 3,
+  },
+  detailColValue: {
+    fontSize: 13.5,
+    fontWeight: '800',
+  },
+  detailColHint: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 2,
+  },
   rowActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',

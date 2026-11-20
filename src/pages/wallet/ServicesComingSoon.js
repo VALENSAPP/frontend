@@ -19,11 +19,13 @@ import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Svg, { Ellipse, Path } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { getServicesSettingsDraft } from '../../services/servicesSettings';
 import { useToast } from 'react-native-toast-notifications';
 import { useSelector } from 'react-redux';
 import { useLanguage } from '../../i18n';
 import { useThemeContext } from '../../theme/ThemeContext';
+import { useBusinessProfileTheme } from '../../theme/useBusinessProfileTheme';
 import { showToastMessage } from '../../components/displaytoastmessage';
 import { normalizeProfileType } from '../../utils/supportEligibility';
 import RegularSubscriptionPrompt from '../../components/modals/RegularSubscriptionPrompt';
@@ -192,14 +194,18 @@ export default function ServicesComingSoon() {
     route?.params?.userData?.profile ||
     reduxProfile;
 
+  const { isBusinessProfile: hookIsBusiness } = useBusinessProfileTheme();
+
   const routeIsBusiness =
     route?.params?.isBusinessProfile === true ||
     route?.params?.params?.isBusinessProfile === true ||
+    hookIsBusiness === true ||
     normalizeProfileType(incomingProfileType) === 'company';
 
   const [notified, setNotified] = useState(false);
   const [isBusiness, setIsBusiness] = useState(routeIsBusiness);
-  const [hasMembership, setHasMembership] = useState(routeIsBusiness);
+  const effectiveIsBusiness = Boolean(isBusiness || routeIsBusiness || hookIsBusiness);
+  const [hasMembership, setHasMembership] = useState(routeIsBusiness || hookIsBusiness);
   const [showMembershipModal, setShowMembershipModal] = useState(false);
 
   // Setup Flow Steps: 0 = Original Landing, 1 = Choose Type, 2 = Program Details, 3 = Service Details, 4 = Availability, 5 = Review, 6 = Live / All Set
@@ -216,6 +222,7 @@ export default function ServicesComingSoon() {
   const [selectedServiceAction, setSelectedServiceAction] = useState(null);
   const [overviewMonthDropdown, setOverviewMonthDropdown] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('This Month');
+  const [servicesInfo, setServicesInfo] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -227,6 +234,23 @@ export default function ServicesComingSoon() {
       } catch (_) {}
     })();
   }, [currentStep, activeFlow]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isMounted = true;
+      (async () => {
+        try {
+          const draft = await getServicesSettingsDraft();
+          if (isMounted && draft && (draft.title || draft.name || draft.whoAreYou || draft.servicePicture || draft.location)) {
+            setServicesInfo(draft);
+          }
+        } catch (_e) {}
+      })();
+      return () => {
+        isMounted = false;
+      };
+    }, [])
+  );
 
   // Form State
   const [selectedServiceType, setSelectedServiceType] = useState('mentorship');
@@ -246,7 +270,7 @@ export default function ServicesComingSoon() {
   const scale = Math.min(width / 390, 1.15);
 
   const colors = useMemo(() => {
-    if (isBusiness) {
+    if (effectiveIsBusiness) {
       return isDarkMode
         ? {
           bg: ['#1A1713', '#251F18', '#1A1713'],
@@ -262,35 +286,75 @@ export default function ServicesComingSoon() {
           wave: '#8C6D37',
           wave2: '#5C441D',
           headerIcon: '#FDF7EB',
-          accent: '#C9A15A',
+          accent: '#CBA257',
           accentDark: '#A88038',
-          btnGradient: ['#B8923E', '#C9A15A', '#DFBA74'],
-          pillBg: 'rgba(201, 161, 90, 0.22)',
+          btnGradient: ['#CBA257', '#CBA257'],
+          pillBg: 'rgba(203, 162, 87, 0.22)',
           inputBg: '#1F1A13',
           divider: '#3D3220',
           isBusiness: true,
+          // Business Theme Tokens
+          dashboardGradient: ['#73541B', '#A88038'],
+          dashboardShadow: '#A88038',
+          dashboardBg: '#A88038',
+          roleSwitcherBg: '#241E16',
+          roleSwitcherBorder: '#4D3E28',
+          roleSwitcherActiveBg: '#CBA257',
+          roleSwitcherActiveShadow: '#CBA257',
+          proStatValueColor: '#E8D9BD',
+          priceColor: '#CBA257',
+          brandIconBg: '#CBA257',
+          brandTitle: '#CBA257',
+          calendarHeaderStripe: '#8C6010',
+          calendarBodyBg: '#1F1A13',
+          calendarStar: '#CBA257',
+          calendarCheckBadge: '#8C6010',
+          sessionDateBlockBg: '#33291B',
+          sessionDateMonth: '#CBA257',
+          sessionDateDay: '#E8D9BD',
+          sparklesIcon: '#CBA257',
         }
         : {
-          bg: ['#FCFBFA', '#FBF6ED', '#F5ECE0'],
+          bg: ['#FAF7F0', '#FAF7F0', '#FAF7F0'],
           surface: '#FFFFFF',
           card: '#FFFFFF',
-          cardBorder: '#F0E2C8',
-          cardInner: '#FCF8F2',
-          launch: '#F8EEDD',
-          title: '#4A3B18',
+          cardBorder: '#E8D9BD',
+          cardInner: '#FAF7F0',
+          launch: '#FAF7F0',
+          title: '#CBA257',
           body: '#6E5D34',
           muted: '#8C7A55',
           iconBg: '#FAF1E2',
-          wave: '#ECD9B7',
+          wave: '#E8D9BD',
           wave2: '#DFC496',
-          headerIcon: '#4A3B18',
-          accent: '#C9A15A',
+          headerIcon: '#CBA257',
+          accent: '#CBA257',
           accentDark: '#A88038',
-          btnGradient: ['#B8923E', '#C9A15A', '#DFBA74'],
-          pillBg: 'rgba(201, 161, 90, 0.12)',
+          btnGradient: ['#CBA257', '#CBA257'],
+          pillBg: 'rgba(203, 162, 87, 0.12)',
           inputBg: '#FFFFFF',
-          divider: '#F0E2C8',
+          divider: '#E8D9BD',
           isBusiness: true,
+          // Business Theme Tokens
+          dashboardGradient: ['#967026', '#CBA257'],
+          dashboardShadow: '#CBA257',
+          dashboardBg: '#CBA257',
+          roleSwitcherBg: '#F7F2E7',
+          roleSwitcherBorder: '#E8D9BD',
+          roleSwitcherActiveBg: '#CBA257',
+          roleSwitcherActiveShadow: '#CBA257',
+          proStatValueColor: '#5C441D',
+          priceColor: '#CBA257',
+          brandIconBg: '#CBA257',
+          brandTitle: '#CBA257',
+          calendarHeaderStripe: '#A88038',
+          calendarBodyBg: '#FAF7F0',
+          calendarStar: '#CBA257',
+          calendarCheckBadge: '#A88038',
+          sessionDateBlockBg: '#F5EEDD',
+          sessionDateMonth: '#8C6010',
+          sessionDateDay: '#6E4E10',
+          sparklesIcon: '#CBA257',
         };
     }
     return isDarkMode
@@ -305,43 +369,83 @@ export default function ServicesComingSoon() {
         body: '#C4B5D6',
         muted: '#A78BBE',
         iconBg: '#3B2760',
-        wave: '#4C1D95',
+        wave: '#402090',
         wave2: '#2E1064',
         headerIcon: '#EDE4FF',
-        accent: '#8B5CF6',
-        accentDark: '#6D28D9',
-        btnGradient: ['#7C3AED', '#A855F7', '#C026D3'],
-        pillBg: 'rgba(139, 92, 246, 0.2)',
+        accent: '#402090',
+        accentDark: '#311870',
+        btnGradient: ['#402090', '#5A2D82'],
+        pillBg: 'rgba(64, 32, 144, 0.2)',
         inputBg: '#1E1430',
         divider: '#362354',
         isBusiness: false,
+        // Persona Theme Tokens
+        dashboardGradient: ['#4C1D95', '#6D28D9'],
+        dashboardShadow: '#5B21B6',
+        dashboardBg: '#6D28D9',
+        roleSwitcherBg: '#1F1A2E',
+        roleSwitcherBorder: '#3B3355',
+        roleSwitcherActiveBg: '#6D28D9',
+        roleSwitcherActiveShadow: '#6D28D9',
+        proStatValueColor: '#F3E8FF',
+        priceColor: '#A78BFA',
+        brandIconBg: '#7C3AED',
+        brandTitle: '#A78BFA',
+        calendarHeaderStripe: '#5B21B6',
+        calendarBodyBg: '#201533',
+        calendarStar: '#A78BFA',
+        calendarCheckBadge: '#5B21B6',
+        sessionDateBlockBg: '#32224C',
+        sessionDateMonth: '#C4B5D6',
+        sessionDateDay: '#F3E8FF',
+        sparklesIcon: '#A78BFA',
       }
       : {
-        bg: ['#FBFAFF', '#F4ECFF', '#EDE4FE'],
+        bg: ['#FAF5FE', '#FAF5FE', '#FAF5FE'],
         surface: '#FFFFFF',
         card: '#FFFFFF',
-        cardBorder: '#E9D7FD',
-        cardInner: '#F8F3FF',
-        launch: '#F3EAFF',
-        title: '#2A1258',
+        cardBorder: '#EAE4F5',
+        cardInner: '#F8F4FD',
+        launch: '#FAF5FE',
+        title: '#402090',
         body: '#5B4A7A',
-        muted: '#7A6A94',
-        iconBg: '#EFE6FF',
-        wave: '#D8C4F6',
-        wave2: '#C4A7F0',
-        headerIcon: '#2A1258',
-        accent: '#7C3AED',
-        accentDark: '#5B21B6',
-        btnGradient: ['#6D28D9', '#9333EA', '#C026D3'],
-        pillBg: 'rgba(124, 58, 237, 0.08)',
+        muted: '#7A7289',
+        iconBg: '#F3ECFA',
+        wave: '#E0D4F5',
+        wave2: '#D0BFF0',
+        headerIcon: '#402090',
+        accent: '#402090',
+        accentDark: '#311870',
+        btnGradient: ['#402090', '#402090'],
+        pillBg: 'rgba(64, 32, 144, 0.08)',
         inputBg: '#FFFFFF',
-        divider: '#EBDCFD',
+        divider: '#EAE4F5',
         isBusiness: false,
+        // Persona Theme Tokens
+        dashboardGradient: ['#5B21B6', '#7C3AED'],
+        dashboardShadow: '#5B21B6',
+        dashboardBg: '#6D28D9',
+        roleSwitcherBg: '#F1EBFB',
+        roleSwitcherBorder: '#E4DCF5',
+        roleSwitcherActiveBg: '#6D28D9',
+        roleSwitcherActiveShadow: '#6D28D9',
+        proStatValueColor: '#3B0764',
+        priceColor: '#7C3AED',
+        brandIconBg: '#7C3AED',
+        brandTitle: '#7C3AED',
+        calendarHeaderStripe: '#6D28D9',
+        calendarBodyBg: '#FAF5FF',
+        calendarStar: '#7C3AED',
+        calendarCheckBadge: '#5B21B6',
+        sessionDateBlockBg: '#EDE9FE',
+        sessionDateMonth: '#6D28D9',
+        sessionDateDay: '#5B21B6',
+        sparklesIcon: '#7C3AED',
       };
-  }, [isDarkMode, isBusiness]);
+  }, [isDarkMode, effectiveIsBusiness]);
 
   useEffect(() => {
-    if (routeIsBusiness) {
+    if (routeIsBusiness || hookIsBusiness) {
       setIsBusiness(true);
     }
     AsyncStorage.getItem(NOTIFY_KEY).then(value => {
@@ -359,7 +463,7 @@ export default function ServicesComingSoon() {
         setHasMembership(true);
       }
     })();
-  }, [incomingProfileType, routeIsBusiness]);
+  }, [incomingProfileType, routeIsBusiness, hookIsBusiness]);
 
   const handleNotify = useCallback(async () => {
     const next = !notified;
@@ -697,10 +801,10 @@ export default function ServicesComingSoon() {
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Ionicons name="chevron-back" size={22} color={colors.title} style={{ marginRight: 6 }} />
-              <View style={styles.brandIconBox}>
+              <View style={[styles.brandIconBox, { backgroundColor: colors.brandIconBg }]}>
                 <Ionicons name="checkmark-done" size={14} color="#FFFFFF" />
               </View>
-              <Text style={styles.brandTitleText}>VALENS</Text>
+              <Text style={[styles.brandTitleText, { color: colors.brandTitle }]}>VALENS</Text>
             </TouchableOpacity>
 
             <Text style={[styles.mockupHeaderCenterTitle, { color: colors.title }]}>
@@ -731,13 +835,16 @@ export default function ServicesComingSoon() {
           </View>
 
           {/* Segmented Role Switcher: [ I'm Professional ] | [ I'm Client ] */}
-          <View style={[styles.roleSwitcherContainer, { backgroundColor: isDarkMode ? '#1F1A2E' : '#F1EBFB', borderColor: isDarkMode ? '#3B3355' : '#E4DCF5' }]}>
+          <View style={[styles.roleSwitcherContainer, { backgroundColor: colors.roleSwitcherBg, borderColor: colors.roleSwitcherBorder }]}>
             <TouchableOpacity
               onPress={() => setRoleMode('professional')}
               activeOpacity={0.85}
               style={[
                 styles.roleSwitcherBtn,
-                roleMode === 'professional' && styles.roleSwitcherBtnActive,
+                roleMode === 'professional' && [
+                  styles.roleSwitcherBtnActive,
+                  { backgroundColor: colors.roleSwitcherActiveBg, shadowColor: colors.roleSwitcherActiveShadow },
+                ],
               ]}
             >
               <Text
@@ -757,7 +864,10 @@ export default function ServicesComingSoon() {
               activeOpacity={0.85}
               style={[
                 styles.roleSwitcherBtn,
-                roleMode === 'client' && styles.roleSwitcherBtnActive,
+                roleMode === 'client' && [
+                  styles.roleSwitcherBtnActive,
+                  { backgroundColor: colors.roleSwitcherActiveBg, shadowColor: colors.roleSwitcherActiveShadow },
+                ],
               ]}
             >
               <Text
@@ -773,7 +883,7 @@ export default function ServicesComingSoon() {
             </TouchableOpacity>
           </View>
 
-          {/* MAIN SCROLLABLE CONTENT */}
+{/* MAIN SCROLLABLE CONTENT */}
           <ScrollView
             style={styles.flex}
             showsVerticalScrollIndicator={false}
@@ -785,10 +895,10 @@ export default function ServicesComingSoon() {
                  ═══════════════════════════════════════════════════════════ */
               <>
                 {/* Professional Dashboard Card */}
-                <View style={styles.proDashboardCardWrapper}>
-                  <View style={styles.proDashboardCard}>
+                <View style={[styles.proDashboardCardWrapper, { shadowColor: colors.dashboardShadow }]}>
+                  <View style={[styles.proDashboardCard, { backgroundColor: colors.dashboardBg }]}>
                     <LinearGradient
-                      colors={['#5B21B6', '#7C3AED']}
+                      colors={colors.dashboardGradient}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={StyleSheet.absoluteFill}
@@ -808,25 +918,25 @@ export default function ServicesComingSoon() {
                     {/* 4 Stat Tiles Row */}
                     <View style={styles.proStatTilesRow}>
                       <View style={styles.proStatTile}>
-                        <Text style={styles.proStatValue}>12</Text>
+                        <Text style={[styles.proStatValue, { color: colors.proStatValueColor }]}>12</Text>
                         <Text style={styles.proStatLabel} numberOfLines={2}>
                           {t('services.activeServices', 'Active Services')}
                         </Text>
                       </View>
                       <View style={styles.proStatTile}>
-                        <Text style={styles.proStatValue}>248</Text>
+                        <Text style={[styles.proStatValue, { color: colors.proStatValueColor }]}>248</Text>
                         <Text style={styles.proStatLabel} numberOfLines={2}>
                           {t('services.totalClients', 'Total Clients')}
                         </Text>
                       </View>
                       <View style={styles.proStatTile}>
-                        <Text style={styles.proStatValue}>$8,450</Text>
+                        <Text style={[styles.proStatValue, { color: colors.proStatValueColor }]}>$8,450</Text>
                         <Text style={styles.proStatLabel} numberOfLines={2}>
                           {t('services.monthlyRevenue', 'Monthly Revenue')}
                         </Text>
                       </View>
                       <View style={styles.proStatTile}>
-                        <Text style={styles.proStatValue}>32</Text>
+                        <Text style={[styles.proStatValue, { color: colors.proStatValueColor }]}>32</Text>
                         <Text style={styles.proStatLabel} numberOfLines={2}>
                           {t('services.upcomingSessions', 'Upcoming Sessions')}
                         </Text>
@@ -857,8 +967,8 @@ export default function ServicesComingSoon() {
                     activeOpacity={0.7}
                     style={styles.monthDropdownBtn}
                   >
-                    <Text style={styles.monthDropdownText}>{selectedMonth}</Text>
-                    <Ionicons name="chevron-down" size={14} color="#7C3AED" style={{ marginLeft: 4 }} />
+                    <Text style={[styles.monthDropdownText, { color: colors.priceColor }]}>{selectedMonth}</Text>
+                    <Ionicons name="chevron-down" size={14} color={colors.priceColor} style={{ marginLeft: 4 }} />
                   </TouchableOpacity>
                 </View>
 
@@ -948,7 +1058,7 @@ export default function ServicesComingSoon() {
                           {svc.title}
                         </Text>
                         <View style={styles.servicePriceBadgeRow}>
-                          <Text style={styles.serviceItemPrice}>{svc.price}</Text>
+                          <Text style={[styles.serviceItemPrice, { color: colors.priceColor }]}>{svc.price}</Text>
                           <View style={styles.activePillBadge}>
                             <Text style={styles.activePillText}>{svc.status || 'Active'}</Text>
                           </View>
@@ -975,10 +1085,10 @@ export default function ServicesComingSoon() {
                  ═══════════════════════════════════════════════════════════ */
               <>
                 {/* Client Dashboard Banner with 3D Calendar illustration */}
-                <View style={styles.clientDashboardCardWrapper}>
-                  <View style={styles.clientDashboardCard}>
+                <View style={[styles.clientDashboardCardWrapper, { shadowColor: colors.dashboardShadow }]}>
+                  <View style={[styles.clientDashboardCard, { backgroundColor: colors.dashboardBg }]}>
                     <LinearGradient
-                      colors={['#5B21B6', '#7C3AED']}
+                      colors={colors.dashboardGradient}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={StyleSheet.absoluteFill}
@@ -998,15 +1108,15 @@ export default function ServicesComingSoon() {
                     {/* Calendar 3D Illustration */}
                     <View style={styles.calendarIllustrationBox}>
                       <View style={styles.calendarSheet}>
-                        <View style={styles.calendarHeaderStripe}>
+                        <View style={[styles.calendarHeaderStripe, { backgroundColor: colors.calendarHeaderStripe }]}>
                           <View style={styles.calendarRing} />
                           <View style={styles.calendarRing} />
                         </View>
-                        <View style={styles.calendarBody}>
-                          <Ionicons name="star" size={26} color="#7C3AED" />
+                        <View style={[styles.calendarBody, { backgroundColor: colors.calendarBodyBg }]}>
+                          <Ionicons name="star" size={26} color={colors.calendarStar} />
                         </View>
                       </View>
-                      <View style={styles.calendarCheckBadge}>
+                      <View style={[styles.calendarCheckBadge, { backgroundColor: colors.calendarCheckBadge }]}>
                         <Ionicons name="checkmark" size={14} color="#FFFFFF" />
                       </View>
                     </View>
@@ -1022,7 +1132,7 @@ export default function ServicesComingSoon() {
                     onPress={() => showToastMessage('Showing all packages')}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.viewAllText}>{t('services.viewAll', 'View all')}</Text>
+                    <Text style={[styles.viewAllText, { color: colors.priceColor }]}>{t('services.viewAll', 'View all')}</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -1049,7 +1159,7 @@ export default function ServicesComingSoon() {
                           {pkg.title}
                         </Text>
                         <View style={styles.servicePriceBadgeRow}>
-                          <Text style={styles.serviceItemPrice}>{pkg.price}</Text>
+                          <Text style={[styles.serviceItemPrice, { color: colors.priceColor }]}>{pkg.price}</Text>
                           <View style={styles.activePillBadge}>
                             <Text style={styles.activePillText}>{pkg.status || 'Active'}</Text>
                           </View>
@@ -1072,7 +1182,7 @@ export default function ServicesComingSoon() {
                     onPress={() => showToastMessage('Showing all upcoming sessions')}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.viewAllText}>{t('services.viewAll', 'View all')}</Text>
+                    <Text style={[styles.viewAllText, { color: colors.priceColor }]}>{t('services.viewAll', 'View all')}</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -1090,9 +1200,9 @@ export default function ServicesComingSoon() {
                       ]}
                     >
                       {/* Date block on the left */}
-                      <View style={styles.sessionDateBlock}>
-                        <Text style={styles.sessionDateMonth}>{sess.month}</Text>
-                        <Text style={styles.sessionDateDay}>{sess.day}</Text>
+                      <View style={[styles.sessionDateBlock, { backgroundColor: colors.sessionDateBlockBg }]}>
+                        <Text style={[styles.sessionDateMonth, { color: colors.sessionDateMonth }]}>{sess.month}</Text>
+                        <Text style={[styles.sessionDateDay, { color: colors.sessionDateDay }]}>{sess.day}</Text>
                       </View>
 
                       <View style={styles.sessionDetails}>
@@ -1106,8 +1216,8 @@ export default function ServicesComingSoon() {
                           {sess.avatar ? (
                             <Image source={{ uri: sess.avatar }} style={styles.sessionHostAvatar} />
                           ) : (
-                            <View style={styles.sessionHostIconBadge}>
-                              <Ionicons name="sparkles" size={11} color="#7C3AED" />
+                            <View style={[styles.sessionHostIconBadge, { backgroundColor: colors.sessionDateBlockBg }]}>
+                              <Ionicons name="sparkles" size={11} color={colors.sparklesIcon} />
                             </View>
                           )}
                           <Text style={[styles.sessionHostName, { color: colors.title }]}>
@@ -1130,7 +1240,7 @@ export default function ServicesComingSoon() {
                     onPress={() => showToastMessage('Showing all recommendations')}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.viewAllText}>{t('services.viewAll', 'View all')}</Text>
+                    <Text style={[styles.viewAllText, { color: colors.priceColor }]}>{t('services.viewAll', 'View all')}</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -1156,7 +1266,7 @@ export default function ServicesComingSoon() {
                         <Text style={[styles.recommendedTitle, { color: colors.title }]} numberOfLines={2}>
                           {rec.title}
                         </Text>
-                        <Text style={styles.recommendedPrice}>{rec.price}</Text>
+                        <Text style={[styles.recommendedPrice, { color: colors.priceColor }]}>{rec.price}</Text>
                         <View style={styles.recommendedRatingRow}>
                           <Ionicons name="star" size={12} color="#F59E0B" />
                           <Text style={[styles.recommendedRatingText, { color: colors.muted }]}>
@@ -1202,7 +1312,7 @@ export default function ServicesComingSoon() {
                       Alert.alert('Service Details', `${item.title}\nPrice: ${item.price}`);
                     }}
                   >
-                    <Ionicons name="eye-outline" size={20} color="#7C3AED" />
+                    <Ionicons name="eye-outline" size={20} color={colors.accent} />
                     <Text style={[styles.actionModalOptionText, { color: colors.title }]}>View Details</Text>
                   </TouchableOpacity>
 
@@ -1213,7 +1323,7 @@ export default function ServicesComingSoon() {
                       setCurrentStep(1);
                     }}
                   >
-                    <Ionicons name="create-outline" size={20} color="#7C3AED" />
+                    <Ionicons name="create-outline" size={20} color={colors.accent} />
                     <Text style={[styles.actionModalOptionText, { color: colors.title }]}>Edit Service</Text>
                   </TouchableOpacity>
 
@@ -1227,7 +1337,7 @@ export default function ServicesComingSoon() {
                       });
                     }}
                   >
-                    <Ionicons name="share-social-outline" size={20} color="#7C3AED" />
+                    <Ionicons name="share-social-outline" size={20} color={colors.accent} />
                     <Text style={[styles.actionModalOptionText, { color: colors.title }]}>Share Service</Text>
                   </TouchableOpacity>
 
@@ -1282,12 +1392,12 @@ export default function ServicesComingSoon() {
                       <Text
                         style={[
                           styles.actionModalOptionText,
-                          { color: selectedMonth === m ? '#7C3AED' : colors.title, fontWeight: selectedMonth === m ? '700' : '500' },
+                          { color: selectedMonth === m ? colors.accent : colors.title, fontWeight: selectedMonth === m ? '700' : '500' },
                         ]}
                       >
                         {m}
                       </Text>
-                      {selectedMonth === m && <Ionicons name="checkmark" size={18} color="#7C3AED" />}
+                      {selectedMonth === m && <Ionicons name="checkmark" size={18} color={colors.accent} />}
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -2139,8 +2249,8 @@ export default function ServicesComingSoon() {
                 <Ionicons name="checkmark" size={44} color="#FFFFFF" />
               </LinearGradient>
               <Ionicons name="star" size={14} color={isBusiness ? '#F3E2B8' : '#C084FC'} style={{ position: 'absolute', top: 4, left: 24 }} />
-              <Ionicons name="sparkles" size={18} color={isBusiness ? '#DFBA74' : '#E879F9'} style={{ position: 'absolute', top: 10, right: 28 }} />
-              <Ionicons name="ellipse" size={8} color={isBusiness ? '#C9A15A' : '#A855F7'} style={{ position: 'absolute', bottom: 12, left: 16 }} />
+              <Ionicons name="sparkles" size={18} color={colors.accent} style={{ position: 'absolute', top: 10, right: 28 }} />
+              <Ionicons name="ellipse" size={8} color={colors.accent} style={{ position: 'absolute', bottom: 12, left: 16 }} />
               <Ionicons name="sparkles" size={14} color={isBusiness ? '#F3E2B8' : '#C4B5FD'} style={{ position: 'absolute', bottom: 16, right: 20 }} />
             </View>
 
@@ -2337,7 +2447,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   heroTitleHighlight: {
-    color: '#C026D3',
+    color: '#402090',
     fontWeight: '800',
   },
   heroSubtitleText: {
@@ -2424,7 +2534,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#6D28D9',
+    shadowColor: '#402090',
     shadowOpacity: 0.12,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -2439,7 +2549,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginTop: 18,
     marginBottom: 8,
-    shadowColor: '#7C3AED',
+    shadowColor: '#402090',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.28,
     shadowRadius: 8,
@@ -2508,7 +2618,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
-    shadowColor: '#7C3AED',
+    shadowColor: '#402090',
     shadowOpacity: 0.08,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
@@ -2529,7 +2639,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    shadowColor: '#7C3AED',
+    shadowColor: '#402090',
     shadowOpacity: 0.06,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -2739,7 +2849,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   formatToggleActive: {
-    shadowColor: '#6D28D9',
+    shadowColor: '#402090',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -3009,7 +3119,7 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#7C3AED',
+    shadowColor: '#402090',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
@@ -3181,7 +3291,6 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 6,
-    backgroundColor: '#7C3AED',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 6,
@@ -3190,7 +3299,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.8,
-    color: '#7C3AED',
   },
   mockupHeaderCenterTitle: {
     fontSize: 17,
@@ -3238,8 +3346,6 @@ const styles = StyleSheet.create({
     borderRadius: 11,
   },
   roleSwitcherBtnActive: {
-    backgroundColor: '#6D28D9',
-    shadowColor: '#6D28D9',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -3263,7 +3369,6 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 20,
     borderRadius: 20,
-    shadowColor: '#5B21B6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -3276,7 +3381,6 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 16,
     position: 'relative',
-    backgroundColor: '#6D28D9',
   },
   proCardHeaderRow: {
     flexDirection: 'row',
@@ -3331,7 +3435,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   proStatValue: {
-    color: '#3B0764',
     fontSize: 15,
     fontWeight: '800',
   },
@@ -3382,7 +3485,6 @@ const styles = StyleSheet.create({
   monthDropdownText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#7C3AED',
   },
   proMetricCardsGrid: {
     flexDirection: 'row',
@@ -3430,7 +3532,6 @@ const styles = StyleSheet.create({
   viewAllText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#7C3AED',
   },
   // Services & Packages List
   servicesListWrap: {
@@ -3467,7 +3568,6 @@ const styles = StyleSheet.create({
   serviceItemPrice: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#7C3AED',
     marginRight: 8,
   },
   activePillBadge: {
@@ -3493,7 +3593,6 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 20,
     borderRadius: 20,
-    shadowColor: '#5B21B6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -3509,7 +3608,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     position: 'relative',
-    backgroundColor: '#6D28D9',
   },
   clientBannerCopy: {
     flex: 1,
@@ -3547,7 +3645,6 @@ const styles = StyleSheet.create({
   },
   calendarHeaderStripe: {
     height: 14,
-    backgroundColor: '#6D28D9',
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
@@ -3563,7 +3660,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FAF5FF',
   },
   calendarCheckBadge: {
     position: 'absolute',
@@ -3572,7 +3668,6 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#5B21B6',
     borderWidth: 2,
     borderColor: '#FFFFFF',
     alignItems: 'center',
@@ -3591,18 +3686,15 @@ const styles = StyleSheet.create({
     width: 50,
     height: 52,
     borderRadius: 12,
-    backgroundColor: '#EDE9FE',
     alignItems: 'center',
     justifyContent: 'center',
   },
   sessionDateMonth: {
-    color: '#6D28D9',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
   sessionDateDay: {
-    color: '#5B21B6',
     fontSize: 18,
     fontWeight: '800',
   },
@@ -3634,7 +3726,6 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#EDE9FE',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 6,
@@ -3672,7 +3763,6 @@ const styles = StyleSheet.create({
   recommendedPrice: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#7C3AED',
     marginBottom: 4,
   },
   recommendedRatingRow: {
@@ -3730,5 +3820,90 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#6B7280',
+  },
+  servicesProfileBannerCard: {
+    marginHorizontal: 16,
+    marginBottom: 14,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  servicesProfileTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  servicesProfileAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+  },
+  servicesProfileInfoCol: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  servicesProfileNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  servicesProfileName: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  servicesProfileTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  servicesProfileLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 3,
+  },
+  servicesProfileLocationText: {
+    fontSize: 11.5,
+    marginLeft: 3,
+  },
+  servicesProfileBio: {
+    fontSize: 12,
+    lineHeight: 16.5,
+    marginTop: 10,
+  },
+  editServicesBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  servicesSetupPromptCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 14,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  servicesSetupPromptIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  servicesSetupPromptTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
+  servicesSetupPromptSub: {
+    fontSize: 11.5,
+    marginTop: 2,
   },
 });
