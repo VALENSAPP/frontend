@@ -11,6 +11,7 @@ import {
   Image,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useLanguage } from '../../i18n';
 import { useBusinessProfileTheme } from '../../theme/useBusinessProfileTheme';
@@ -30,6 +31,14 @@ const SubscriptionUpdateSummaryScreen = () => {
   const route = useRoute();
   const theme = useBusinessProfileTheme();
   const [activeTab, setActiveTab] = useState('overview');
+
+  const isBusiness = Boolean(theme.isBusinessProfile);
+  const brandColor = isBusiness ? '#CBA257' : '#402090';
+  const pageBg = theme.isDarkMode
+    ? (isBusiness ? '#12100C' : '#0F0C1B')
+    : (isBusiness ? '#FAF7F0' : '#FAF5FE');
+  const cardBorderColor = isBusiness ? '#E8D9BD' : '#E8E1F5';
+  const subtleCardBg = theme.isDarkMode ? theme.card : '#FFFFFF';
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [apiData, setApiData] = useState(null);
@@ -161,17 +170,17 @@ const SubscriptionUpdateSummaryScreen = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bg }]}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: pageBg }]}>
+      <View style={[styles.header, { backgroundColor: subtleCardBg, borderBottomColor: cardBorderColor }]}>
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={t('manageSubscribers.updateSummary.back')}
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <Ionicons name="chevron-back" size={26} color={theme.text} />
+          <Ionicons name="chevron-back" size={26} color={brandColor} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>
+        <Text style={[styles.headerTitle, { color: brandColor }]}>
           {t('manageSubscribers.updateSummary.title', 'Creator – Update Summary')}
         </Text>
         <View style={styles.headerSpacer} />
@@ -184,7 +193,7 @@ const SubscriptionUpdateSummaryScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => fetchSummary(true)}
-            tintColor={theme.accent}
+            tintColor={brandColor}
           />
         }
       >
@@ -192,92 +201,199 @@ const SubscriptionUpdateSummaryScreen = () => {
           {t('manageSubscribers.updateSummary.subtitle', 'Track your price update.')}
         </Text>
 
-        <View style={[styles.tabs, { borderBottomColor: theme.border }]}>
-          {['overview', 'responses'].map(tab => (
-            <TouchableOpacity
-              key={tab}
-              style={styles.tab}
-              onPress={() => setActiveTab(tab)}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: activeTab === tab }}
+        {/* Pill Mode Switcher matching mockup */}
+        <View style={styles.modeRow}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[
+              styles.modeBtn,
+              {
+                backgroundColor: activeTab === 'overview' ? brandColor : subtleCardBg,
+                borderColor: activeTab === 'overview' ? brandColor : cardBorderColor,
+              },
+            ]}
+            onPress={() => setActiveTab('overview')}
+          >
+            <Text
+              style={[
+                styles.modeBtnText,
+                { color: activeTab === 'overview' ? '#FFFFFF' : brandColor },
+              ]}
             >
-              <Text
-                style={[
-                  styles.tabText,
-                  { color: activeTab === tab ? theme.accent : theme.mutedText },
-                ]}
-              >
-                {t(`manageSubscribers.updateSummary.${tab}`)}
-              </Text>
-              {activeTab === tab && (
-                <View style={[styles.tabIndicator, { backgroundColor: theme.accent }]} />
-              )}
-            </TouchableOpacity>
-          ))}
+              {t('manageSubscribers.updateSummary.overview', 'Overview')}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={[
+              styles.modeBtn,
+              {
+                backgroundColor: activeTab === 'responses' ? brandColor : subtleCardBg,
+                borderColor: activeTab === 'responses' ? brandColor : cardBorderColor,
+              },
+            ]}
+            onPress={() => setActiveTab('responses')}
+          >
+            <Text
+              style={[
+                styles.modeBtnText,
+                { color: activeTab === 'responses' ? '#FFFFFF' : brandColor },
+              ]}
+            >
+              {t('manageSubscribers.updateSummary.responses', 'Responses')}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {loading && !refreshing ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.accent} />
+            <ActivityIndicator size="large" color={brandColor} />
           </View>
         ) : activeTab === 'overview' ? (
           <>
-            <View style={[styles.summaryCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <View style={styles.cardHeading}>
-                <Text style={[styles.cardTitle, { color: theme.text }]}>
-                  {cardTitle}
-                </Text>
-                <View style={[styles.statusBadge, { backgroundColor: `${statusColor}18` }]}>
-                  <Text style={[styles.statusText, { color: statusColor }]}>
-                    {t(`manageSubscribers.updateSummary.${rawStatus.toLowerCase()}`, rawStatus)}
-                  </Text>
+            {/* Main Hero Card with Mascot & Inner Box Bottom */}
+            <View style={[styles.heroCardContainer, { borderColor: cardBorderColor, backgroundColor: subtleCardBg }]}>
+              <LinearGradient
+                colors={
+                  theme.isDarkMode
+                    ? (isBusiness ? ['#251F18', '#1A1713'] : ['#201736', '#171026'])
+                    : (isBusiness ? ['#FAF5E8', '#F5ECE0'] : ['#F6EEFD', '#EAE0FB'])
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.heroCardGradient}
+              >
+                <View style={styles.heroCardTopRow}>
+                  <View style={styles.heroCardLeft}>
+                    <Text style={[styles.heroCardTitle, { color: brandColor }]}>
+                      {cardTitle}
+                    </Text>
+                    <View style={styles.statusPill}>
+                      <Ionicons name="checkmark-circle" size={14} color="#10B981" style={{ marginRight: 4 }} />
+                      <Text style={styles.statusPillText}>
+                        {t(`manageSubscribers.updateSummary.${rawStatus.toLowerCase()}`, rawStatus)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.heroMascotWrap} pointerEvents="none">
+                    <Image
+                      source={require('../../assets/icons/pngicons/dralens_checklist.png')}
+                      style={styles.heroMascotImg}
+                      resizeMode="contain"
+                    />
+                  </View>
                 </View>
-              </View>
-              <SummaryRow label={t('manageSubscribers.updateSummary.from', 'From')} value={fromValue} theme={theme} />
-              <SummaryRow label={t('manageSubscribers.updateSummary.to', 'To')} value={toValue} theme={theme} />
-              <SummaryRow label={t('manageSubscribers.updateSummary.effective', 'Effective')} value={
-                effectiveValue === 'On next renewal'
-                  ? t('manageSubscribers.updateSummary.nextRenewal', 'On next renewal')
-                  : effectiveValue
-              } theme={theme} />
-              <SummaryRow label={t('manageSubscribers.updateSummary.date', 'Date')} value={dateValue} theme={theme} last />
+
+                {/* Box Bottom: Inner rounded white card matching mockup */}
+                <View style={[styles.boxBottom, { backgroundColor: subtleCardBg, borderColor: cardBorderColor }]}>
+                  <View style={styles.boxRow}>
+                    <View style={styles.boxRowLeft}>
+                      <Ionicons name="pricetag-outline" size={16} color={theme.mutedText} style={{ marginRight: 8 }} />
+                      <Text style={[styles.boxRowLabel, { color: theme.mutedText }]}>
+                        {t('manageSubscribers.updateSummary.from', 'From')}
+                      </Text>
+                    </View>
+                    <Text style={[styles.boxRowValue, { color: brandColor }]}>{fromValue}</Text>
+                  </View>
+
+                  <View style={[styles.boxRowDivider, { backgroundColor: cardBorderColor }]} />
+
+                  <View style={styles.boxRow}>
+                    <View style={styles.boxRowLeft}>
+                      <Ionicons name="pricetag-outline" size={16} color={theme.mutedText} style={{ marginRight: 8 }} />
+                      <Text style={[styles.boxRowLabel, { color: theme.mutedText }]}>
+                        {t('manageSubscribers.updateSummary.to', 'To')}
+                      </Text>
+                    </View>
+                    <Text style={[styles.boxRowValue, { color: brandColor }]}>{toValue}</Text>
+                  </View>
+
+                  <View style={[styles.boxRowDivider, { backgroundColor: cardBorderColor }]} />
+
+                  <View style={styles.boxRow}>
+                    <View style={styles.boxRowLeft}>
+                      <Ionicons name="calendar-outline" size={16} color={theme.mutedText} style={{ marginRight: 8 }} />
+                      <Text style={[styles.boxRowLabel, { color: theme.mutedText }]}>
+                        {t('manageSubscribers.updateSummary.effective', 'Effective')}
+                      </Text>
+                    </View>
+                    <Text style={[styles.boxRowValue, { color: brandColor }]}>
+                      {effectiveValue === 'On next renewal'
+                        ? t('manageSubscribers.updateSummary.nextRenewal', 'On next renewal')
+                        : (effectiveValue || 'On next renewal')}
+                    </Text>
+                  </View>
+
+                  <View style={[styles.boxRowDivider, { backgroundColor: cardBorderColor }]} />
+
+                  <View style={styles.boxRow}>
+                    <View style={styles.boxRowLeft}>
+                      <Ionicons name="calendar-outline" size={16} color={theme.mutedText} style={{ marginRight: 8 }} />
+                      <Text style={[styles.boxRowLabel, { color: theme.mutedText }]}>
+                        {t('manageSubscribers.updateSummary.date', 'Date')}
+                      </Text>
+                    </View>
+                    <Text style={[styles.boxRowValue, { color: brandColor }]}>{dateValue}</Text>
+                  </View>
+                </View>
+              </LinearGradient>
             </View>
 
-            <Text style={[styles.sectionTitle, { color: theme.accent }]}>
+            {/* Responses Title */}
+            <Text style={[styles.sectionTitle, { color: brandColor }]}>
               {t('manageSubscribers.updateSummary.responses', 'Responses')}
             </Text>
 
+            {/* Responses 3 Cards Grid */}
             <View style={styles.responseGrid}>
-              {RESPONSE_CARDS.map(card => (
-                <TouchableOpacity
-                  key={card.key}
-                  style={[styles.responseCard, { backgroundColor: card.background, borderColor: card.border }]}
-                  onPress={() => {
-                    setActiveTab('responses');
-                    openResponse(card.key);
-                  }}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name={card.icon} size={19} color={card.color} />
-                  <Text style={[styles.responseLabel, { color: card.color }]}>
-                    {t(`manageSubscribers.updateSummary.${card.key}`, card.key)}
-                  </Text>
-                  <Text style={[styles.responseValue, { color: card.color }]}>
-                    {responses[card.key]}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {RESPONSE_CARDS.map(card => {
+                const count = responses[card.key] ?? 0;
+                const isAccepted = card.key === 'accepted';
+                const isCanceled = card.key === 'canceled';
+                const cardBg = isAccepted ? '#EFF9F3' : (isCanceled ? '#FDF2F2' : '#FEF9EE');
+                const cardBorder = isAccepted ? '#CBEAD5' : (isCanceled ? '#F8D7DA' : '#FBE8C3');
+                const fgColor = isAccepted ? '#10B981' : (isCanceled ? '#DC2626' : '#D97706');
+                const iconName = isAccepted ? 'checkmark-circle-outline' : (isCanceled ? 'close-circle-outline' : 'time-outline');
+
+                return (
+                  <TouchableOpacity
+                    key={card.key}
+                    activeOpacity={0.85}
+                    style={[styles.responseCard, { backgroundColor: cardBg, borderColor: cardBorder }]}
+                    onPress={() => {
+                      setActiveTab('responses');
+                      openResponse(card.key);
+                    }}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name={iconName} size={20} color={fgColor} />
+                    <Text style={[styles.responseLabel, { color: fgColor }]}>
+                      {t(`manageSubscribers.updateSummary.${card.key}`, card.key)}
+                    </Text>
+                    <Text style={[styles.responseValue, { color: fgColor }]}>
+                      {count}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
+            {/* View Details Button matching mockup */}
             <TouchableOpacity
-              style={[styles.detailsButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+              activeOpacity={0.85}
+              style={[styles.detailsButton, { backgroundColor: subtleCardBg, borderColor: cardBorderColor }]}
               onPress={() => navigation.navigate('ManageSubscribers')}
               accessibilityRole="button"
             >
-              <Text style={[styles.detailsText, { color: theme.accent }]}>
-                {t('manageSubscribers.updateSummary.viewDetails', 'View Details')}
-              </Text>
-              <Ionicons name="chevron-forward" size={23} color={theme.accent} />
+              <View style={styles.detailsLeft}>
+                <Ionicons name="document-text-outline" size={19} color={brandColor} style={{ marginRight: 8 }} />
+                <Text style={[styles.detailsText, { color: brandColor }]}>
+                  {t('manageSubscribers.updateSummary.viewDetails', 'View Details')}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={brandColor} />
             </TouchableOpacity>
           </>
         ) : (
@@ -338,49 +454,219 @@ const SummaryRow = ({ label, value, theme, last }) => (
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
-  header: { height: 58, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
+  header: {
+    height: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
   backButton: { width: 34, paddingVertical: 5 },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '700' },
+  headerTitle: { flex: 1, textAlign: 'center', fontSize: 17.5, fontWeight: '800' },
   headerSpacer: { width: 34 },
-  content: { paddingHorizontal: 20, paddingBottom: 36 },
-  subtitle: { fontSize: 14, marginTop: 6, marginBottom: 20 },
-  tabs: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, marginBottom: 18 },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 11 },
-  tabText: { fontSize: 14, fontWeight: '700' },
-  tabIndicator: { height: 3, borderRadius: 3, position: 'absolute', bottom: -1, width: '100%' },
+  content: { paddingHorizontal: 16, paddingBottom: 36 },
+  subtitle: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 14,
+  },
+  modeRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+  },
+  modeBtn: {
+    flex: 1,
+    height: 42,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeBtnText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+  },
   loadingContainer: { paddingVertical: 40, alignItems: 'center', justifyContent: 'center' },
-  summaryCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, padding: 16, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  cardHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 19 },
-  cardTitle: { fontSize: 15, fontWeight: '700', flex: 1, marginRight: 10 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 7 },
-  statusText: { fontSize: 13, fontWeight: '700', textTransform: 'capitalize' },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  summaryRowSpaced: { marginBottom: 17 },
-  rowLabel: { fontSize: 14, fontWeight: '500' },
-  rowValue: { fontSize: 14, fontWeight: '700', textAlign: 'right', flexShrink: 1, marginLeft: 20 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 28, marginBottom: 14 },
-  responseGrid: { flexDirection: 'row', gap: 9 },
-  responseCard: { flex: 1, minHeight: 104, borderWidth: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
-  responseLabel: { fontSize: 12, fontWeight: '700', marginTop: 5 },
-  responseValue: { fontSize: 27, fontWeight: '700', marginTop: 3 },
-  detailsButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: StyleSheet.hairlineWidth, borderRadius: 11, marginTop: 18, paddingHorizontal: 16, paddingVertical: 14, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
-  detailsText: { fontSize: 15, fontWeight: '700' },
-  divider: { height: StyleSheet.hairlineWidth },
-  detailRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15 },
-  responseIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  detailLabel: { flex: 1, fontSize: 15, fontWeight: '600' },
-  detailValue: { fontSize: 20, fontWeight: '700' },
+
+  /* Hero Card Container */
+  heroCardContainer: {
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginBottom: 16,
+    shadowColor: '#402090',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  heroCardGradient: {
+    borderRadius: 18,
+    paddingTop: 14,
+    paddingBottom: 8,
+    paddingHorizontal: 8,
+  },
+  heroCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingBottom: 6,
+  },
+  heroCardLeft: {
+    flex: 1,
+    paddingRight: 6,
+  },
+  heroCardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F7EE',
+    borderColor: '#A3E6BA',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3.5,
+    alignSelf: 'flex-start',
+  },
+  statusPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#10B981',
+  },
+  heroMascotWrap: {
+    width: 105,
+    height: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -8,
+  },
+  heroMascotImg: {
+    width: '100%',
+    height: '100%',
+  },
+
+  /* Box Bottom */
+  boxBottom: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 4,
+  },
+  boxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  boxRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  boxRowLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  boxRowValue: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    textAlign: 'right',
+  },
+  boxRowDivider: {
+    height: 1,
+    width: '100%',
+  },
+
+  /* Responses Section */
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  responseGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  responseCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+  },
+  responseLabel: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  responseValue: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+
+  /* Details Button */
+  detailsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 14,
+    marginTop: 14,
+    paddingHorizontal: 16,
+    height: 48,
+    shadowColor: '#402090',
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  detailsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  detailsText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  /* Response Breakdown List */
+  summaryCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    shadowColor: '#402090',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  cardTitle: { fontSize: 15, fontWeight: '800', marginBottom: 12 },
+  divider: { height: 1 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+  responseIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  detailLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
+  detailValue: { fontSize: 18, fontWeight: '800' },
   subscriberSection: { marginTop: 14 },
   listHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
   listLoader: { paddingVertical: 18 },
-  subscriberRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth },
-  avatar: { width: 42, height: 42, borderRadius: 21 },
+  subscriberRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: 1 },
+  avatar: { width: 40, height: 40, borderRadius: 20 },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  avatarLetter: { color: '#fff', fontSize: 16, fontWeight: '700' },
   subscriberInfo: { flex: 1, marginHorizontal: 12 },
   subscriberName: { fontSize: 14, fontWeight: '700' },
-  messageHint: { fontSize: 12, marginTop: 3 },
-  emptyList: { paddingVertical: 14, fontSize: 14 },
+  messageHint: { fontSize: 12, marginTop: 2 },
+  emptyList: { paddingVertical: 14, fontSize: 14, textAlign: 'center' },
 });
 
 export default SubscriptionUpdateSummaryScreen;

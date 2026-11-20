@@ -147,18 +147,20 @@ const SettingRowItem = ({
     onPress={onPress}
     style={[styles.rowItem, { borderBottomColor: borderColor }]}
   >
-    <View
-      style={[
-        styles.rowIconBox,
-        {
-          backgroundColor: isBusinessProfile
-            ? 'rgba(203, 162, 87, 0.12)'
-            : 'rgba(64, 32, 144, 0.08)',
-        },
-      ]}
-    >
-      <Ionicons name={icon} size={20} color={accent} />
-    </View>
+    {icon ? (
+      <View
+        style={[
+          styles.rowIconBox,
+          {
+            backgroundColor: isBusinessProfile
+              ? 'rgba(203, 162, 87, 0.12)'
+              : 'rgba(64, 32, 144, 0.08)',
+          },
+        ]}
+      >
+        <Ionicons name={icon} size={20} color={accent} />
+      </View>
+    ) : null}
     <View style={styles.rowContent}>
       <Text style={[styles.rowTitle, { color: labelColor }]}>{title}</Text>
       {subtitle ? <Text style={[styles.rowSubtitle, { color: mutedColor }]}>{subtitle}</Text> : null}
@@ -210,7 +212,7 @@ const ServicesSettingsScreen = ({ navigation }) => {
   // Colors
   const brandPrimary = accent || (isBusinessProfile ? '#CBA257' : '#402090');
   const cardBg = isDarkMode ? '#1E1729' : (card || '#FFFFFF');
-  const pageBg = isDarkMode ? '#121212' : (screenBackground || (isBusinessProfile ? '#FAF7F0' : '#FAF7FD'));
+  const pageBg = isDarkMode ? '#121212' : (screenBackground || (isBusinessProfile ? '#FAF7F0' : '#FAF5FE'));
   const cardBorder = isDarkMode ? '#382A4C' : (border || (isBusinessProfile ? '#E8D9BD' : '#EAE4F5'));
   const labelColor = isDarkMode ? '#F5F0FF' : '#1F2937';
   const subtextColor = isDarkMode ? '#A59DB5' : (mutedText || '#6B7280');
@@ -440,11 +442,7 @@ const ServicesSettingsScreen = ({ navigation }) => {
                 ) : null}
               </View>
 
-              <View style={[styles.previewBadge, { backgroundColor: isBusinessProfile ? 'rgba(203, 162, 87, 0.15)' : 'rgba(64, 32, 144, 0.10)' }]}>
-                <Text style={[styles.previewBadgeText, { color: brandPrimary }]}>
-                  {t('servicesSettings.previewBadge', 'Preview')}
-                </Text>
-              </View>
+
             </View>
 
             {/* Bio summary */}
@@ -457,7 +455,6 @@ const ServicesSettingsScreen = ({ navigation }) => {
           <View style={[styles.rowsContainer, { backgroundColor: cardBg, borderColor: cardBorder }]}>
             {/* 1. Name */}
             <SettingRowItem
-              icon="person-outline"
               title={t('servicesSettings.rows.name', 'Name')}
               value={data.name || t('servicesSettings.rows.namePlaceholder', 'Enter your display name')}
               hasValue={Boolean(data.name)}
@@ -471,7 +468,6 @@ const ServicesSettingsScreen = ({ navigation }) => {
 
             {/* 2. What's your title? */}
             <SettingRowItem
-              icon="ribbon-outline"
               title={t('servicesSettings.rows.title', "What's your title?")}
               value={data.title || t('servicesSettings.rows.titlePlaceholder', 'e.g. CEO | Business Mentor | Strategist')}
               hasValue={Boolean(data.title)}
@@ -485,7 +481,6 @@ const ServicesSettingsScreen = ({ navigation }) => {
 
             {/* 3. Who are you? */}
             <SettingRowItem
-              icon="finger-print-outline"
               title={t('servicesSettings.rows.whoAreYou', 'Who are you?')}
               value={data.whoAreYou || t('servicesSettings.rows.whoAreYouPlaceholder', 'Tell your audience about your background, journey, and expertise...')}
               hasValue={Boolean(data.whoAreYou)}
@@ -499,7 +494,6 @@ const ServicesSettingsScreen = ({ navigation }) => {
 
             {/* 4. About your services */}
             <SettingRowItem
-              icon="document-text-outline"
               title={t('servicesSettings.rows.aboutServices', 'About your services')}
               value={data.aboutServices || t('servicesSettings.rows.aboutServicesPlaceholder', 'Describe the scope and impact of what you provide...')}
               hasValue={Boolean(data.aboutServices)}
@@ -513,7 +507,6 @@ const ServicesSettingsScreen = ({ navigation }) => {
 
             {/* 5. What will people find here? */}
             <SettingRowItem
-              icon="cube-outline"
               title={t('servicesSettings.rows.whatWillPeopleFindHere', 'What will people find here?')}
               value={data.whatWillPeopleFindHere || t('servicesSettings.rows.whatWillPeopleFindHerePlaceholder', 'e.g. Mentorships, consulting sessions, bookings, and masterclasses.')}
               hasValue={Boolean(data.whatWillPeopleFindHere)}
@@ -527,7 +520,6 @@ const ServicesSettingsScreen = ({ navigation }) => {
 
             {/* 6. Service picture (1:1 image) */}
             <SettingRowItem
-              icon="camera-outline"
               title={t('servicesSettings.rows.servicePicture', 'Service picture')}
               subtitle={t('servicesSettings.rows.servicePictureSubtitle', 'Use a square image for best results.')}
               value={resolvedServicePicture ? t('servicesSettings.rows.imageUploaded', 'Image uploaded') : t('servicesSettings.rows.tapToUpload', 'Tap to upload')}
@@ -557,7 +549,6 @@ const ServicesSettingsScreen = ({ navigation }) => {
 
             {/* 7. Location */}
             <SettingRowItem
-              icon="location-outline"
               title={t('servicesSettings.rows.location', 'Location')}
               subtitle={t('servicesSettings.rows.locationSubtitle', 'Where do you offer your services?')}
               value={data.location ? `📍 ${data.location}` : t('servicesSettings.rows.selectLocation', 'Select location')}

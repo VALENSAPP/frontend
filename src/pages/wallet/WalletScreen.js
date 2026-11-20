@@ -334,18 +334,18 @@ export default function WalletComponent() {
                     </View>
                 </View>
 
-                {/* 4. Card 2: What is a Mission Post? */}
+                {/* 4. Card 2: What is Mission Post? */}
                 <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorderColor, shadowColor: cardShadowColor }]}>
                     <View style={styles.cardHeader}>
                         <View style={[styles.iconBadgeCircle, { backgroundColor: iconBadgeBg }]}>
-                            <Ionicons name="information" size={16} color={brandColor} />
+                            <Ionicons name="information" size={15} color={brandColor} />
                         </View>
                         <Text style={[styles.cardTitle, { color: cardTitleColor }]}>
-                        {t('walletScreen.whatIsMissionPost', 'What is a Mission Post?')}
+                            {t('walletScreen.missionPostTitle', 'What is Mission Post?')}
                         </Text>
                     </View>
                     <Text style={[styles.bodyDescription, { color: bodyDescColor }]}>
-                        {t('walletScreen.missionPostDescription', 'Set a goal, share your vision, and let your community help fund what matters.')}
+                        {t('walletScreen.missionPostDescriptionLong', 'Mission Posts turn your audience into backers. Set a goal, share your vision, and let your community fund what matters. Built-in crowdfunding, zero friction.')}
                     </Text>
                 </View>
 
@@ -364,14 +364,14 @@ export default function WalletComponent() {
                         {/* Monthly Members */}
                         <View style={styles.ruleItem}>
                             <View style={[styles.ruleIconBadge, { backgroundColor: iconBadgeBg }]}>
-                                <MaterialCommunityIcons name="crown-outline" size={22} color={brandColor} />
+                                <MaterialCommunityIcons name="crown-outline" size={18} color={brandColor} />
                             </View>
                             <View style={styles.ruleContent}>
                                 <Text style={[styles.ruleTitle, { color: ruleTitleColor }]}>
                                     {t('walletScreen.monthlyMembersTitle', 'Monthly Members')}
                                 </Text>
                                 <Text style={[styles.ruleDesc, { color: ruleDescColor }]}>
-                                    {t('walletScreen.monthlyMembersDesc', '5 Mission Posts included each month.')}
+                                    {t('walletScreen.monthlyMembersDescription', 'Your Valens membership includes 5 Mission Posts per month at no additional cost.')}
                                 </Text>
                             </View>
                         </View>
@@ -381,16 +381,16 @@ export default function WalletComponent() {
                         {/* Non-Members */}
                         <View style={styles.ruleItem}>
                             <View style={[styles.ruleIconBadge, { backgroundColor: iconBadgeBg }]}>
-                                <MaterialCommunityIcons name="tag-outline" size={20} color={brandColor} />
+                                <MaterialCommunityIcons name="tag-outline" size={17} color={brandColor} />
                             </View>
                             <View style={styles.ruleContent}>
                                 <Text style={[styles.ruleTitle, { color: ruleTitleColor }]}>
                                     {t('walletScreen.nonMembersTitle', 'Non-Members')}
                                 </Text>
                                 <Text style={[styles.ruleDesc, { color: ruleDescColor }]}>
-                                    {t('walletScreen.nonMembersDesc', {
+                                    {t('walletScreen.nonMembersDescription', {
                                         price: missionPostPrice,
-                                        defaultValue: `${missionPostPrice} per Mission Post. Up to 5 per month.`,
+                                        defaultValue: `Mission Posts are ${missionPostPrice} each, with a maximum of 5 Mission Posts per month.`,
                                     })}
                                 </Text>
                             </View>
@@ -401,14 +401,14 @@ export default function WalletComponent() {
                         {/* Monthly Limit */}
                         <View style={styles.ruleItem}>
                             <View style={[styles.ruleIconBadge, { backgroundColor: iconBadgeBg }]}>
-                                <Ionicons name="calendar-outline" size={20} color={brandColor} />
+                                <Ionicons name="calendar-outline" size={17} color={brandColor} />
                             </View>
                             <View style={styles.ruleContent}>
                                 <Text style={[styles.ruleTitle, { color: ruleTitleColor }]}>
                                     {t('walletScreen.monthlyLimitTitle', 'Monthly Limit')}
                                 </Text>
                                 <Text style={[styles.ruleDesc, { color: ruleDescColor }]}>
-                                    {t('walletScreen.monthlyLimitDesc', 'Up to 5 posts per month. Unused credits do not roll over. Your limit resets each month.')}
+                                    {t('walletScreen.monthlyLimitDescription', 'Everyone can create up to 5 Mission Posts per month. Unused Mission Posts do not roll over. At the start of each new month, your limit resets to 5.')}
                                 </Text>
                             </View>
                         </View>
@@ -478,13 +478,14 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         paddingHorizontal: 16,
-        paddingTop: 8,
-        paddingBottom: Platform.OS === 'ios' ? 40 : 30,
+        paddingTop: 4,
+        paddingBottom: 16,
     },
     profileRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 8,
+        paddingVertical: 4,
+        marginBottom: 2,
     },
     profileTextWrapper: {
         flexDirection: 'row',
@@ -492,19 +493,20 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     profileName: {
-        fontSize: 18,
+        fontSize: 17,
         fontWeight: '800',
         letterSpacing: -0.2,
     },
     unifiedMissionCard: {
-        borderRadius: 22,
-        padding: 14,
-        marginTop: 6,
-        marginBottom: 10,
+        borderRadius: 18,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        marginTop: 4,
+        marginBottom: 8,
         shadowColor: '#402090',
-        shadowOffset: { width: 0, height: 6 },
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.16,
-        shadowRadius: 14,
+        shadowRadius: 10,
         elevation: 4,
     },
     unifiedCardRow: {
@@ -512,8 +514,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     unifiedRocketWrap: {
-        width: 105,
-        height: 120,
+        width: 85,
+        height: 98,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -523,50 +525,50 @@ const styles = StyleSheet.create({
     },
     unifiedDivider: {
         width: 1,
-        height: 105,
+        height: 85,
         backgroundColor: 'rgba(255, 255, 255, 0.28)',
-        marginHorizontal: 10,
+        marginHorizontal: 8,
     },
     unifiedRightCol: {
         flex: 1,
         justifyContent: 'center',
     },
     unifiedCardTitle: {
-        fontSize: 19,
+        fontSize: 16,
         fontWeight: '900',
         color: '#FFFFFF',
-        marginBottom: 8,
+        marginBottom: 5,
         letterSpacing: -0.2,
     },
     unifiedBoxesRow: {
         flexDirection: 'row',
-        gap: 8,
-        marginBottom: 10,
+        gap: 6,
+        marginBottom: 6,
     },
     unifiedStatBox: {
         flex: 1,
         backgroundColor: '#FFFFFF',
-        borderRadius: 14,
-        paddingVertical: 8,
+        borderRadius: 10,
+        paddingVertical: 4,
         paddingHorizontal: 4,
         alignItems: 'center',
         justifyContent: 'center',
     },
     unifiedStatLabel: {
-        fontSize: 10,
+        fontSize: 9.5,
         fontWeight: '700',
         textAlign: 'center',
-        lineHeight: 12,
+        lineHeight: 11,
     },
     unifiedStatValue: {
-        fontSize: 20,
+        fontSize: 17,
         fontWeight: '900',
-        marginTop: 3,
+        marginTop: 1,
     },
     unifiedBuyBtn: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        paddingVertical: 9,
+        borderRadius: 16,
+        paddingVertical: 7,
         alignItems: 'center',
         justifyContent: 'center',
         width: '100%',
@@ -577,7 +579,7 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     unifiedBuyBtnText: {
-        fontSize: 12.5,
+        fontSize: 11.5,
         fontWeight: '800',
     },
     swordIcon: {
@@ -622,38 +624,40 @@ const styles = StyleSheet.create({
         flexShrink: 0,
     },
     card: {
-        borderRadius: 18,
-        padding: 16,
-        marginBottom: 12,
+        borderRadius: 14,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        marginBottom: 7,
         borderWidth: 1,
         shadowColor: '#7C3AED',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
-        shadowRadius: 8,
+        shadowRadius: 6,
         elevation: 2,
     },
     cardHeader: {
         flexDirection: 'row',
         alignItems: 'center',
+        marginBottom: 2,
     },
     iconBadge: {
-        width: 28,
-        height: 28,
-        borderRadius: 8,
+        width: 24,
+        height: 24,
+        borderRadius: 7,
         alignItems: 'center',
         justifyContent: 'center',
     },
     iconBadgeCircle: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
     },
     cardTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        marginLeft: 10,
+        fontSize: 14,
+        fontWeight: '800',
+        marginLeft: 8,
         letterSpacing: -0.2,
     },
     statsRow: {
@@ -698,43 +702,44 @@ const styles = StyleSheet.create({
         letterSpacing: -0.2,
     },
     bodyDescription: {
-        fontSize: 13.5,
-        lineHeight: 20,
-        marginTop: 10,
+        fontSize: 11.5,
+        lineHeight: 16,
+        marginTop: 4,
         fontWeight: '400',
     },
     rulesList: {
-        marginTop: 12,
+        marginTop: 4,
     },
     ruleItem: {
         flexDirection: 'row',
         alignItems: 'flex-start',
+        paddingVertical: 2,
     },
     ruleIconBadge: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
+        width: 26,
+        height: 26,
+        borderRadius: 7,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 12,
-        marginTop: 2,
+        marginRight: 8,
+        marginTop: 1,
     },
     ruleContent: {
         flex: 1,
     },
     ruleTitle: {
-        fontSize: 14.5,
-        fontWeight: '700',
+        fontSize: 12.5,
+        fontWeight: '800',
     },
     ruleDesc: {
-        fontSize: 13,
-        lineHeight: 18,
-        marginTop: 2,
+        fontSize: 11,
+        lineHeight: 15,
+        marginTop: 1,
         fontWeight: '400',
     },
     ruleDivider: {
         height: 1,
         width: '100%',
-        marginVertical: 12,
+        marginVertical: 4,
     },
 });
