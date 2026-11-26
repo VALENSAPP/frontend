@@ -2411,7 +2411,13 @@ export default function Stories({ refreshTick, sidebarMode = false, onDrawerClos
 
   const handleOpenStoryUserProfile = useCallback((user) => {
     if (!user?.id || user?.isUser) return;
-    navigation.navigate('UsersProfile', { userId: user.id });
+    navigation.navigate('UsersProfile', {
+      userId: user.id,
+      user,
+      userData: user,
+      profileType: user.profile || user.profileType,
+      username: user.username || user.userName,
+    });
   }, [navigation]);
 
   const handleDeleteStory = async (storyId) => {

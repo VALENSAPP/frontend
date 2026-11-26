@@ -778,10 +778,10 @@ const MyClosetDashboard = ({ navigation, userData, shopDraft }) => {
   const activeBuyerOrders = buyerOrders.length > 0 ? buyerOrders : SAMPLE_BUYER_ORDERS;
 
   // Colors aligned with the mockup & UX standardization
-  const screenBg = isDarkMode ? '#0F0C1B' : '#ECE4F3';
+  const screenBg = isDarkMode ? '#0F0C1B' : '#FAF5FE';
   const cardBg = isDarkMode ? '#1E1B2E' : '#FFFFFF';
   const cardBorder = isDarkMode ? '#2D2640' : '#EAE4F5';
-  const primaryText = isDarkMode ? '#FFFFFF' : '#1E1B4B';
+  const primaryText = isDarkMode ? '#FFFFFF' : '#402090';
   const secondaryText = isDarkMode ? '#94A3B8' : '#64748B';
   const brandPurple = '#402090';
   const deepPurple = '#402090';
@@ -790,7 +790,7 @@ const MyClosetDashboard = ({ navigation, userData, shopDraft }) => {
     <View style={[styles.root, { backgroundColor: screenBg }]}>
       {!isDarkMode ? (
         <LinearGradient
-          colors={['#ECE4F3', '#FAF5FE']}
+          colors={['#F5EEFD', '#FAF5FE']}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={StyleSheet.absoluteFillObject}

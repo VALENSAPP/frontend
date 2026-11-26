@@ -13,6 +13,8 @@ import {
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import LinearGradient from "react-native-linear-gradient";
+import Svg, { Path } from "react-native-svg";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useDispatch, useSelector } from "react-redux";
 import { getUserCredentials } from "../../services/post";
@@ -207,10 +209,16 @@ export default function WalletComponent() {
         : (isBusinessProfile ? '#FAF7F0' : '#F3EEFB');
     const heroTitleColor = isBusinessProfile
         ? (isDarkMode ? '#F5E6C4' : '#8C6510')
-        : (isDarkMode ? '#FFFFFF' : '#111827');
+        : (isDarkMode ? '#FFFFFF' : '#160B24');
     const heroSubtitleColor = isBusinessProfile
         ? (isDarkMode ? '#D4B06A' : '#A37A24')
-        : (isDarkMode ? '#9CA3AF' : '#4B5563');
+        : (isDarkMode ? '#C4A8E2' : '#6B4791');
+    const heroGradient = isBusinessProfile
+        ? (isDarkMode ? ['#2D2316', '#1E170C'] : ['#FCF9F2', '#F3E8CE'])
+        : (isDarkMode ? ['#26193E', '#1B112D'] : ['#FAF6FF', '#EBE0F8']);
+    const heroBorderColor = isBusinessProfile
+        ? (isDarkMode ? 'rgba(212, 176, 106, 0.22)' : '#EBDCB9')
+        : (isDarkMode ? 'rgba(168, 85, 247, 0.18)' : '#EAE0F5');
     const cardTitleColor = isBusinessProfile
         ? (isDarkMode ? '#F3E2B8' : '#8C6510')
         : (isDarkMode ? '#FFFFFF' : '#111827');
@@ -239,8 +247,8 @@ export default function WalletComponent() {
 
     // Dynamic Rocket Asset: gold rocket illustration for business profile, purple for personal
     const rocketImage = isBusinessProfile
-        ? require('../../assets/Valens Stickers/Valens Stickers/PNG/rocket_gold.png')
-        : require('../../assets/Valens Stickers/Valens Stickers/PNG/rocket.png');
+        ? require('../../assets/Valens Stickers/Valens Stickers/PNG/launchG.png')
+        : require('../../assets/Valens Stickers/Valens Stickers/PNG/launchnew.png');
 
     const displayName = userData?.displayName || userData?.name || userData?.username || 'Graziela Barrette';
     const avatarUri = profileImage || userData?.image;
@@ -251,8 +259,15 @@ export default function WalletComponent() {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                {/* 1. Profile Bar matching image6.png */}
+                {/* 1. Profile Bar matching mockup */}
                 <View style={styles.profileRow}>
+                    <HexAvatar
+                        uri={avatarUri}
+                        size={42}
+                        borderWidth={2}
+                        borderColor={brandColor}
+                        pointyTop
+                    />
                     <View style={styles.profileTextWrapper}>
                         <Text style={[styles.profileName, { color: profileNameColor }]} numberOfLines={1}>
                             {displayName}
@@ -263,85 +278,106 @@ export default function WalletComponent() {
                             color={swordIconColor}
                             style={styles.swordIcon}
                         />
-                        <DragonflyIcon width={18} height={18} style={styles.dragonflyIcon} />
+                        <DragonflyIcon width={17} height={17} style={styles.dragonflyIcon} />
                     </View>
-                    <HexAvatar
-                        uri={avatarUri}
-                        size={48}
-                        borderWidth={2}
-                        borderColor={brandColor}
-                    />
                 </View>
 
-                {/* 2. Unified Hero & Mission Credits Card matching image6.png */}
-                <View style={[styles.unifiedMissionCard, { backgroundColor: brandColor }]}>
-                    <View style={styles.unifiedCardRow}>
-                        {/* Left: Mascot Bug & Rocket Illustration */}
-                        <View style={styles.unifiedRocketWrap}>
-                            <Image
-                                source={rocketImage}
-                                style={styles.unifiedRocket}
-                                resizeMode="contain"
+                <View style={[styles.divider, { backgroundColor: ruleDividerColor }]} />
+
+                {/* 2. Hero Section with 2-color gradient background matching mockup */}
+                <View style={[styles.heroCard, { borderColor: heroBorderColor }]}>
+                    <LinearGradient
+                        colors={heroGradient}
+                        start={{ x: 0, y: 0.15 }}
+                        end={{ x: 1, y: 0.85 }}
+                        style={StyleSheet.absoluteFill}
+                    />
+
+                    {/* Subtle curved background wave */}
+                    <View style={styles.heroWaveWrap} pointerEvents="none">
+                        <Svg width="100%" height="100%" viewBox="0 0 340 120" preserveAspectRatio="none">
+                            <Path
+                                d="M0,60 C90,90 170,40 240,65 C285,80 315,62 340,50 L340,120 L0,120 Z"
+                                fill={isDarkMode ? 'rgba(255, 255, 255, 0.04)' : (isBusinessProfile ? 'rgba(212, 176, 106, 0.14)' : 'rgba(186, 154, 238, 0.22)')}
                             />
+                        </Svg>
+                    </View>
+
+                    <View style={styles.heroRow}>
+                        <View style={styles.heroLeft}>
+                            <Text style={[styles.heroTitle, { color: heroTitleColor }]}>
+                                Give your{'\n'}mission a lift.
+                            </Text>
+                            <Text style={[styles.heroSubtitle, { color: heroSubtitleColor }]}>
+                                Turn your community{'\n'}into backers.
+                            </Text>
+                        </View>
+                        <Image
+                            source={rocketImage}
+                            style={styles.heroRocket}
+                            resizeMode="contain"
+                        />
+                    </View>
+                </View>
+
+                {/* 3. Card 1: Your Mission Credits matching mockup */}
+                <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorderColor, shadowColor: cardShadowColor }]}>
+                    <View style={styles.cardHeader}>
+                        <View style={[styles.iconBadge, { backgroundColor: iconBadgeBg }]}>
+                            <Ionicons name="card-outline" size={15} color={brandColor} />
+                        </View>
+                        <Text style={[styles.cardTitle, { color: cardTitleColor }]}>
+                            {t('walletScreen.yourMissionCredits', 'Your Mission Credits')}
+                        </Text>
+                    </View>
+
+                    <View style={styles.statsRow}>
+                        <View style={[styles.statBox, { backgroundColor: statBoxBg, borderColor: statBoxBorderColor, borderWidth: isBusinessProfile ? 1 : 0 }]}>
+                            <Text style={[styles.statLabel, { color: statLabelColor }]}>
+                                {t('walletScreen.membershipCredits', 'Membership\ncredits')}
+                            </Text>
+                            <Text style={[styles.statValue, { color: statValueColor }]}>
+                                {subscriptionHitsLeft}
+                            </Text>
                         </View>
 
-                        {/* Translucent Vertical Divider */}
-                        <View style={styles.unifiedDivider} />
-
-                        {/* Right: Mission Posts & Credits */}
-                        <View style={styles.unifiedRightCol}>
-                            <Text style={styles.unifiedCardTitle}>
-                                {t('walletScreen.missionPostsTitle', 'Mission Posts')}
+                        <View style={[styles.statBox, { backgroundColor: statBoxBg, borderColor: statBoxBorderColor, borderWidth: isBusinessProfile ? 1 : 0 }]}>
+                            <Text style={[styles.statLabel, { color: statLabelColor }]}>
+                                {t('walletScreen.purchasedCredits', 'Purchased\ncredits')}
                             </Text>
-
-                            <View style={styles.unifiedBoxesRow}>
-                                <View style={styles.unifiedStatBox}>
-                                    <Text style={[styles.unifiedStatLabel, { color: brandColor }]}>
-                                        {t('walletScreen.subscriptionCreditsShort', 'Subscription\ncredits')}
-                                    </Text>
-                                    <Text style={[styles.unifiedStatValue, { color: brandColor }]}>
-                                        {subscriptionHitsLeft}
-                                    </Text>
-                                </View>
-
-                                <View style={styles.unifiedStatBox}>
-                                    <Text style={[styles.unifiedStatLabel, { color: brandColor }]}>
-                                        {t('walletScreen.purchasedCreditsShort', 'Purchased\ncredits')}
-                                    </Text>
-                                    <Text style={[styles.unifiedStatValue, { color: brandColor }]}>
-                                        {purchasedHitsLeft}
-                                    </Text>
-                                </View>
-                            </View>
-
-                            <TouchableOpacity
-                                style={[
-                                    styles.unifiedBuyBtn,
-                                    (!canBuyHits || purchasedHitsLeft >= maxPurchasedHits) && styles.buyButtonDisabled,
-                                ]}
-                                onPress={handleBuyCredits}
-                                disabled={!canBuyHits || purchasedHitsLeft >= maxPurchasedHits}
-                                activeOpacity={0.88}
-                            >
-                                <Text style={[styles.unifiedBuyBtnText, { color: brandColor }]}>
-                                    {t('walletScreen.getMissionPostBtn', {
-                                        price: missionPostPrice,
-                                        defaultValue: `Get Mission Post (${missionPostPrice} each)`,
-                                    })}
-                                </Text>
-                            </TouchableOpacity>
+                            <Text style={[styles.statValue, { color: statValueColor }]}>
+                                {purchasedHitsLeft}
+                            </Text>
                         </View>
                     </View>
+
+                    <TouchableOpacity
+                        style={[
+                            styles.buyButton,
+                            { backgroundColor: buttonBg },
+                            (!canBuyHits || purchasedHitsLeft >= maxPurchasedHits) && styles.buyButtonDisabled,
+                        ]}
+                        onPress={handleBuyCredits}
+                        disabled={!canBuyHits || purchasedHitsLeft >= maxPurchasedHits}
+                        activeOpacity={0.88}
+                    >
+                        <Text style={styles.buyButtonText}>
+                            {t('walletScreen.buyMissionPostBtn', {
+                                price: missionPostPrice,
+                                defaultValue: `Buy Mission Post • ${missionPostPrice}`,
+                            })}
+                        </Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* 4. Card 2: What is a Mission Post? */}
                 <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorderColor, shadowColor: cardShadowColor }]}>
-                    <View style={styles.cardHeader}>
+                    <View style={[styles.cardHeader, { marginBottom: 4 }]}>
                         <View style={[styles.iconBadgeCircle, { backgroundColor: iconBadgeBg }]}>
-                            <Ionicons name="information" size={16} color={brandColor} />
+                            <MaterialCommunityIcons name="information-variant" size={14} color={brandColor} />
                         </View>
                         <Text style={[styles.cardTitle, { color: cardTitleColor }]}>
-                        {t('walletScreen.whatIsMissionPost', 'What is a Mission Post?')}
+                            {t('walletScreen.whatIsMissionPost', 'What is a Mission Post?')}
                         </Text>
                     </View>
                     <Text style={[styles.bodyDescription, { color: bodyDescColor }]}>
@@ -353,10 +389,10 @@ export default function WalletComponent() {
                 <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorderColor, shadowColor: cardShadowColor }]}>
                     <View style={styles.cardHeader}>
                         <View style={[styles.iconBadge, { backgroundColor: iconBadgeBg }]}>
-                            <Ionicons name="document-text-outline" size={16} color={brandColor} />
+                            <Ionicons name="document-text-outline" size={14} color={brandColor} />
                         </View>
                         <Text style={[styles.cardTitle, { color: cardTitleColor }]}>
-                        {t('walletScreen.missionRulesTitle', 'Mission Post Rules')}
+                            {t('walletScreen.missionRulesTitle', 'Mission Post Rules')}
                         </Text>
                     </View>
 
@@ -364,7 +400,7 @@ export default function WalletComponent() {
                         {/* Monthly Members */}
                         <View style={styles.ruleItem}>
                             <View style={[styles.ruleIconBadge, { backgroundColor: iconBadgeBg }]}>
-                                <MaterialCommunityIcons name="crown-outline" size={22} color={brandColor} />
+                                <MaterialCommunityIcons name="crown-outline" size={15} color={brandColor} />
                             </View>
                             <View style={styles.ruleContent}>
                                 <Text style={[styles.ruleTitle, { color: ruleTitleColor }]}>
@@ -381,7 +417,7 @@ export default function WalletComponent() {
                         {/* Non-Members */}
                         <View style={styles.ruleItem}>
                             <View style={[styles.ruleIconBadge, { backgroundColor: iconBadgeBg }]}>
-                                <MaterialCommunityIcons name="tag-outline" size={20} color={brandColor} />
+                                <MaterialCommunityIcons name="tag-outline" size={14} color={brandColor} />
                             </View>
                             <View style={styles.ruleContent}>
                                 <Text style={[styles.ruleTitle, { color: ruleTitleColor }]}>
@@ -401,7 +437,7 @@ export default function WalletComponent() {
                         {/* Monthly Limit */}
                         <View style={styles.ruleItem}>
                             <View style={[styles.ruleIconBadge, { backgroundColor: iconBadgeBg }]}>
-                                <Ionicons name="calendar-outline" size={20} color={brandColor} />
+                                <Ionicons name="calendar-outline" size={14} color={brandColor} />
                             </View>
                             <View style={styles.ruleContent}>
                                 <Text style={[styles.ruleTitle, { color: ruleTitleColor }]}>
@@ -478,107 +514,24 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         paddingHorizontal: 16,
-        paddingTop: 8,
-        paddingBottom: Platform.OS === 'ios' ? 40 : 30,
+        paddingTop: 4,
+        paddingBottom: 12,
     },
     profileRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 8,
+        paddingVertical: 3,
     },
     profileTextWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
+        marginLeft: 12,
         flex: 1,
     },
     profileName: {
-        fontSize: 18,
-        fontWeight: '800',
-        letterSpacing: -0.2,
-    },
-    unifiedMissionCard: {
-        borderRadius: 22,
-        padding: 14,
-        marginTop: 6,
-        marginBottom: 10,
-        shadowColor: '#402090',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.16,
-        shadowRadius: 14,
-        elevation: 4,
-    },
-    unifiedCardRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    unifiedRocketWrap: {
-        width: 105,
-        height: 120,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    unifiedRocket: {
-        width: '100%',
-        height: '100%',
-    },
-    unifiedDivider: {
-        width: 1,
-        height: 105,
-        backgroundColor: 'rgba(255, 255, 255, 0.28)',
-        marginHorizontal: 10,
-    },
-    unifiedRightCol: {
-        flex: 1,
-        justifyContent: 'center',
-    },
-    unifiedCardTitle: {
-        fontSize: 19,
-        fontWeight: '900',
-        color: '#FFFFFF',
-        marginBottom: 8,
-        letterSpacing: -0.2,
-    },
-    unifiedBoxesRow: {
-        flexDirection: 'row',
-        gap: 8,
-        marginBottom: 10,
-    },
-    unifiedStatBox: {
-        flex: 1,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 14,
-        paddingVertical: 8,
-        paddingHorizontal: 4,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    unifiedStatLabel: {
-        fontSize: 10,
+        fontSize: 16.5,
         fontWeight: '700',
-        textAlign: 'center',
-        lineHeight: 12,
-    },
-    unifiedStatValue: {
-        fontSize: 20,
-        fontWeight: '900',
-        marginTop: 3,
-    },
-    unifiedBuyBtn: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        paddingVertical: 9,
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '100%',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    unifiedBuyBtnText: {
-        fontSize: 12.5,
-        fontWeight: '800',
+        letterSpacing: -0.2,
     },
     swordIcon: {
         marginLeft: 8,
@@ -589,152 +542,170 @@ const styles = StyleSheet.create({
     divider: {
         height: 1,
         width: '100%',
-        marginTop: 8,
-        marginBottom: 8,
+        marginTop: 5,
+        marginBottom: 7,
     },
-    heroSection: {
+    heroCard: {
+        borderRadius: 18,
+        overflow: 'hidden',
+        position: 'relative',
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        marginBottom: 8,
+        borderWidth: 1,
+    },
+    heroWaveWrap: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+    },
+    heroRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 10,
-        paddingHorizontal: 2,
-        marginBottom: 6,
+        position: 'relative',
+        zIndex: 1,
     },
     heroLeft: {
         flex: 1,
-        paddingRight: 10,
+        paddingRight: 8,
+        justifyContent: 'center',
     },
     heroTitle: {
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: '800',
-        lineHeight: 30,
-        letterSpacing: -0.4,
+        lineHeight: 27,
+        letterSpacing: -0.3,
     },
     heroSubtitle: {
-        fontSize: 14,
-        fontWeight: '400',
-        lineHeight: 20,
+        fontSize: 13.5,
+        fontWeight: '500',
+        lineHeight: 18,
         marginTop: 6,
     },
     heroRocket: {
-        width: 130,
-        height: 140,
+        width: 105,
+        height: 116,
         flexShrink: 0,
     },
     card: {
-        borderRadius: 18,
-        padding: 16,
-        marginBottom: 12,
+        borderRadius: 16,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        marginBottom: 8,
         borderWidth: 1,
         shadowColor: '#7C3AED',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
-        shadowRadius: 8,
+        shadowRadius: 6,
         elevation: 2,
     },
     cardHeader: {
         flexDirection: 'row',
         alignItems: 'center',
+        marginBottom: 8,
     },
     iconBadge: {
-        width: 28,
-        height: 28,
-        borderRadius: 8,
+        width: 24,
+        height: 24,
+        borderRadius: 7,
         alignItems: 'center',
         justifyContent: 'center',
     },
     iconBadgeCircle: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
     },
     cardTitle: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '700',
-        marginLeft: 10,
+        marginLeft: 9,
         letterSpacing: -0.2,
     },
     statsRow: {
         flexDirection: 'row',
-        gap: 12,
-        marginTop: 14,
-        marginBottom: 14,
+        gap: 10,
+        marginBottom: 10,
     },
     statBox: {
         flex: 1,
-        borderRadius: 14,
-        paddingVertical: 14,
-        paddingHorizontal: 8,
+        borderRadius: 11,
+        paddingVertical: 9,
+        paddingHorizontal: 6,
         alignItems: 'center',
         justifyContent: 'center',
     },
     statLabel: {
-        fontSize: 12.5,
+        fontSize: 12,
         fontWeight: '600',
         textAlign: 'center',
+        lineHeight: 15,
     },
     statValue: {
-        fontSize: 26,
+        fontSize: 23,
         fontWeight: '800',
-        marginTop: 4,
+        marginTop: 2,
         textAlign: 'center',
     },
     buyButton: {
-        borderRadius: 14,
-        paddingVertical: 14,
+        borderRadius: 12,
+        paddingVertical: 11,
         alignItems: 'center',
         justifyContent: 'center',
         width: '100%',
     },
     buyButtonDisabled: {
-        opacity: 0.45,
+        opacity: 0.5,
     },
     buyButtonText: {
         color: '#FFFFFF',
-        fontSize: 15.5,
+        fontSize: 14.5,
         fontWeight: '700',
         letterSpacing: -0.2,
     },
     bodyDescription: {
-        fontSize: 13.5,
-        lineHeight: 20,
-        marginTop: 10,
+        fontSize: 12.5,
+        lineHeight: 17,
         fontWeight: '400',
     },
     rulesList: {
-        marginTop: 12,
+        marginTop: 2,
     },
     ruleItem: {
         flexDirection: 'row',
         alignItems: 'flex-start',
+        paddingVertical: 3,
     },
     ruleIconBadge: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
+        width: 24,
+        height: 24,
+        borderRadius: 7,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 12,
-        marginTop: 2,
+        marginRight: 9,
+        marginTop: 1,
     },
     ruleContent: {
         flex: 1,
     },
     ruleTitle: {
-        fontSize: 14.5,
+        fontSize: 13,
         fontWeight: '700',
     },
     ruleDesc: {
-        fontSize: 13,
-        lineHeight: 18,
-        marginTop: 2,
+        fontSize: 11.5,
+        lineHeight: 15,
+        marginTop: 1,
         fontWeight: '400',
     },
     ruleDivider: {
         height: 1,
         width: '100%',
-        marginVertical: 12,
+        marginVertical: 5,
     },
 });

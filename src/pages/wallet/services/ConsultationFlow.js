@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,25 +7,44 @@ import {
   ScrollView,
   TextInput,
   Image,
-  Share,
-  Platform,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { saveService } from './servicesStorage';
+import { launchImageLibrary } from 'react-native-image-picker';
+import {
+  createServiceDraft,
+  updateService,
+  setServiceAvailability,
+  uploadServiceCover,
+  getServiceDetails,
+  publishService,
+} from '../../../services/proServices';
+import {
+  DAYS_CONFIG,
+  getDeviceTimezone,
+  mapProblemFieldToStep,
+  formatPriceUnit,
+} from '../../../services/proServices/helpers';
 
 export default function ConsultationFlow({
-  colors,
-  isDarkMode,
+  colors = {},
+  isDarkMode = false,
+  isBusinessProfile = false,
   t,
   onBack,
   onFinish,
+  initialServiceId = null,
   userProfilePic,
 }) {
-  // Step: 1 = Create Consultation, 2 = Set Details, 3 = Review, 4 = All Set
+  // Step: 1 = Create, 2 = Details & Availability, 3 = Review, 4 = All Set
   const [step, setStep] = useState(1);
+  const [serviceId, setServiceId] = useState(initialServiceId);
+  const [loading, setLoading] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
-  // Form State
+  // Form State - Step 1
   const [title, setTitle] = useState('Business Strategy Consultation');
   const [description, setDescription] = useState(
     'Get personalized expert advice to improve your business, solve challenges, and reach your goals.',
@@ -38,543 +57,492 @@ export default function ConsultationFlow({
     { id: '5', text: 'Follow-up summary', checked: true },
   ]);
   const [newInclusionText, setNewInclusionText] = useState('');
-  const [duration, setDuration] = useState('60 minutes');
-  const [format, setFormat] = useState('online'); // 'online' | 'in_person'
-  const [address, setAddress] = useState('1750 Broadway, Suite 200, New York, NY 10019, USA');
-  const [price, setPrice] = useState('150.00');
-  const [selectedDays, setSelectedDays] = useState(['Mon', 'Wed', 'Fri']);
-  const [availabilityTime, setAvailabilityTime] = useState('10:00 AM – 6:00 PM (EST)');
 
-  const toggleItem = id => {
-    setIncludedItems(prev =>
-      prev.map(item => (item.id === id ? { ...item, checked: !item.checked } : item)),
+  // Form State - Step 2 (Details)
+  const [durationMinutes, setDurationMinutes] = useState(60);
+  const [format, setFormat] = useState('ONLINE'); // 'ONLINE' | 'IN_PERSON'
+  const [price, setPrice] = useState('150');
+  const [address, setAddress] = useState('1750 Broadway, Suite 200');
+  const [city, setCity] = useState('New York');
+  const [country, setCountry] = useState('USA');
+  const [contactPhone, setContactPhone] = useState('+1 212 555 0100');
+  const [coverImage, setCoverImage] = useState(null);
+
+  // Form State - Step 2 (Availability)
+  const [timezone] = useState(getDeviceTimezone());
+  const [selectedDays, setSelectedDays] = useState([1, 3, 5]); // Mon, Wed, Fri
+  const [timeSlots, setTimeSlots] = useState([
+    { start: '10:00', end: '18:00' },
+  ]);
+
+  // Review & Readiness State
+  const [serviceData, setServiceData] = useState(null);
+  const [readinessProblems, setReadinessProblems] = useState([]);
+
+  const brandAccent = isBusinessProfile ? '#CBA257' : '#7C3AED';
+  const buttonGradient = isBusinessProfile ? ['#B8924F', '#CBA257'] : ['#5227A3', '#402090'];
+  const bg = isDarkMode ? '#110D17' : '#FAF8FD';
+  const cardBg = isDarkMode ? '#1E1828' : '#FFFFFF';
+  const border = isDarkMode ? 'rgba(255,255,255,0.1)' : '#EDE7F6';
+  const textColor = isDarkMode ? '#F3F4F6' : '#1F2937';
+  const mutedColor = isDarkMode ? '#9CA3AF' : '#6B7280';
+
+  const toggleDay = dayOfWeek => {
+    setSelectedDays(prev =>
+      prev.includes(dayOfWeek) ? prev.filter(d => d !== dayOfWeek) : [...prev, dayOfWeek].sort(),
     );
   };
 
-  const addCustomInclusion = () => {
-    if (!newInclusionText.trim()) return;
-    setIncludedItems(prev => [
-      ...prev,
-      { id: String(Date.now()), text: newInclusionText.trim(), checked: true },
-    ]);
-    setNewInclusionText('');
-  };
-
-  const handleConfirm = async () => {
-    const serviceData = {
-      id: `svc_consultation_${Date.now()}`,
-      type: 'consultation',
-      title: title.trim() || 'Business Strategy Consultation',
-      subtitle: `${duration} • ${format === 'online' ? 'Online' : 'In Person'}`,
-      category: 'Consultation',
-      duration,
-      format,
-      address: format === 'in_person' ? address : '',
-      price: price || '150.00',
-      availability: `${selectedDays.join(', ')} ${availabilityTime}`,
-      included: includedItems.filter(i => i.checked).map(i => i.text),
-      status: 'active',
-      bookingsCount: 0,
-      rating: 5.0,
-      createdAt: new Date().toISOString(),
-      icon: 'chatbubble-ellipses-outline',
-    };
-
-    await saveService(serviceData);
-    setStep(4);
-  };
-
-  const handleShare = async () => {
+  const handlePickCover = async () => {
     try {
-      await Share.share({
-        message: `Book a Consultation: ${title} with me on Valens! https://valens.app/services/consultation`,
-        title,
-      });
+      const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.8 });
+      if (res.assets && res.assets.length > 0) {
+        const asset = res.assets[0];
+        setCoverImage(asset.uri);
+        if (serviceId) {
+          await uploadServiceCover(serviceId, asset);
+        }
+      }
     } catch (_) {}
   };
 
-  const renderProgressBar = (curr, total = 4) => (
+  // Step 1 -> Continue
+  const handleStep1Continue = async () => {
+    if (!title.trim()) {
+      Alert.alert(t ? t('common.error', 'Error') : 'Error', 'Please provide a consultation title.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const activeIncluded = includedItems.filter(i => i.checked).map(i => i.text.trim()).filter(Boolean);
+      const payload = {
+        type: 'CONSULTATION',
+        title: title.trim(),
+        description: description.trim(),
+        includedItems: activeIncluded,
+      };
+
+      if (!serviceId) {
+        const response = await createServiceDraft(payload);
+        const data = response?.data || response;
+        if (data?.id) {
+          setServiceId(data.id);
+        }
+      } else {
+        await updateService(serviceId, payload);
+      }
+      setStep(2);
+    } catch (err) {
+      Alert.alert(
+        t ? t('common.error', 'Error') : 'Error',
+        err?.response?.data?.message || err?.message || 'Could not save consultation.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2 -> Continue
+  const handleStep2Continue = async () => {
+    if (!serviceId) return;
+    setLoading(true);
+    try {
+      // 1. Update Details
+      const patchData = {
+        durationMinutes: Number(durationMinutes) || 60,
+        format,
+        price: parseFloat(price) || 0,
+      };
+      if (format === 'IN_PERSON') {
+        patchData.address = address.trim();
+        patchData.city = city.trim();
+        patchData.country = country.trim();
+        patchData.contactPhone = contactPhone.trim();
+      }
+      await updateService(serviceId, patchData);
+
+      // 2. Update Availability
+      const rules = [];
+      selectedDays.forEach(dayOfWeek => {
+        timeSlots.forEach(slot => {
+          rules.push({ dayOfWeek, start: slot.start, end: slot.end });
+        });
+      });
+      await setServiceAvailability(serviceId, { timezone, rules });
+
+      // 3. Load Details for Review
+      const reviewRes = await getServiceDetails(serviceId);
+      const data = reviewRes?.data || reviewRes;
+      setServiceData(data);
+      setReadinessProblems(data?.readiness?.problems || []);
+
+      setStep(3);
+    } catch (err) {
+      Alert.alert(
+        t ? t('common.error', 'Error') : 'Error',
+        err?.response?.data?.message || err?.message || 'Could not update details.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 3 -> Publish
+  const handlePublish = async () => {
+    if (!serviceId) return;
+    setPublishing(true);
+    try {
+      const response = await publishService(serviceId);
+      if (response?.success !== false) {
+        setStep(4);
+      } else {
+        Alert.alert(
+          t ? t('services.publishError', 'Could Not Publish') : 'Could Not Publish',
+          response?.message || 'Please complete all required fields.',
+        );
+      }
+    } catch (err) {
+      Alert.alert(
+        t ? t('services.publishError', 'Could Not Publish') : 'Could Not Publish',
+        err?.response?.data?.message || err?.message || 'Publishing failed.',
+      );
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const renderProgressBar = (curr, total = 3) => (
     <View style={styles.progressWrap}>
-      <Text style={[styles.stepIndicatorText, { color: colors.muted }]}>
+      <Text style={[styles.stepIndicatorText, { color: mutedColor }]}>
         Step {curr} of {total}
       </Text>
-      <View style={styles.progressBarTrack}>
-        {Array.from({ length: total }).map((_, i) => (
-          <View
-            key={`step-${i}`}
-            style={[
-              styles.progressBarSegment,
-              {
-                backgroundColor: i < curr ? colors.accent : (isDarkMode ? colors.cardBorder : (colors.divider || (colors.isBusiness ? '#F0E2C8' : '#E9D7FD'))),
-              },
-            ]}
-          />
-        ))}
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${(curr / total) * 100}%`, backgroundColor: brandAccent }]} />
       </View>
     </View>
   );
 
-  // STEP 1: CREATE CONSULTATION
-  if (step === 1) {
-    return (
-      <View style={styles.flex}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onBack} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
-            <Ionicons name="chevron-back" size={22} color={colors.title} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.title }]}>Create Consultation</Text>
-          <View style={{ width: 40 }} />
-        </View>
-
-        <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          {renderProgressBar(1, 4)}
-
-          <View style={styles.iconCircleWrap}>
-            <View style={[styles.bigIconBubble, { backgroundColor: colors.iconBg }]}>
-              <Ionicons name="chatbubble-ellipses" size={32} color={colors.accent} />
-            </View>
-          </View>
-
-          <Text style={[styles.fieldLabel, { color: colors.title }]}>Consultation Title</Text>
-          <TextInput
-            value={title}
-            onChangeText={setTitle}
-            placeholder="e.g. Business Strategy Consultation"
-            placeholderTextColor={colors.muted}
-            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.cardBorder, color: colors.title }]}
-          />
-
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
-            <Text style={[styles.fieldLabel, { color: colors.title }]}>Description</Text>
-            <Text style={[styles.counterText, { color: colors.muted }]}>{description.length}/500</Text>
-          </View>
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Describe what clients will gain..."
-            placeholderTextColor={colors.muted}
-            multiline
-            numberOfLines={4}
-            maxLength={500}
-            style={[
-              styles.input,
-              styles.textArea,
-              { backgroundColor: colors.card, borderColor: colors.cardBorder, color: colors.title },
-            ]}
-          />
-
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 18, marginBottom: 8 }]}>
-            What's included?
-          </Text>
-          {includedItems.map(item => (
-            <TouchableOpacity
-              key={item.id}
-              onPress={() => toggleItem(item.id)}
-              activeOpacity={0.7}
-              style={[
-                styles.checkItemRow,
-                { backgroundColor: colors.card, borderColor: colors.cardBorder },
-              ]}
-            >
-              <View
-                style={[
-                  styles.checkCircle,
-                  item.checked ? { backgroundColor: colors.accent } : { borderColor: colors.cardBorder, borderWidth: 1 },
-                ]}
-              >
-                {item.checked && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-              </View>
-              <Text style={[styles.checkItemText, { color: colors.title }]}>{item.text}</Text>
-            </TouchableOpacity>
-          ))}
-
-          <View style={styles.addInclusionRow}>
-            <TextInput
-              value={newInclusionText}
-              onChangeText={setNewInclusionText}
-              placeholder="+ Add another inclusion item"
-              placeholderTextColor={colors.muted}
-              style={[styles.addInput, { backgroundColor: colors.card, borderColor: colors.cardBorder, color: colors.title }]}
-            />
-            {newInclusionText.length > 0 && (
-              <TouchableOpacity onPress={addCustomInclusion} style={[styles.addBtn, { backgroundColor: colors.accent }]}>
-                <Ionicons name="add" size={18} color="#FFFFFF" />
-              </TouchableOpacity>
-            )}
-          </View>
-        </ScrollView>
-
-        <View style={[styles.bottomBar, { backgroundColor: colors.surface }]}>
-          <TouchableOpacity onPress={() => setStep(2)} activeOpacity={0.85} style={styles.primaryContinueBtn}>
-            <LinearGradient
-              colors={colors.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.primaryContinueGradient}
-            >
-              <Text style={styles.primaryContinueText}>Continue</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+  return (
+    <View style={[styles.root, { backgroundColor: bg }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => {
+            if (step > 1 && step < 4) setStep(step - 1);
+            else onBack();
+          }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="chevron-back" size={24} color={textColor} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: textColor }]}>
+          {step === 4 ? 'All Set!' : 'Create Consultation'}
+        </Text>
+        <View style={{ width: 24 }} />
       </View>
-    );
-  }
 
-  // STEP 2: SET DETAILS
-  if (step === 2) {
-    return (
-      <View style={styles.flex}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => setStep(1)} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
-            <Ionicons name="chevron-back" size={22} color={colors.title} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.title }]}>Consultation Details</Text>
-          <View style={{ width: 40 }} />
-        </View>
+      {step < 4 && renderProgressBar(step, 3)}
 
-        <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          {renderProgressBar(2, 4)}
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* ── STEP 1: Title, Description, Included Items ── */}
+        {step === 1 && (
+          <View style={styles.stepContainer}>
+            <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
+              <Text style={[styles.cardTitle, { color: textColor }]}>Consultation Info</Text>
 
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 12 }]}>Duration</Text>
-          <View style={styles.pillsRow}>
-            {['30 minutes', '45 minutes', '60 minutes', '90 minutes'].map(d => (
-              <TouchableOpacity
-                key={d}
-                onPress={() => setDuration(d)}
-                style={[
-                  styles.pillOption,
-                  {
-                    backgroundColor: duration === d ? colors.accent : colors.card,
-                    borderColor: duration === d ? colors.accent : colors.cardBorder,
-                  },
-                ]}
-              >
-                <Text style={[styles.pillOptionText, { color: duration === d ? '#FFFFFF' : colors.title }]}>
-                  {d}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+              <View style={styles.fieldWrap}>
+                <Text style={[styles.fieldLabel, { color: textColor }]}>Consultation Title</Text>
+                <TextInput
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="e.g. Business Strategy Consultation"
+                  placeholderTextColor={mutedColor}
+                  style={[styles.input, { color: textColor, borderColor: border }]}
+                />
+              </View>
 
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 18 }]}>Format</Text>
-          <View style={[styles.toggleContainer, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <TouchableOpacity
-              onPress={() => setFormat('online')}
-              style={[styles.toggleBtn, format === 'online' && { backgroundColor: colors.accent }]}
-            >
-              <Ionicons
-                name="globe-outline"
-                size={16}
-                color={format === 'online' ? '#FFFFFF' : colors.muted}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.toggleText, { color: format === 'online' ? '#FFFFFF' : colors.muted }]}>
-                Online
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setFormat('in_person')}
-              style={[styles.toggleBtn, format === 'in_person' && { backgroundColor: colors.accent }]}
-            >
-              <Ionicons
-                name="location-outline"
-                size={16}
-                color={format === 'in_person' ? '#FFFFFF' : colors.muted}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.toggleText, { color: format === 'in_person' ? '#FFFFFF' : colors.muted }]}>
-                In-person
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {format === 'in_person' && (
-            <View style={{ marginTop: 14 }}>
-              <Text style={[styles.fieldLabel, { color: colors.title }]}>Office / Studio Address</Text>
-              <TextInput
-                value={address}
-                onChangeText={setAddress}
-                placeholder="Enter address"
-                placeholderTextColor={colors.muted}
-                style={[styles.input, { backgroundColor: colors.card, borderColor: colors.cardBorder, color: colors.title }]}
-              />
+              <View style={styles.fieldWrap}>
+                <Text style={[styles.fieldLabel, { color: textColor }]}>Description</Text>
+                <TextInput
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="What will clients get from this consultation?"
+                  placeholderTextColor={mutedColor}
+                  style={[styles.textArea, { color: textColor, borderColor: border }]}
+                  multiline
+                  numberOfLines={4}
+                />
+              </View>
             </View>
-          )}
 
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 18 }]}>Price</Text>
-          <View style={[styles.priceInputWrap, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <Text style={[styles.currencyPrefix, { color: colors.muted }]}>USD $</Text>
-            <TextInput
-              value={price}
-              onChangeText={setPrice}
-              keyboardType="decimal-pad"
-              style={[styles.priceInput, { color: colors.title }]}
-            />
-          </View>
+            {/* Included Items */}
+            <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
+              <Text style={[styles.cardTitle, { color: textColor }]}>What's Included</Text>
+              {includedItems.map(item => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.inclusionRow}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setIncludedItems(prev =>
+                      prev.map(i => (i.id === item.id ? { ...i, checked: !i.checked } : i)),
+                    );
+                  }}
+                >
+                  <Ionicons
+                    name={item.checked ? 'checkbox' : 'square-outline'}
+                    size={20}
+                    color={item.checked ? brandAccent : mutedColor}
+                    style={{ marginRight: 10 }}
+                  />
+                  <Text style={[styles.inclusionText, { color: textColor }]}>{item.text}</Text>
+                </TouchableOpacity>
+              ))}
 
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 18 }]}>Availability</Text>
-          <View style={[styles.availabilityCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-              <Ionicons name="calendar-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-              <Text style={[styles.availabilityTitle, { color: colors.title }]}>Days & Schedule</Text>
+              <View style={styles.addInclusionRow}>
+                <TextInput
+                  value={newInclusionText}
+                  onChangeText={setNewInclusionText}
+                  placeholder="Add another item..."
+                  placeholderTextColor={mutedColor}
+                  style={[styles.addInclusionInput, { color: textColor, borderColor: border }]}
+                />
+                <TouchableOpacity
+                  onPress={() => {
+                    if (!newInclusionText.trim()) return;
+                    setIncludedItems(prev => [
+                      ...prev,
+                      { id: String(Date.now()), text: newInclusionText.trim(), checked: true },
+                    ]);
+                    setNewInclusionText('');
+                  }}
+                  style={[styles.addBtn, { backgroundColor: brandAccent }]}
+                >
+                  <Ionicons name="add" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.daysRow}>
-              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
-                const isSelected = selectedDays.includes(day);
-                return (
+
+            <TouchableOpacity activeOpacity={0.88} onPress={handleStep1Continue} disabled={loading} style={styles.actionBtn}>
+              <LinearGradient colors={buttonGradient} style={styles.btnGradient}>
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Continue to Details</Text>}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── STEP 2: Details & Availability ── */}
+        {step === 2 && (
+          <View style={styles.stepContainer}>
+            {/* Format & Pricing */}
+            <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
+              <Text style={[styles.cardTitle, { color: textColor }]}>Session Details</Text>
+
+              {/* Format Switcher */}
+              <View style={styles.formatRow}>
+                {['ONLINE', 'IN_PERSON'].map(f => (
                   <TouchableOpacity
-                    key={day}
-                    onPress={() => {
-                      setSelectedDays(prev =>
-                        prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day],
-                      );
-                    }}
+                    key={f}
+                    onPress={() => setFormat(f)}
                     style={[
-                      styles.dayCircle,
+                      styles.formatPill,
                       {
-                        backgroundColor: isSelected ? colors.accent : colors.surface,
-                        borderColor: isSelected ? colors.accent : colors.cardBorder,
+                        backgroundColor: format === f ? brandAccent : isDarkMode ? '#241D30' : '#F3E8FF',
+                        borderColor: format === f ? brandAccent : border,
                       },
                     ]}
                   >
-                    <Text style={[styles.dayText, { color: isSelected ? '#FFFFFF' : colors.muted }]}>
-                      {day}
+                    <Ionicons
+                      name={f === 'ONLINE' ? 'videocam-outline' : 'location-outline'}
+                      size={16}
+                      color={format === f ? '#fff' : brandAccent}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={{ color: format === f ? '#fff' : textColor, fontWeight: '700', fontSize: 13 }}>
+                      {f === 'ONLINE' ? 'Online Video' : 'In Person'}
                     </Text>
                   </TouchableOpacity>
-                );
-              })}
-            </View>
-            <Text style={[styles.hoursNotice, { color: colors.muted }]}>
-              Available Hours: {availabilityTime}
-            </Text>
-          </View>
-        </ScrollView>
+                ))}
+              </View>
 
-        <View style={[styles.bottomBar, { backgroundColor: colors.surface }]}>
-          <TouchableOpacity onPress={() => setStep(3)} activeOpacity={0.85} style={styles.primaryContinueBtn}>
-            <LinearGradient
-              colors={colors.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.primaryContinueGradient}
-            >
-              <Text style={styles.primaryContinueText}>Continue</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
+              {/* Duration & Price */}
+              <View style={styles.dualFieldRow}>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={[styles.fieldLabel, { color: textColor }]}>Duration (Mins)</Text>
+                  <TextInput
+                    value={String(durationMinutes)}
+                    onChangeText={v => setDurationMinutes(parseInt(v, 10) || 0)}
+                    keyboardType="number-pad"
+                    style={[styles.input, { color: textColor, borderColor: border }]}
+                  />
+                </View>
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <Text style={[styles.fieldLabel, { color: textColor }]}>Price ($)</Text>
+                  <TextInput
+                    value={price}
+                    onChangeText={setPrice}
+                    keyboardType="decimal-pad"
+                    style={[styles.input, { color: textColor, borderColor: border }]}
+                  />
+                </View>
+              </View>
 
-  // STEP 3: REVIEW CONSULTATION (Button changed to "Confirm"!)
-  if (step === 3) {
-    return (
-      <View style={styles.flex}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => setStep(2)} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
-            <Ionicons name="chevron-back" size={22} color={colors.title} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.title }]}>Review Consultation</Text>
-          <View style={{ width: 40 }} />
-        </View>
-
-        <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          {renderProgressBar(3, 4)}
-
-          {/* Hero Review Card */}
-          <View style={[styles.reviewHeroCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <View style={styles.reviewAvatarWrap}>
-              {userProfilePic ? (
-                <Image source={{ uri: userProfilePic }} style={styles.avatarImg} />
-              ) : (
-                <LinearGradient colors={colors.btnGradient} style={styles.avatarImg}>
-                  <Ionicons name="person" size={24} color="#FFFFFF" />
-                </LinearGradient>
+              {format === 'IN_PERSON' && (
+                <>
+                  <View style={styles.fieldWrap}>
+                    <Text style={[styles.fieldLabel, { color: textColor }]}>Address</Text>
+                    <TextInput value={address} onChangeText={setAddress} style={[styles.input, { color: textColor, borderColor: border }]} />
+                  </View>
+                  <View style={styles.dualFieldRow}>
+                    <TextInput value={city} onChangeText={setCity} placeholder="City" placeholderTextColor={mutedColor} style={[styles.input, { flex: 1, marginRight: 6, color: textColor, borderColor: border }]} />
+                    <TextInput value={country} onChangeText={setCountry} placeholder="Country" placeholderTextColor={mutedColor} style={[styles.input, { flex: 1, color: textColor, borderColor: border }]} />
+                  </View>
+                  <View style={styles.fieldWrap}>
+                    <Text style={[styles.fieldLabel, { color: textColor }]}>Contact Phone (Required for In-Person)</Text>
+                    <TextInput value={contactPhone} onChangeText={setContactPhone} keyboardType="phone-pad" style={[styles.input, { color: textColor, borderColor: border }]} />
+                  </View>
+                </>
               )}
             </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[styles.reviewTitle, { color: colors.title }]}>{title}</Text>
-              <Text style={[styles.reviewSub, { color: colors.muted }]}>
-                {duration} • {format === 'online' ? 'Online' : 'In Person'}
-              </Text>
-              <Text style={[styles.reviewPrice, { color: colors.accent }]}>${price}</Text>
-            </View>
-          </View>
 
-          {/* What's Included Card */}
-          <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <Text style={[styles.summaryCardTitle, { color: colors.title }]}>What's included</Text>
-            {includedItems.filter(i => i.checked).map((item, idx) => (
-              <View key={idx} style={styles.summaryItemRow}>
-                <Ionicons name="checkmark-circle" size={17} color={colors.accent} style={{ marginRight: 10 }} />
-                <Text style={[styles.summaryItemText, { color: colors.title }]}>{item.text}</Text>
+            {/* Weekly Availability */}
+            <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
+              <Text style={[styles.cardTitle, { color: textColor }]}>Weekly Availability</Text>
+              <Text style={[styles.hintText, { color: mutedColor, marginBottom: 12 }]}>
+                Timezone: {timezone}
+              </Text>
+
+              {/* Days Chips */}
+              <View style={styles.daysRow}>
+                {DAYS_CONFIG.map(d => {
+                  const isSel = selectedDays.includes(d.dayOfWeek);
+                  return (
+                    <TouchableOpacity
+                      key={d.key}
+                      onPress={() => toggleDay(d.dayOfWeek)}
+                      style={[
+                        styles.dayChip,
+                        {
+                          backgroundColor: isSel ? brandAccent : isDarkMode ? '#241D30' : '#F3E8FF',
+                          borderColor: isSel ? brandAccent : border,
+                        },
+                      ]}
+                    >
+                      <Text style={{ color: isSel ? '#fff' : textColor, fontWeight: '700', fontSize: 12 }}>
+                        {d.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-            ))}
 
-            <View style={[styles.summaryDivider, { backgroundColor: colors.divider }]} />
-
-            <View style={styles.summaryMetaRow}>
-              <Ionicons name="calendar-outline" size={16} color={colors.accent} style={{ marginRight: 8 }} />
-              <Text style={[styles.metaLabel, { color: colors.muted }]}>Availability:</Text>
-              <Text style={[styles.metaVal, { color: colors.title }]}>
-                {selectedDays.join(', ')} {availabilityTime}
-              </Text>
+              {/* Time Slot Row */}
+              <View style={styles.slotRow}>
+                <Ionicons name="time-outline" size={18} color={brandAccent} style={{ marginRight: 8 }} />
+                <Text style={{ color: textColor, fontWeight: '600' }}>Available Hours: 10:00 AM – 6:00 PM</Text>
+              </View>
             </View>
 
-            <View style={styles.summaryMetaRow}>
-              <Ionicons name="globe-outline" size={16} color={colors.accent} style={{ marginRight: 8 }} />
-              <Text style={[styles.metaLabel, { color: colors.muted }]}>Format:</Text>
-              <Text style={[styles.metaVal, { color: colors.title }]}>
-                {format === 'online' ? 'Online Video' : 'In-Person'}
-              </Text>
+            {/* Cover Image Upload */}
+            <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
+              <Text style={[styles.cardTitle, { color: textColor }]}>Service Photo</Text>
+              <TouchableOpacity onPress={handlePickCover} style={[styles.photoBox, { borderColor: border }]}>
+                {coverImage ? (
+                  <Image source={{ uri: coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                ) : (
+                  <View style={{ alignItems: 'center' }}>
+                    <Ionicons name="camera-outline" size={32} color={brandAccent} />
+                    <Text style={{ color: mutedColor, fontSize: 12, marginTop: 4 }}>Tap to upload cover image</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
 
-            {format === 'in_person' && (
-              <View style={styles.summaryMetaRow}>
-                <Ionicons name="location-outline" size={16} color={colors.accent} style={{ marginRight: 8 }} />
-                <Text style={[styles.metaLabel, { color: colors.muted }]}>Address:</Text>
-                <Text style={[styles.metaVal, { color: colors.title }]} numberOfLines={1}>
-                  {address}
-                </Text>
+            <TouchableOpacity activeOpacity={0.88} onPress={handleStep2Continue} disabled={loading} style={styles.actionBtn}>
+              <LinearGradient colors={buttonGradient} style={styles.btnGradient}>
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Review Consultation</Text>}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── STEP 3: Review & Publish ── */}
+        {step === 3 && (
+          <View style={styles.stepContainer}>
+            {/* Readiness Problems Banner */}
+            {readinessProblems.length > 0 && (
+              <View style={styles.problemsCard}>
+                <Ionicons name="alert-circle" size={20} color="#DC2626" style={{ marginRight: 8 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.problemHeader}>Incomplete Information</Text>
+                  {readinessProblems.map((p, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      onPress={() => setStep(mapProblemFieldToStep(p.field, 'CONSULTATION'))}
+                    >
+                      <Text style={styles.problemText}>• {p.message} <Text style={{ textDecorationLine: 'underline' }}>(Fix)</Text></Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
             )}
 
-            <View style={styles.summaryMetaRow}>
-              <Ionicons name="pricetag-outline" size={16} color={colors.accent} style={{ marginRight: 8 }} />
-              <Text style={[styles.metaLabel, { color: colors.muted }]}>Price:</Text>
-              <Text style={[styles.metaVal, { color: colors.accent, fontWeight: '700' }]}>
-                ${price}
+            {/* Review Summary Card */}
+            <View style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
+              <Text style={[styles.cardTitle, { color: textColor }]}>{serviceData?.title || title}</Text>
+              <Text style={[styles.priceTag, { color: brandAccent }]}>
+                {formatPriceUnit('SESSION', serviceData?.price || parseFloat(price))}
               </Text>
+
+              <View style={styles.summaryItem}>
+                <Ionicons name="time-outline" size={16} color={brandAccent} style={{ marginRight: 8 }} />
+                <Text style={{ color: textColor }}>{serviceData?.durationMinutes || durationMinutes} minutes • {format === 'ONLINE' ? 'Online Video' : 'In Person'}</Text>
+              </View>
+
+              <Text style={[styles.summaryDesc, { color: mutedColor }]}>{serviceData?.description || description}</Text>
+
+              <Text style={[styles.subHeading, { color: textColor }]}>Included:</Text>
+              {(serviceData?.includedItems || includedItems.filter(i => i.checked).map(i => i.text)).map((inc, i) => (
+                <View key={i} style={styles.summaryIncRow}>
+                  <Ionicons name="checkmark-circle" size={16} color="#16A34A" style={{ marginRight: 6 }} />
+                  <Text style={{ color: textColor, fontSize: 13 }}>{inc}</Text>
+                </View>
+              ))}
             </View>
+
+            <TouchableOpacity activeOpacity={0.88} onPress={handlePublish} disabled={publishing} style={styles.actionBtn}>
+              <LinearGradient colors={buttonGradient} style={styles.btnGradient}>
+                {publishing ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Publish Consultation</Text>}
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
-        </ScrollView>
+        )}
 
-        <View style={[styles.bottomBar, { backgroundColor: colors.surface }]}>
-          {/* USER REQUIREMENT: Changed from "Continue" to "Confirm" */}
-          <TouchableOpacity onPress={handleConfirm} activeOpacity={0.85} style={styles.primaryContinueBtn}>
-            <LinearGradient
-              colors={colors.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.primaryContinueGradient}
-            >
-              <Text style={styles.primaryContinueText}>Confirm</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  // STEP 4: YOU'RE ALL SET! LIVE CONFIRMATION
-  return (
-    <View style={styles.flex}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
-          <Ionicons name="chevron-back" size={22} color={colors.title} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.title }]}>Consultation is Live</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.celebrationCenter}>
-          <View style={styles.confettiWrap}>
-            <LinearGradient colors={colors.btnGradient} style={[styles.bigCheckCircle, { shadowColor: colors.accent }]}>
-              <Ionicons name="checkmark" size={44} color="#FFFFFF" />
-            </LinearGradient>
-            <Ionicons name="star" size={14} color={colors.isBusiness ? '#F3E2B8' : '#C084FC'} style={{ position: 'absolute', top: 4, left: 24 }} />
-            <Ionicons name="sparkles" size={18} color={colors.isBusiness ? '#DFBA74' : '#E879F9'} style={{ position: 'absolute', top: 10, right: 28 }} />
-            <Ionicons name="sparkles" size={14} color={colors.isBusiness ? '#C9A15A' : '#C4B5FD'} style={{ position: 'absolute', bottom: 16, right: 20 }} />
-          </View>
-
-          <Text style={[styles.allSetTitle, { color: colors.title }]}>You're all set!</Text>
-          <Text style={[styles.allSetSubtitle, { color: colors.muted }]}>
-            Your consultation is now live and ready to be booked.
-          </Text>
-        </View>
-
-        <View style={[styles.livePreviewCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-          <View style={styles.liveCardHeaderRow}>
-            <View style={styles.reviewAvatarWrap}>
-              {userProfilePic ? (
-                <Image source={{ uri: userProfilePic }} style={styles.avatarImg} />
-              ) : (
-                <LinearGradient colors={colors.btnGradient} style={styles.avatarImg}>
-                  <Ionicons name="person" size={24} color="#FFFFFF" />
-                </LinearGradient>
-              )}
+        {/* ── STEP 4: All Set! ── */}
+        {step === 4 && (
+          <View style={styles.allSetContainer}>
+            <View style={[styles.allSetCircle, { backgroundColor: isDarkMode ? '#281F36' : '#F3E8FF' }]}>
+              <Ionicons name="checkmark-circle" size={64} color="#16A34A" />
             </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[styles.liveCardTitle, { color: colors.title }]}>{title}</Text>
-              <Text style={[styles.liveCardSubtitle, { color: colors.muted }]}>
-                {duration} • {format === 'online' ? 'Online' : 'In Person'}
-              </Text>
-              <Text style={[styles.liveCardPrice, { color: colors.accent }]}>${price}</Text>
-            </View>
+            <Text style={[styles.allSetTitle, { color: textColor }]}>You're All Set!</Text>
+            <Text style={[styles.allSetSub, { color: mutedColor }]}>
+              Your consultation is published and now available on your profile for followers and clients to book.
+            </Text>
+
+            <TouchableOpacity activeOpacity={0.88} onPress={onFinish} style={[styles.actionBtn, { width: '100%', marginTop: 24 }]}>
+              <LinearGradient colors={buttonGradient} style={styles.btnGradient}>
+                <Text style={styles.btnText}>View My Services</Text>
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
-
-          <View style={[styles.liveInfoRow, { borderColor: colors.divider }]}>
-            <Ionicons name="calendar-outline" size={18} color={colors.accent} style={{ marginRight: 10 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.liveInfoLabel, { color: colors.muted }]}>Availability</Text>
-              <Text style={[styles.liveInfoValue, { color: colors.title }]}>
-                {selectedDays.join(', ')}{'\n'}{availabilityTime}
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.liveInfoRow, { borderColor: colors.divider }]}>
-            <Ionicons name="globe-outline" size={18} color={colors.accent} style={{ marginRight: 10 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.liveInfoLabel, { color: colors.muted }]}>Format</Text>
-              <Text style={[styles.liveInfoValue, { color: colors.title }]}>
-                {format === 'online' ? 'Online Video' : 'In-Person'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.liveInfoRow, { borderColor: colors.divider }]}>
-            <Ionicons name="cash-outline" size={18} color={colors.accent} style={{ marginRight: 10 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.liveInfoLabel, { color: colors.muted }]}>Price</Text>
-              <Text style={[styles.liveInfoValue, { color: colors.title }]}>${price}</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.liveActionsWrap}>
-          <TouchableOpacity onPress={onFinish} activeOpacity={0.85} style={styles.viewMyServicesBtn}>
-            <LinearGradient
-              colors={colors.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.viewMyServicesGradient}
-            >
-              <Text style={styles.viewMyServicesText}>View My Services</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={handleShare} activeOpacity={0.85} style={[styles.shareServiceBtn, { borderColor: colors.cardBorder }]}>
-            <Ionicons name="share-social-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-            <Text style={[styles.shareServiceText, { color: colors.accent }]}>Share Your Service</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.lockRow}>
-          <Ionicons name="lock-closed-outline" size={14} color={colors.muted} />
-          <Text style={[styles.lockText, { color: colors.muted }]}>
-            We'll notify you when someone books a session.
-          </Text>
-        </View>
+        )}
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  root: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -582,397 +550,44 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingBottom: 36,
-  },
-  progressWrap: {
-    marginBottom: 16,
-  },
-  stepIndicatorText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  progressBarTrack: {
-    flexDirection: 'row',
-    height: 4,
-    borderRadius: 2,
-    gap: 6,
-  },
-  progressBarSegment: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-  },
-  iconCircleWrap: {
-    alignItems: 'center',
-    marginVertical: 14,
-  },
-  bigIconBubble: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  counterText: {
-    fontSize: 12,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  checkItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  checkCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  checkItemText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  addInclusionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  addInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 13,
-  },
-  addBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 8,
-  },
-  pillsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  pillOption: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  pillOptionText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    padding: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  toggleBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  toggleText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  priceInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-  },
-  currencyPrefix: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginRight: 6,
-  },
-  priceInput: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '700',
-    paddingVertical: 8,
-  },
-  availabilityCard: {
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  availabilityTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  daysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  dayCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  dayText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  hoursNotice: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  bottomBar: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 14 : 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
-  },
-  primaryContinueBtn: {
-    width: '100%',
-    height: 52,
-    minHeight: 52,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  primaryContinueGradient: {
-    width: '100%',
-    height: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryContinueText: {
-    color: '#FFFFFF',
-    fontSize: 15.5,
-    fontWeight: '700',
-  },
-  viewMyServicesBtn: {
-    width: '100%',
-    height: 52,
-    minHeight: 52,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  viewMyServicesGradient: {
-    width: '100%',
-    height: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  viewMyServicesText: {
-    color: '#FFFFFF',
-    fontSize: 15.5,
-    fontWeight: '700',
-  },
-  reviewHeroCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 16,
-  },
-  reviewAvatarWrap: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    overflow: 'hidden',
-  },
-  avatarImg: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reviewTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  reviewSub: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  reviewPrice: {
-    fontSize: 16,
-    fontWeight: '800',
-    marginTop: 4,
-  },
-  summaryCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 16,
-  },
-  summaryCardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  summaryItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 4,
-  },
-  summaryItemText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  summaryDivider: {
-    height: 1,
-    marginVertical: 14,
-  },
-  summaryMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 4,
-  },
-  metaLabel: {
-    fontSize: 13,
-    marginRight: 6,
-  },
-  metaVal: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  celebrationCenter: {
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  confettiWrap: {
-    width: 90,
-    height: 90,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  bigCheckCircle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  allSetTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 6,
-  },
-  allSetSubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
-  livePreviewCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 20,
-  },
-  liveCardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  liveCardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  liveCardSubtitle: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  liveCardPrice: {
-    fontSize: 15,
-    fontWeight: '800',
-    marginTop: 4,
-  },
-  liveInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 10,
-    borderTopWidth: 1,
-  },
-  liveInfoLabel: {
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  liveInfoValue: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  liveActionsWrap: {
-    gap: 10,
-    marginBottom: 16,
-  },
-  shareServiceBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  shareServiceText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  lockRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  lockText: {
-    fontSize: 12,
-  },
+  headerTitle: { fontSize: 17, fontWeight: '800' },
+  progressWrap: { paddingHorizontal: 16, marginBottom: 8 },
+  stepIndicatorText: { fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  progressTrack: { height: 4, backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 2, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 2 },
+  scrollContent: { padding: 16, paddingBottom: 40 },
+  stepContainer: { gap: 14 },
+  card: { borderRadius: 18, borderWidth: 1, padding: 16, gap: 10 },
+  cardTitle: { fontSize: 15, fontWeight: '800', marginBottom: 4 },
+  fieldWrap: { gap: 6 },
+  fieldLabel: { fontSize: 13, fontWeight: '700' },
+  input: { height: 46, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, fontSize: 14 },
+  textArea: { minHeight: 80, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, textAlignVertical: 'top' },
+  inclusionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
+  inclusionText: { fontSize: 13, fontWeight: '600' },
+  addInclusionRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  addInclusionInput: { flex: 1, height: 40, borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, fontSize: 13, marginRight: 8 },
+  addBtn: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  formatRow: { flexDirection: 'row', gap: 10, marginVertical: 6 },
+  formatPill: { flex: 1, height: 44, borderRadius: 12, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  dualFieldRow: { flexDirection: 'row', alignItems: 'center' },
+  daysRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 6 },
+  dayChip: { width: 42, height: 42, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  slotRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  photoBox: { height: 120, borderWidth: 1, borderStyle: 'dashed', borderRadius: 14, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  actionBtn: { borderRadius: 14, overflow: 'hidden', marginTop: 10 },
+  btnGradient: { height: 50, alignItems: 'center', justifyContent: 'center' },
+  btnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  problemsCard: { flexDirection: 'row', backgroundColor: '#FEE2E2', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#FCA5A5' },
+  problemHeader: { color: '#DC2626', fontWeight: '800', fontSize: 13, marginBottom: 2 },
+  problemText: { color: '#B91C1C', fontSize: 12, marginTop: 2 },
+  priceTag: { fontSize: 20, fontWeight: '900', marginBottom: 8 },
+  summaryItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  summaryDesc: { fontSize: 13, lineHeight: 18, marginVertical: 6 },
+  subHeading: { fontSize: 13, fontWeight: '800', marginTop: 8, marginBottom: 4 },
+  summaryIncRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 3 },
+  allSetContainer: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 20 },
+  allSetCircle: { width: 96, height: 96, borderRadius: 48, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  allSetTitle: { fontSize: 24, fontWeight: '900', marginBottom: 8 },
+  allSetSub: { fontSize: 13, textAlign: 'center', lineHeight: 20 },
 });

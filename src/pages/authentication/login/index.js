@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 // Removed expo LinearGradient - using pure React Native styling
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import CustomButton from '../../../components/customButton/customButton';
 import { AppleLogo, Google, Twitter } from '../../../assets/icons';
@@ -57,6 +57,7 @@ const STRIPE_ONBOARDING_STATUS_KEY = 'stripeOnboardingStatus';
 
 export default function LoginScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const dispatch = useDispatch();
   const toast = useToast();
   const [email, setEmail] = useState('');
@@ -449,6 +450,7 @@ export default function LoginScreen() {
           showBackButton={false}
           headerHeight={height * 0.28}
           isFirstLaunch={false}
+          profileType={route?.params?.profile}
         />
 
 

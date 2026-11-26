@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSelector } from 'react-redux';
 import { useAppTheme } from '../theme/useApptheme';
+import { navigate as rootNavigate } from '../navigations/RootNavigation';
 
 export const normalizeProfileType = profile => {
   const normalized = String(profile || '').trim().toLowerCase();
@@ -212,39 +213,72 @@ export const navigateClosetReturn = (navigation, returnTo) => {
   if (navigation.canGoBack?.()) navigation.goBack();
 };
 
+export const sanitizeClosetNavParams = params => {
+  if (!params || typeof params !== 'object') return {};
+  const { ...clean } = params;
+  if (clean.returnTo && typeof clean.returnTo === 'object' && clean.returnTo.params) {
+    const { returnTo: _nestedReturnTo, ...cleanNestedParams } = clean.returnTo.params;
+    clean.returnTo = {
+      ...clean.returnTo,
+      params: cleanNestedParams,
+    };
+  }
+  if (clean.isOwnProfile !== undefined) {
+    clean.isOwnProfile = clean.isOwnProfile === true;
+  }
+  if (clean.returnToProfile && typeof clean.returnToProfile === 'object') {
+    clean.returnToProfile = {
+      ...clean.returnToProfile,
+      isOwnProfile: clean.returnToProfile.isOwnProfile === true,
+    };
+  }
+  return clean;
+};
+
+const navigatorHasRoute = (nav, routeName) => {
+  if (!nav) return false;
+  try {
+    const state = nav.getState?.();
+    const routeNames = state?.routeNames;
+    if (Array.isArray(routeNames)) {
+      return routeNames.includes(routeName);
+    }
+  } catch (_e) {}
+  return false;
+};
+
 export const navigateToBattleLive = (navigation, params = {}) => {
-  const battleParams = { ...params };
+  const battleParams = sanitizeClosetNavParams(params);
 
-  const tryNavigate = nav => {
-    if (!nav?.navigate) return false;
-    try {
-      nav.navigate('BattleLive', battleParams);
-      return true;
-    } catch (_error) {
-      return false;
+  // 1. If navigation (or an ancestor) directly has 'BattleLive' in its route list, navigate to it directly
+  let targetNav = navigation;
+  while (targetNav) {
+    if (navigatorHasRoute(targetNav, 'BattleLive')) {
+      try {
+        targetNav.navigate('BattleLive', battleParams);
+        return true;
+      } catch (_e) {}
     }
-  };
+    targetNav = targetNav.getParent?.();
+  }
 
-  const tryNestedProfileMain = nav => {
-    if (!nav?.navigate) return false;
-    try {
-      nav.navigate('ProfileMain', {
-        screen: 'BattleLive',
-        params: battleParams,
-      });
-      return true;
-    } catch (_error) {
-      return false;
+  // 2. If 'BattleLive' is not registered on this stack directly, check if any parent or current navigator
+  // has 'ProfileMain' (ProfileStack hosts BattleLive and all closet battle screens).
+  targetNav = navigation;
+  while (targetNav) {
+    if (navigatorHasRoute(targetNav, 'ProfileMain')) {
+      try {
+        targetNav.navigate('ProfileMain', {
+          screen: 'BattleLive',
+          params: battleParams,
+        });
+        return true;
+      } catch (_e) {}
     }
-  };
+    targetNav = targetNav.getParent?.();
+  }
 
-  if (tryNestedProfileMain(navigation)) return true;
-  if (tryNavigate(navigation)) return true;
-
-  const parent = navigation?.getParent?.();
-  if (tryNestedProfileMain(parent)) return true;
-  if (tryNavigate(parent)) return true;
-
+  // 3. Fallback on navigation.navigate('ProfileMain', ...)
   if (navigation?.navigate) {
     try {
       navigation.navigate('ProfileMain', {
@@ -254,6 +288,45 @@ export const navigateToBattleLive = (navigation, params = {}) => {
       return true;
     } catch (_error) {}
   }
+
+  // 4. Fallback on navigation.getParent()
+  try {
+    const parent = navigation?.getParent?.();
+    if (parent?.navigate) {
+      parent.navigate('ProfileMain', {
+        screen: 'BattleLive',
+        params: battleParams,
+      });
+      return true;
+    }
+  } catch (_error) {}
+
+  // 5. Drawer wrapper check: MainApp -> ProfileMain -> BattleLive
+  targetNav = navigation;
+  while (targetNav) {
+    if (navigatorHasRoute(targetNav, 'MainApp')) {
+      try {
+        targetNav.navigate('MainApp', {
+          screen: 'ProfileMain',
+          params: {
+            screen: 'BattleLive',
+            params: battleParams,
+          },
+        });
+        return true;
+      } catch (_e) {}
+    }
+    targetNav = targetNav.getParent?.();
+  }
+
+  // 6. Ultimate fallback: root navigation container ref
+  try {
+    rootNavigate('ProfileMain', {
+      screen: 'BattleLive',
+      params: battleParams,
+    });
+    return true;
+  } catch (_e) {}
 
   return false;
 };

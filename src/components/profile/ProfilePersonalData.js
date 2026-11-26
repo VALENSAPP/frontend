@@ -308,8 +308,8 @@ const ProfilePersonData = ({
   const { bgStyle, textStyle, text, card, bg, icon, mutedText, accent, border, cardStyle } =
     useAppTheme(uiThemeType);
   const profileActionGradient = profileThemeIsCompany
-    ? [accent, accent]
-    : ['#513189bd', '#e54ba0'];
+    ? ['#CBA257', '#9E7429']
+    : ['#4A249D', '#402090'];
   const route = useRoute();
   const showIdentityVerified = isProfileFullyIdentityVerified(userData);
   const isSubscriptionActive = userData?.subscriptionStatus == 'ACTIVE';
@@ -943,11 +943,24 @@ const ProfilePersonData = ({
   ]);
 
   const handleServicesPress = useCallback(() => {
+    const resolvedUserId = String(
+      targetUserId || userData?.id || userData?._id || userData?.userId || userId || '',
+    ).trim();
     const navParams = {
       profileType: uiThemeType,
       isBusinessProfile: profileThemeIsCompany,
       isOwnProfile: !fromUsersProfile,
-      userData,
+      fromUsersProfile: Boolean(fromUsersProfile),
+      userId: resolvedUserId,
+      targetUserId: resolvedUserId,
+      userData: {
+        ...userData,
+        id: resolvedUserId,
+        userName: username || userData?.userName || userData?.username,
+        displayName: displayName || userData?.displayName || userData?.name,
+        profile_image: profilepic || userData?.profile_image || userData?.profileImg,
+        bio: bio || userData?.bio || userData?.about,
+      },
     };
 
     try {
@@ -961,7 +974,19 @@ const ProfilePersonData = ({
     } catch (_err) {
       navigation.navigate('ServicesComingSoon', navParams);
     }
-  }, [uiThemeType, profileThemeIsCompany, userData, fromUsersProfile, navigation]);
+  }, [
+    uiThemeType,
+    profileThemeIsCompany,
+    fromUsersProfile,
+    targetUserId,
+    userData,
+    userId,
+    username,
+    displayName,
+    profilepic,
+    bio,
+    navigation,
+  ]);
 
   const handleInviteBattlePress = useCallback(async () => {
     const storedMe = String((await AsyncStorage.getItem('userId')) || '').trim();
@@ -1166,12 +1191,12 @@ const ProfilePersonData = ({
   ]);
 
   const renderSocialIcon = useCallback(platform => {
-    if (platform === 'tiktok') return <Tiktok width={25} height={25} />;
-    if (platform === 'linkedin') return <Linkedin width={25} height={25} />;
-    if (platform === 'twitter') return <Twitter width={25} height={25} />;
-    if (platform === 'instagram') return <FontAwesome name="instagram" size={23} color="#E1306C" />;
-    return <Feather name="link-2" size={22} color={mutedText} />;
-  }, []);
+    if (platform === 'tiktok') return <Tiktok width={21} height={21} />;
+    if (platform === 'linkedin') return <Linkedin width={21} height={21} />;
+    if (platform === 'twitter') return <Twitter width={21} height={21} />;
+    if (platform === 'instagram') return <FontAwesome name="instagram" size={20} color="#E1306C" />;
+    return <Feather name="link-2" size={19} color={mutedText} />;
+  }, [mutedText]);
 
   const websiteLink = useMemo(() => String(
     userData?.website_link ?? data?.website_link ??
@@ -1429,14 +1454,14 @@ const ProfilePersonData = ({
                   style={{ marginBottom: 5 }}
                 >
                   <View style={styles.avatarWithBadge}>
-                    <HexAvatar uri={avatarUri} size={110} borderWidth={2} borderColor={accent} />
+                    <HexAvatar uri={avatarUri} size={98} borderWidth={2} borderColor={accent} />
                     {showIdentityVerified && (
                       <View
                         style={[styles.verifiedAvatarBadge, { backgroundColor: accent }]}
                         accessibilityLabel={t('profilePersonData.verifiedAccount')}
                         pointerEvents="none"
                       >
-                        <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                        <Ionicons name="checkmark" size={13} color="#FFFFFF" />
                       </View>
                     )}
                   </View>
@@ -1448,7 +1473,7 @@ const ProfilePersonData = ({
                       ]}
                       onPress={handleProfileImagePress}
                     >
-                      <Ionicons name="add" size={15} color="#FFFFFF" />
+                      <Ionicons name="add" size={14} color="#FFFFFF" />
                     </TouchableOpacity>
                   )}
                 </TouchableOpacity>
@@ -1458,8 +1483,8 @@ const ProfilePersonData = ({
               <View style={styles.battleStatsContainer}>
                 <View style={{ alignItems: 'center', justifyContent: 'center' }}>
                   {/* Hexagon with Dragonfly */}
-                  <View style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center', marginBottom: 2 }}>
-                    <Svg width={52} height={52} viewBox="0 0 84 84" style={{ position: 'absolute' }}>
+                  <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginBottom: 1 }}>
+                    <Svg width={44} height={44} viewBox="0 0 84 84" style={{ position: 'absolute' }}>
                       <Polygon
                         points="42,2 82,22 82,62 42,82 2,62 2,22"
                         stroke={levelInfo.tier?.color || accent}
@@ -1468,37 +1493,37 @@ const ProfilePersonData = ({
                         strokeLinejoin="round"
                       />
                     </Svg>
-                    <BattleDragonflyIcon width={24} height={24} />
+                    <BattleDragonflyIcon width={20} height={20} />
                   </View>
 
                   {/* Tier & Level */}
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: text, textTransform: 'uppercase', marginBottom: 1, letterSpacing: 0.5 }}>
+                  <Text style={{ fontSize: 9.5, fontWeight: '800', color: text, textTransform: 'uppercase', marginBottom: 0.5, letterSpacing: 0.4 }}>
                     {levelInfo.tier?.id
                       ? t(`battleHub.levels.${levelInfo.tier.id}`)
                       : (levelInfo.tier?.title || levelInfo.tier)}
                   </Text>
-                  <Text style={{ fontSize: 8, fontWeight: '700', color: accent, textTransform: 'uppercase', marginBottom: 4 }}>
+                  <Text style={{ fontSize: 7.5, fontWeight: '700', color: accent, textTransform: 'uppercase', marginBottom: 2 }}>
                     {levelInfo.levelText}
                   </Text>
 
                   {/* Progress Bar & XP */}
-                  <View style={{ width: '100%', alignItems: 'center', marginBottom: 6 }}>
-                    <View style={{ width: 64, height: 4, backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#E5E7EB', borderRadius: 2, marginBottom: 4, overflow: 'hidden' }}>
+                  <View style={{ width: '100%', alignItems: 'center', marginBottom: 3 }}>
+                    <View style={{ width: 58, height: 3.5, backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : '#E5E7EB', borderRadius: 2, marginBottom: 2, overflow: 'hidden' }}>
                       <View style={{ width: `${Math.min((battlePointSummary.points / levelInfo.maxPoints) * 100, 100)}%`, height: '100%', backgroundColor: accent, borderRadius: 2 }} />
                     </View>
-                    <Text style={{ fontSize: 8, color: mutedText, fontWeight: '600' }}>
+                    <Text style={{ fontSize: 7.5, color: mutedText, fontWeight: '600' }}>
                       {battlePointSummary.points} / {levelInfo.maxPoints.toLocaleString()} XP
                     </Text>
                   </View>
 
                   {/* Total Reputation */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : '#F3F4F6', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 8 }}>
-                    <Ionicons name="trophy" size={11} color="#D97706" style={{ marginRight: 4 }} />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : '#F3F4F6', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 6 }}>
+                    <Ionicons name="trophy" size={10} color="#D97706" style={{ marginRight: 3 }} />
                     <View>
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: text, lineHeight: 12 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '800', color: text, lineHeight: 11 }}>
                         {battlePointSummary.credibilityScore}
                       </Text>
-                      <Text style={{ fontSize: 7.5, fontWeight: '600', color: mutedText, lineHeight: 10 }}>
+                      <Text style={{ fontSize: 7, fontWeight: '600', color: mutedText, lineHeight: 9 }}>
                         {t('profilePersonData.totalReputation')}
                       </Text>
                     </View>
@@ -1696,29 +1721,41 @@ const ProfilePersonData = ({
             pointerEvents={compactLocked ? 'none' : 'auto'}
             style={[styles.collapsibleProfileMiddle, { maxHeight: animatedMaxHeight, opacity: animatedOpacity }]}
           >
-            <View style={styles.biobox}>
-              <Text style={[styles.biotext, { color: mutedText }]}>{Userdata.Bio}</Text>
-              <View style={styles.socialRow}>
-                {socialMediaLinks.map(item => (
-                  <TouchableOpacity
-                    key={`${item.platform}-${item.url}`}
-                    style={styles.socialIconButton}
-                    activeOpacity={0.7}
-                    onPress={() => handleOpenSocialUrl(item.url)}
-                  >
-                    {renderSocialIcon(item.platform)}
-                  </TouchableOpacity>
-                ))}
+            {!!Userdata.Bio && (
+              <View style={styles.biobox}>
+                <Text style={[styles.biotext, { color: mutedText }]}>{Userdata.Bio}</Text>
               </View>
-            </View>
-            {!!websiteLink && (
-              <TouchableOpacity
-                style={styles.bioLinkWrap}
-                activeOpacity={0.7}
-                onPress={() => handleOpenSocialUrl(websiteLink)}
-              >
-                <Text style={styles.bioLinkText}>{websiteLink}</Text>
-              </TouchableOpacity>
+            )}
+            {(!!websiteLink || socialMediaLinks.length > 0) && (
+              <View style={styles.bioLinksAndSocialsRow}>
+                {!!websiteLink ? (
+                  <TouchableOpacity
+                    style={styles.bioLinkWrap}
+                    activeOpacity={0.7}
+                    onPress={() => handleOpenSocialUrl(websiteLink)}
+                  >
+                    <Text style={styles.bioLinkText} numberOfLines={1}>
+                      {websiteLink}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={{ flex: 1 }} />
+                )}
+                {socialMediaLinks.length > 0 && (
+                  <View style={styles.socialRow}>
+                    {socialMediaLinks.map(item => (
+                      <TouchableOpacity
+                        key={`${item.platform}-${item.url}`}
+                        style={styles.socialIconButton}
+                        activeOpacity={0.7}
+                        onPress={() => handleOpenSocialUrl(item.url)}
+                      >
+                        {renderSocialIcon(item.platform)}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
             )}
           </Animated.View>
         </View>
@@ -1728,74 +1765,68 @@ const ProfilePersonData = ({
           style={[styles.collapsibleProfileMiddle, { maxHeight: animatedMaxHeight, opacity: animatedOpacity }]}
         >
           {/* Valens Services Button */}
-          <View style={[styles.tabContainer, { height: 48, marginBottom: 6 }]}>
+          <View style={styles.actionBtnContainer}>
             <TouchableOpacity
-              style={[
-                styles.servicesButton,
-                {
-                  backgroundColor: isDarkMode
-                    ? (profileThemeIsCompany ? '#1E1E1E' : '#241536')
-                    : '#FFFFFF',
-                  borderColor: profileThemeIsCompany
-                    ? accent
-                    : (isDarkMode ? '#7C3AED' : '#8B5CF6'),
-                  shadowColor: profileThemeIsCompany ? accent : '#5B21B6',
-                },
-              ]}
+              style={[styles.battleBtnWrapper, { backgroundColor: accent, borderColor: accent }]}
               onPress={handleServicesPress}
-              activeOpacity={0.75}
+              activeOpacity={0.85}
             >
-              <View style={styles.servicesBtnInner}>
-                <Ionicons
-                  name="briefcase-outline"
-                  size={18}
-                  color={
-                    profileThemeIsCompany
-                      ? accent
-                      : (isDarkMode ? '#C4B5FD' : '#5B21B6')
-                  }
-                  style={{ marginRight: 8 }}
-                />
-                <Text
-                  style={[
-                    styles.servicesBtnText,
-                    {
-                      color: profileThemeIsCompany
-                        ? accent
-                        : (isDarkMode ? '#EDE9FE' : '#4C1D95'),
-                    },
-                  ]}
-                >
-                  {t('profilePersonData.services', 'Serviços')}
-                </Text>
-              </View>
+              <LinearGradient
+                colors={profileActionGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.battleBtn}
+              >
+                <View style={styles.servicesBtnInner}>
+                  <Ionicons
+                    name="briefcase-outline"
+                    size={16}
+                    color="#FFFFFF"
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={styles.servicesBtnText}>
+                    {t('profilePersonData.services', 'Serviços')}
+                  </Text>
+                </View>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
 
-          {/* Battle LIVE — shown above Open Battle when a battle is active */}
-          <View style={[styles.tabContainer, { marginBottom: -8, height: 50 }]}>
+          {/* Battle LIVE Button */}
+          <View style={styles.actionBtnContainer}>
             <TouchableOpacity
-              style={[styles.tab, { backgroundColor: accent, borderColor: accent }]}
+              style={[styles.battleBtnWrapper, { backgroundColor: accent, borderColor: accent }]}
               onPress={handleBattleTabPress}
+              activeOpacity={0.85}
             >
-              <View style={styles.tabContentRow}>
-                <Text style={[styles.tabText, styles.activeTabText, { color: '#fff' }]}>
-                  {t('profilePersonData.battle')}
-                </Text>
-                {hasLiveBattle && (
+              <LinearGradient
+                colors={profileActionGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.battleBtn}
+              >
+                <View style={styles.battleBtnInner}>
+                  <Text style={styles.battleBtnText}>
+                    {t('profilePersonData.battle', 'Battle') || 'Battle'}
+                  </Text>
                   <View style={styles.liveBadge}>
                     <Animated.View
-                      style={[styles.liveBadgeDot, { opacity: battleStatusPulseAnim }]}
+                      style={[
+                        styles.liveBadgeDot,
+                        { opacity: hasLiveBattle ? battleStatusPulseAnim : 1 },
+                      ]}
                     />
-                    <Text style={styles.liveBadgeText}>{t('profilePersonData.live')}</Text>
+                    <Text style={styles.liveBadgeText}>
+                      {t('profilePersonData.live', 'LIVE') || 'LIVE'}
+                    </Text>
                   </View>
-                )}
-              </View>
+                </View>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
 
           {/* Open Battle / Invite to Battle */}
-          <View style={[styles.tabContainer, { height: 50 }]}>
+          <View style={[styles.actionBtnContainer, { marginBottom: 6 }]}>
             {fromUsersProfile ? (
               <TouchableOpacity
                 style={[styles.battleBtnWrapper, { backgroundColor: accent, borderColor: accent }]}
@@ -2007,7 +2038,9 @@ export default ProfilePersonData;
 
 const styles = StyleSheet.create({
   container: {
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 4,
     borderRadius: 16,
   },
 
@@ -2017,7 +2050,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   usernameRow: {
     flex: 1,
@@ -2066,9 +2099,9 @@ const styles = StyleSheet.create({
 
   // --- Profile ---
   profile: {
-    marginTop: 2,
+    marginTop: 0,
     alignItems: 'flex-start',
-    marginBottom: 2,
+    marginBottom: 0,
   },
   profileView: {
     flexDirection: 'column',   // ← changed from 'row' to 'column'
@@ -2090,14 +2123,14 @@ const styles = StyleSheet.create({
   },
   verifiedAvatarBadge: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    width: 22,
-    height: 22,
-    borderRadius: 14,
+    top: 8,
+    left: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2.5,
+    borderWidth: 2,
     borderColor: '#FFFFFF',
     zIndex: 4,
     elevation: 4,
@@ -2115,9 +2148,10 @@ const styles = StyleSheet.create({
     borderWidth: 3,
   },
   displaynamee: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    marginTop: 6,
+    marginTop: 4,
+    marginBottom: 1,
     width: '100%',
   },
   image: {
@@ -2130,10 +2164,10 @@ const styles = StyleSheet.create({
   addbutton: {
     position: 'absolute',
     bottom: 0,
-    right: 10,
+    right: 6,
     borderRadius: 20,
-    width: 26,
-    height: 26,
+    width: 24,
+    height: 24,
     borderWidth: 2,
     borderColor: '#fff',
     alignItems: 'center',
@@ -2147,7 +2181,7 @@ const styles = StyleSheet.create({
   edit: {
     flexDirection: 'column',
     flex: 1.4,
-    gap: 6,
+    gap: 4,
     position: 'relative',
   },
   battleStatsContainer: {
@@ -2187,15 +2221,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   editbuttons: {
-    height: 36,
+    height: 31,
     width: '100%',
-    borderRadius: 12,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
     shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowRadius: 3,
   },
   followButtonWrap: {
     position: 'relative',
@@ -2203,16 +2237,16 @@ const styles = StyleSheet.create({
   },
   followActionsPopover: {
     position: 'absolute',
-    top: 42,
+    top: 35,
     left: 0,
     right: 0,
     zIndex: 999,
     overflow: 'hidden',
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 8,
     elevation: 10,
   },
   followActionsItem: {
@@ -2230,14 +2264,14 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   buttonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#fff',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   totalSupportPopover: {
     position: 'absolute',
-    top: 126,
+    top: 105,
     left: 0,
     right: 0,
     zIndex: 999,
@@ -2266,17 +2300,26 @@ const styles = StyleSheet.create({
   // --- Bio ---
   biobox: {
     width: '100%',
-    paddingVertical: 6,
-    marginTop: 2,
+    paddingTop: 1,
+    paddingBottom: 2,
   },
   biotext: {
     fontStyle: 'italic',
     color: '#374151',
-    fontSize: 14,
+    fontSize: 13.5,
+    lineHeight: 18,
+  },
+  bioLinksAndSocialsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 1,
+    marginBottom: 4,
   },
   bioLinkWrap: {
-    marginTop: 2,
-    marginBottom: 2,
+    flex: 1,
+    marginRight: 8,
   },
   bioLinkText: {
     color: '#1D9BF0',
@@ -2285,15 +2328,12 @@ const styles = StyleSheet.create({
   },
   socialRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
     alignItems: 'center',
-    width: '100%',
-    alignSelf: 'flex-end',
-    marginTop: 2,
-    marginBottom: 2,
+    justifyContent: 'flex-end',
+    flexShrink: 0,
   },
   socialIconButton: {
-    marginLeft: 10,
+    marginLeft: 8,
   },
   collapsibleProfileMiddle: {
     overflow: 'hidden',
@@ -2314,17 +2354,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 2,
-    marginBottom: 1,
+    marginBottom: 2,
   },
   statItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
   },
   statText: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '600',
-    marginLeft: 4,
+    marginLeft: 3,
   },
   infoButton: {
     width: 40,
@@ -2349,11 +2390,16 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
+  actionBtnContainer: {
+    width: '100%',
+    height: 38,
+    marginBottom: 5,
+  },
+
   battleBtnWrapper: {
     flex: 1,
     overflow: 'hidden',
-    borderRadius: 12,
-    // borderWidth: 1,
+    borderRadius: 10,
   },
 
   battleBtn: {
@@ -2365,15 +2411,16 @@ const styles = StyleSheet.create({
         paddingVertical: 0,
       },
       android: {
-        paddingVertical: 6,
+        paddingVertical: 4,
       },
     }),
   },
 
   battleBtnText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '700',
+    letterSpacing: 0.2,
     ...Platform.select({
       ios: {
         lineHeight: 18,
@@ -2395,15 +2442,21 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  battleBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   servicesBtnInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   servicesBtnText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.2,
+    color: '#FFFFFF',
   },
   tabContainer: {
     flexDirection: 'row',
@@ -2436,6 +2489,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 2,
+    marginLeft: 8,
   },
   liveBadgeDot: {
     width: 7,

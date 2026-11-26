@@ -2629,9 +2629,20 @@
     "cancel": "Cancel",
     "disconnect": "Disconnect",
     "disconnectSuccess": "Wallet disconnected",
-    "disconnectFailed": "Failed to disconnect wallet"
+    "disconnectFailed": "Failed to disconnect wallet",
+    "export": "Export",
+    "exportTitle": "Export Statement",
+    "exportSubtitle": "Choose your preferred document format to share or download",
+    "exportPdfTitle": "PDF Document (.pdf)",
+    "exportPdfDesc": "Formatted statement with summary, tables & branding",
+    "exportExcelTitle": "Excel Spreadsheet (.csv)",
+    "exportExcelDesc": "Compatible with Microsoft Excel, Numbers & Google Sheets",
+    "exporting": "Generating document...",
+    "exportSuccess": "Statement exported successfully"
   },
   "viewMissionPost": {
+    "missionCampaigns": "Mission Campaigns",
+    "activeCampaigns": "Active Campaigns",
     "loadingMissions": "Loading missions...",
     "failedToLoad": "Failed to load missions",
     "retry": "Retry",
@@ -4193,7 +4204,8 @@
     "services": "Services",
     "soon": "coming soon",
     "manageSubscribers": "Manage my subscribers",
-    "darkMode": "Dark Mode"
+    "darkMode": "Dark Mode",
+    "dralensAi": "Dralens AI"
   },
   "walletStack": {
     "buyMissionCredits": "Buy Mission Credits",
@@ -4218,7 +4230,7 @@
     "twoFactorAuth": "Two-Factor Auth",
     "loginHistory": "Login History",
     "subscriptionSetup": "Subscription Program Setup",
-    "viewMissionPost": "View Mission Post",
+    "viewMissionPost": "Mission Campaigns",
     "revenueFromSubscriptions": "Revenue From Subscriptions",
     "selectLanguage": "Select Language",
     "marketplaceAnalytics": "Marketplace Analytics",

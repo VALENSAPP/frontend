@@ -1,13 +1,19 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { useNavigation } from "@react-navigation/native";
 import Icon from 'react-native-vector-icons/Ionicons';
 import { LogoIcon } from '../../assets/icons';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useThemeContext } from '../../theme/ThemeContext';
 import { useLanguage } from '../../i18n';
+import { isBusinessProfileType } from '../../theme/theme';
 
 const { height } = Dimensions.get('window');
+
+const PERSONA_LAUNCH = require('../../assets/Valens Stickers/Valens Stickers/PNG/launchnew.png');
+const BUSINESS_LAUNCH = require('../../assets/Valens Stickers/Valens Stickers/PNG/launchG.png');
+const PERSONA_LEADING = require('../../assets/Valens Stickers/Valens Stickers/PNG/leading-remove.png');
+const BUSINESS_LEADING = require('../../assets/Valens Stickers/Valens Stickers/PNG/LeadingG.png');
 
 const AuthHeader = ({
   title = 'VALENS',
@@ -15,26 +21,44 @@ const AuthHeader = ({
   showBackButton = true,
   onBackPress,
   headerHeight = height * 0.3,
-  logoSize = 80,
+  logoSize,
   titleSize = 30,
   subtitleSize = 14,
   fromsetAccountType = false,
   profileType,
-  isFirstLaunch
+  isFirstLaunch,
+  mascotType, // 'launch' | 'leading'
+  mascotSource, // optional direct override
+  useLogoIcon = false, // fallback to SVG logo if needed
 }) => {
-  const { bgStyle, textStyle, bg, text, accent, mutedText, icon, card } = useAppTheme(profileType);
+  const isBusiness = isBusinessProfileType(profileType);
+  const resolvedProfileType = isBusiness ? 'company' : 'user';
+  const { bgStyle, textStyle, text, accent, mutedText, icon, card } = useAppTheme(resolvedProfileType);
   const { isDarkMode } = useThemeContext();
   const { t } = useLanguage();
   const navigation = useNavigation();
 
   const onPress = () => {
     navigation.navigate('Login');
-  }
+  };
+
+  const resolvedMascotType = mascotType || (fromsetAccountType ? 'leading' : 'launch');
+
+  const resolvedMascotSource = useMemo(() => {
+    if (mascotSource) return mascotSource;
+    if (resolvedMascotType === 'leading') {
+      return isBusiness ? BUSINESS_LEADING : PERSONA_LEADING;
+    }
+    return isBusiness ? BUSINESS_LAUNCH : PERSONA_LAUNCH;
+  }, [mascotSource, resolvedMascotType, isBusiness]);
+
+  const mascotWidth = logoSize || 120;
+  const mascotHeight = logoSize ? logoSize * 0.95 : 115;
 
   return (
-    <View style={[styles.headerGradient, { height: headerHeight }, !fromsetAccountType && bgStyle]}>
+    <View style={[styles.headerGradient, { minHeight: headerHeight }, !fromsetAccountType && bgStyle]}>
       <View style={styles.headerContent}>
-        {isFirstLaunch && (
+        {isFirstLaunch && showBackButton && (
           <TouchableOpacity
             style={[styles.backButton, { shadowColor: text, backgroundColor: isDarkMode ? card : 'rgba(255, 255, 255, 0.9)' }]}
             onPress={onBackPress}
@@ -44,9 +68,18 @@ const AuthHeader = ({
         )}
 
         <View style={styles.logoContainer}>
-          <View style={styles.logoBackground}>
-            <LogoIcon height={logoSize} width={logoSize} />
-          </View>
+          {useLogoIcon ? (
+            <View style={styles.logoBackground}>
+              <LogoIcon height={logoSize || 80} width={logoSize || 80} />
+            </View>
+          ) : (
+            <Image
+              source={resolvedMascotSource}
+              style={[styles.mascotImage, { width: mascotWidth, height: mascotHeight }]}
+              resizeMode="contain"
+            />
+          )}
+
           <View style={styles.brandContainer}>
             <Text style={[styles.brandTitle, { fontSize: titleSize }, textStyle]}>
               {title}
@@ -56,7 +89,7 @@ const AuthHeader = ({
                 <Text style={[styles.tagline, { fontSize: subtitleSize }, textStyle]}>
                   {subtitle}
                 </Text>
-                {(!isFirstLaunch && fromsetAccountType) && (
+                {fromsetAccountType && (
                   <View style={styles.loginContainer}>
                     <Text
                       style={[
@@ -100,7 +133,8 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   backButton: {
     position: 'absolute',
@@ -118,6 +152,9 @@ const styles = {
   logoContainer: {
     alignItems: 'center',
     zIndex: 2,
+  },
+  mascotImage: {
+    marginBottom: 6,
   },
   logoBackground: {
     borderRadius: 35,
@@ -155,16 +192,16 @@ const styles = {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    flexWrap: 'wrap', // optional for smaller screens
+    flexWrap: 'wrap',
   },
   loginBtn: {
-    marginLeft: 4,
-    paddingHorizontal: 4,
+    marginLeft: 6,
+    paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
     alignItems: "center",
     backgroundColor: "rgba(90, 45, 130, 0.12)",
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: "#5a2d82",
     overflow: "hidden",
   },

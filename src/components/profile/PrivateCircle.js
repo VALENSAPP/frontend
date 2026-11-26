@@ -232,17 +232,14 @@ const PrivateCircle = memo(({ isOwnProfile = false, onStartPress, route, userDat
   const isWalletPrivateCircle = skipPrivateCircleApi && !userData?.id;
 
   const resolvedThemeProfile = useMemo(() => {
-    // When accessed from Wallet / Drawer, use the business / creator owner theme
-    if (isWalletPrivateCircle) {
-      return 'company';
-    }
     // Prefer the *viewed* profile so a business viewer doesn't paint a simple profile gold.
     if (userData?.profile) {
       return normalizeProfileType(userData.profile);
     }
-    const fromViewer = reduxProfile && reduxProfile !== 'normal' ? reduxProfile : loggedInProfileType;
+    // When accessed from Wallet / Drawer or own profile, respect the logged-in user's profile type
+    const fromViewer = reduxProfile || loggedInProfileType;
     return normalizeProfileType(fromViewer || 'user');
-  }, [isWalletPrivateCircle, userData?.profile, reduxProfile, loggedInProfileType]);
+  }, [userData?.profile, reduxProfile, loggedInProfileType]);
 
   const isCompanyProfile = resolvedThemeProfile === 'company' || resolvedThemeProfile === 'business';
 

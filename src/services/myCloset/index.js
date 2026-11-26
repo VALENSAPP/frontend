@@ -500,7 +500,11 @@ export const createMarketplaceBattle = async ({
 };
 
 export const getMarketplaceBattleDetails = async (battleId) => {
-  return axiosInstance.get(`marketplace-battles/me/${battleId}`);
+  try {
+    return await axiosInstance.get(`marketplace-battles/me/${battleId}`);
+  } catch (_err) {
+    return axiosInstance.get(`marketplace-battles/${battleId}`);
+  }
 };
 
 export const deleteMarketplaceBattle = async battleId => {

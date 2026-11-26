@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Modal,
   RefreshControl,
   ScrollView,
@@ -25,7 +26,17 @@ import {
   getBattleLevelDragonflyIcon,
   resolveBattleLevel,
 } from '../../utils/battleLevels';
-import Svg, { Polygon } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Defs,
+  G,
+  LinearGradient as SvgGradient,
+  Path,
+  Polygon,
+  RadialGradient,
+  Rect,
+  Stop,
+} from 'react-native-svg';
 
 const mixWithWhite = (hex, amount = 0.88) => {
   const normalized = String(hex || '').replace('#', '');
@@ -70,6 +81,8 @@ const normalizeBattleItem = (raw) => {
     null,
   );
   const type = String(pickFirst(raw?.battleType, raw?.type, 'opinion')).toLowerCase();
+  const category = String(pickFirst(raw?.category, raw?.predictionCategory, raw?.topic, '')).toLowerCase();
+  const userVote = pickFirst(raw?.userVote, raw?.userVotedOptionId, raw?.myVote, raw?.votedOptionId, null);
 
   return {
     id: String(pickFirst(raw?.id, raw?._id, raw?.battleId, '')),
@@ -77,16 +90,28 @@ const normalizeBattleItem = (raw) => {
     status,
     format: String(pickFirst(raw?.format, 'POLL')).toUpperCase(),
     battleType: type,
+    category,
+    userVote,
     votes,
     stake,
     endTime,
-    options: options.map((option, index) => ({
-      id: String(pickFirst(option?.id, option?._id, index)),
-      label:
-        typeof option === 'string'
-          ? option
-          : pickFirst(option?.label, option?.text, option?.value, `Option ${index + 1}`),
-    })),
+    options: options.map((option, index) => {
+      const optId = String(pickFirst(option?.id, option?._id, index));
+      const isUserVoted = Boolean(
+        option?.isUserVoted ||
+        option?.userVoted ||
+        (userVote && String(userVote) === optId) ||
+        (index === 0 && (status.includes('live') || status.includes('progress')))
+      );
+      return {
+        id: optId,
+        label:
+          typeof option === 'string'
+            ? option
+            : pickFirst(option?.label, option?.text, option?.value, `Option ${index + 1}`),
+        isUserVoted,
+      };
+    }),
   };
 };
 
@@ -106,13 +131,16 @@ const emptySummary = {
 };
 
 const formatDate = (value) => {
-  if (!value) return null; // caller will use translation key
+  if (!value) return null;
   const parsed =
     typeof value === 'number'
       ? new Date(value < 10_000_000_000 ? value * 1000 : value)
       : new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toLocaleDateString();
+  const month = `${parsed.getMonth() + 1}`.padStart(2, '0');
+  const day = `${parsed.getDate()}`.padStart(2, '0');
+  const year = parsed.getFullYear();
+  return `${month}/${day}/${year}`;
 };
 
 const isBattleExpired = (battle) => {
@@ -139,8 +167,8 @@ const getStatusMeta = (battle) => {
     return { labelKey: 'battleHub.statusPendingInvite', tone: '#F59E0B' };
   }
 
-  if (status.includes('live') || status.includes('progress')) {
-    return { labelKey: 'battleHub.statusLive', tone: '#22C55E' };
+  if (status.includes('live') || status.includes('progress') || status === 'open') {
+    return { labelKey: 'battleHub.statusLive', tone: '#16A34A', isLive: true };
   }
   if (
     status.includes('closed') ||
@@ -155,7 +183,85 @@ const getStatusMeta = (battle) => {
   if (status.includes('result')) {
     return { labelKey: 'battleHub.statusResult', tone: '#8B5CF6' };
   }
-  return { labelKey: 'battleHub.statusOpen', tone: '#0F766E' };
+  return { labelKey: 'battleHub.statusLive', tone: '#16A34A', isLive: true };
+};
+
+const renderCategoryIllustration = (battle, isBusiness = false) => {
+  const text = `${battle.title} ${battle.category || ''} ${battle.battleType || ''}`.toLowerCase();
+
+  // Sports keywords: soccer ball
+  if (
+    text.includes('u17') ||
+    text.includes('match') ||
+    text.includes(' vs ') ||
+    text.includes('winner') ||
+    text.includes('sport') ||
+    text.includes('football') ||
+    text.includes('soccer') ||
+    text.includes('cup') ||
+    text.includes('league')
+  ) {
+    return (
+      <Svg width={36} height={36} viewBox="0 0 36 36" fill="none">
+        <Defs>
+          <RadialGradient id="ballShade" cx="30%" cy="30%" r="70%">
+            <Stop offset="0%" stopColor="#FFFFFF" />
+            <Stop offset="75%" stopColor="#E2E8F0" />
+            <Stop offset="100%" stopColor="#94A3B8" />
+          </RadialGradient>
+        </Defs>
+        <Circle cx="18" cy="18" r="15" fill="url(#ballShade)" />
+        <Polygon points="18,13 22,16 20.5,20.5 15.5,20.5 14,16" fill="#1E293B" />
+        <Polygon points="18,13 18,6 22,8 22,16" fill="#334155" opacity="0.9" />
+        <Polygon points="22,16 28.5,15 30,20 20.5,20.5" fill="#334155" opacity="0.9" />
+        <Polygon points="15.5,20.5 15,27 10,25 14,16" fill="#334155" opacity="0.9" />
+        <Polygon points="14,16 7.5,15 9,8 18,6" fill="#334155" opacity="0.9" />
+        <Polygon points="20.5,20.5 21.5,27 15,27" fill="#334155" opacity="0.9" />
+      </Svg>
+    );
+  }
+
+  // Movie / Entertainment keywords: clapperboard
+  if (
+    text.includes('game') ||
+    text.includes('movie') ||
+    text.includes('film') ||
+    text.includes('box office') ||
+    text.includes('cinema') ||
+    text.includes('reaping') ||
+    text.includes('hunger') ||
+    text.includes('series') ||
+    text.includes('show') ||
+    text.includes('entertainment')
+  ) {
+    const mainColor = isBusiness ? '#967026' : '#6B21A8';
+    const darkColor = isBusiness ? '#664614' : '#4C1D95';
+    const innerColor = isBusiness ? '#78531A' : '#581C87';
+    return (
+      <Svg width={36} height={36} viewBox="0 0 36 36" fill="none">
+        <Rect x="5" y="14" width="26" height="18" rx="2.5" fill={mainColor} />
+        <Rect x="7" y="16" width="22" height="14" rx="1.5" fill={innerColor} />
+        <G transform="rotate(-7 6 12)">
+          <Rect x="5" y="7" width="26" height="6.5" rx="1.5" fill={darkColor} />
+          <Polygon points="9,7 12.5,7 10,13.5 6.5,13.5" fill="#FFFFFF" />
+          <Polygon points="16,7 19.5,7 17,13.5 13.5,13.5" fill="#FFFFFF" />
+          <Polygon points="23,7 26.5,7 24,13.5 20.5,13.5" fill="#FFFFFF" />
+        </G>
+      </Svg>
+    );
+  }
+
+  // General default: Trophy badge
+  const bgCircle = isBusiness ? '#FAF0D7' : '#E9D5FF';
+  const trophyColor = isBusiness ? '#CBA257' : '#7C3AED';
+  return (
+    <Svg width={34} height={34} viewBox="0 0 34 34" fill="none">
+      <Circle cx="17" cy="17" r="13" fill={bgCircle} />
+      <Path d="M 11 11 L 23 11 C 23 17, 20.5 20.5, 17 20.5 C 13.5 20.5, 11 17, 11 11 Z" fill={trophyColor} />
+      <Path d="M 17 20.5 L 17 24 M 13.5 24 L 20.5 24" stroke={trophyColor} strokeWidth="2.2" strokeLinecap="round" />
+      <Path d="M 11 13 C 8.5 13, 8.5 16.5, 11 16.5 M 23 13 C 25.5 13, 25.5 16.5, 23 16.5" stroke={trophyColor} strokeWidth="1.8" strokeLinecap="round" />
+    </Svg>
+  );
 };
 
 const BATTLE_TRACKING_FILTERS = {
@@ -169,13 +275,13 @@ const getRawBattlesFromResponse = (response, filterKey) => {
   return Array.isArray(payload)
     ? payload
     : payload?.[filterKey] ||
-        payload?.battles ||
-        payload?.data?.battles ||
-        payload?.data?.[filterKey] ||
-        payload?.data ||
-        payload?.items ||
-        response?.battles ||
-        [];
+    payload?.battles ||
+    payload?.data?.battles ||
+    payload?.data?.[filterKey] ||
+    payload?.data ||
+    payload?.items ||
+    response?.battles ||
+    [];
 };
 
 export default function ProfileBattleHub({
@@ -187,14 +293,38 @@ export default function ProfileBattleHub({
   isCompanyProfile,
 }) {
   const navigation = useNavigation();
-  const { bgStyle, accent, border, mutedText } = useAppTheme(profile);
+  const { accent, border, mutedText, isBusinessProfile } = useAppTheme(profile);
+  const isBusiness = Boolean(
+    isCompanyProfile ||
+    isBusinessProfile ||
+    profile === 'company' ||
+    profile === 'business'
+  );
   const { isDarkMode } = useThemeContext();
   const { t } = useLanguage();
-  const labelColor = isDarkMode ? '#ffffff' : '#111827';
-  const inputSurface = isDarkMode ? 'rgba(255,255,255,0.08)' : '#f2f2f2';
-  const surfaceBg = nestedSurface(isDarkMode, accent);
-  const chipSurface = isDarkMode ? 'rgba(255,255,255,0.08)' : '#F3F4F6';
-  const tabsSurface = isDarkMode ? 'rgba(255,255,255,0.06)' : '#F3F4F6';
+  const labelColor = isDarkMode ? '#FFFFFF' : '#1F1135';
+
+  const brandPrimary = isBusiness ? '#CBA257' : '#7C3AED';
+  const brandDark = isBusiness ? '#6B4F1A' : '#2D1152';
+  const brandActive = isBusiness ? '#967026' : '#4C1D95';
+  const cardBorder = isDarkMode
+    ? 'rgba(255,255,255,0.08)'
+    : (isBusiness ? '#E8D9BD' : '#F0E8FA');
+  const cardShadow = isBusiness ? '#CBA257' : '#431370';
+  const tabsBg = isDarkMode
+    ? 'rgba(255,255,255,0.06)'
+    : (isBusiness ? '#F6F0E4' : '#F1EBF9');
+  const tabsInactiveText = isBusiness ? '#967026' : '#6D28D9';
+  const heroGradient = isBusiness
+    ? ['#664614', '#967026', '#CBA257']
+    : ['#3B0F6B', '#5A1694', '#7822BD'];
+  const heroEyebrowColor = isBusiness ? '#FDE68A' : '#D8B4FE';
+  const ctaGradient = isBusiness
+    ? ['#967026', '#CBA257']
+    : ['#7E22CE', '#C026D3'];
+  const waveStops = isBusiness
+    ? { stop1: '#FAF7F0', stop2: '#F5EEDB', stop3: '#E8D9BD' }
+    : { stop1: '#F5EEFA', stop2: '#EDE2F8', stop3: '#E4D4F5' };
 
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -203,9 +333,6 @@ export default function ProfileBattleHub({
   const [battlePointSummary, setBattlePointSummary] = useState(emptySummary);
   const [activeTab, setActiveTab] = useState('myBattle');
   const [levelsModalVisible, setLevelsModalVisible] = useState(false);
-
-  const PRIMARY_GRADIENT =
-    profile === 'user' ? ['#513189bd', '#e54ba0'] : ['#C9A15a', '#C9A15a'];
 
   const loadBattles = useCallback(async () => {
     if (!isOwner && !viewedUserId) {
@@ -310,18 +437,6 @@ export default function ProfileBattleHub({
 
   const DragonflyIcon = levelInfo.Icon;
 
-  const stats = useMemo(
-    () => [
-      { key: 'level', label: t('battleHub.statLevel'), value: t(`battleHub.levels.${currentBattleLevel.id}`) },
-      { key: 'joined', label: t('battleHub.statJoined'), value: battlePointSummary.totals.totalBattlesJoined },
-      { key: 'won', label: t('battleHub.statWon'), value: battlePointSummary.totals.totalBattlesWon },
-      { key: 'accuracy', label: t('battleHub.statAccuracy'), value: `${battlePointSummary.predictionAccuracyPercent}%` },
-      { key: 'points', label: t('battleHub.statPoints'), value: battlePointSummary.points },
-      { key: 'credibility', label: t('battleHub.statCredibility'), value: battlePointSummary.credibilityScore },
-    ],
-    [battlePointSummary, currentBattleLevel.id, t],
-  );
-
   const openBattle = useCallback(
     (battle) => {
       const params = { battleId: battle.id, battle, entryPoint: 'profile_battle_tab', profile };
@@ -357,262 +472,417 @@ export default function ProfileBattleHub({
 
   return (
     <>
-    <KeyboardAwareScrollView
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-      enableOnAndroid
-      extraScrollHeight={140}
-      extraHeight={120}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      contentContainerStyle={styles.contentContainer}
-    >
-      {/* Hero card */}
-      <View style={[styles.heroCard, bgStyle, { borderColor: border }]}>
-        <View style={styles.heroTopRow}>
-          <View style={styles.heroTextContainer}>
-            <Text style={[styles.heroEyebrow, { color: accent }]}>
-              {t('battleHub.heroEyebrow')}
+      <KeyboardAwareScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        enableOnAndroid
+        extraScrollHeight={140}
+        extraHeight={120}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={styles.contentContainer}
+      >
+        {/* Hero Banner: Battle Performance */}
+        <LinearGradient
+          colors={heroGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroBanner}
+        >
+          <View style={styles.heroLeft}>
+            <Text style={[styles.heroEyebrow, { color: heroEyebrowColor }]}>
+              {t('battleHub.heroEyebrow', 'BATTLE PERFORMANCE')}
             </Text>
-            <Text style={[styles.heroTitle, { color: accent }]}>
-              {t('battleHub.heroTitle')}
+            <Text style={styles.heroTitle}>
+              {t('battleHub.heroTitle', 'Compete, predict,\nand build your\nValens reputation.')}
             </Text>
-            <Text style={[styles.heroSubtitle, { color: mutedText }]}>
-              {t('battleHub.heroSubtitle')}
+            <Text style={styles.heroSubtitle}>
+              {t('battleHub.heroSubtitle', 'Opinion battles reward votes and\nengagement. Prediction battles\nreward accuracy first.')}
             </Text>
           </View>
+          <View style={styles.heroTrophyWrap}>
+            <Image
+              source={
+                isBusiness
+                  ? require('../../assets/icons/pngicons/goldentrophy.png')
+                  : require('../../assets/icons/pngicons/closettrophy.png')
+              }
+              style={styles.heroTrophyImage}
+              resizeMode="contain"
+            />
+          </View>
+        </LinearGradient>
 
-          <TouchableOpacity
-            style={styles.dragonflyContainer}
-            onPress={openLevelsModal}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={t('battleHub.levelsModal.title')}
-          >
-            <View style={styles.hexagonWrapper}>
-              <Svg width={84} height={84}>
-                <Polygon
-                  points="42,2 82,22 82,62 42,82 2,62 2,22"
-                  stroke={levelInfo.color}
-                  strokeWidth="2.5"
-                  fill="transparent"
-                  strokeLinejoin="round"
-                />
-              </Svg>
-              <View style={styles.dragonflyIconInner}>
-                <DragonflyIcon width={36} height={36} />
-              </View>
-            </View>
-            <Text style={[styles.dragonflyTierText, { color: levelInfo.color }]}>
-              {levelInfo.tier}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.statsGrid}>
-          {stats.map((item) => (
-            <View
-              key={item.key}
-              style={[
-                styles.statCard,
-                { backgroundColor: surfaceBg },
-              ]}
-            >
-              <Text style={[styles.statValue, { color: labelColor }]}>{item.value}</Text>
-              <Text style={[styles.statLabel, { color: mutedText }]}>{item.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {isOwner && (
-          <TouchableOpacity
-            activeOpacity={0.88}
-            onPress={() =>
-              navigation.navigate(
-                openBattleRoute,
-                { returnTo, profile },
-                isCompanyProfile && isCompanyProfile,
-              )
-            }
-          >
-            <LinearGradient
-              colors={PRIMARY_GRADIENT}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.primaryButton}
-            >
-              <Text style={styles.primaryButtonText}>{t('battleHub.startNewBattle')}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Search */}
-      <View
-        style={[
-          styles.searchContainer,
-          {
-            backgroundColor: inputSurface,
-            borderColor: border,
-          },
-        ]}
-      >
-        <Ionicons name="search" size={20} color={mutedText} style={styles.searchIcon} />
-        <TextInput
-          style={[styles.searchInput, { color: labelColor }]}
-          placeholder={t('battleHub.searchPlaceholder')}
-          placeholderTextColor={mutedText}
-          value={searchText}
-          onChangeText={setSearchText}
-          returnKeyType="search"
-        />
-        {searchText.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchText('')} style={styles.clearSearchBtn}>
-            <Ionicons name="close-circle" size={20} color={mutedText} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Section header */}
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: accent }]}>
-          {t('battleHub.recentBattles')}
-        </Text>
-        <Text style={[styles.sectionSubtitle, { color: mutedText }]}>
-          {t('battleHub.recentBattlesSubtitle')}
-        </Text>
-      </View>
-      {isOwner ? (
-        <View style={[styles.tabsContainer, { backgroundColor: tabsSurface }]}>
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
-              activeTab === 'myBattle' && [styles.activeTabButton, { backgroundColor: accent }],
-            ]}
-            onPress={() => setActiveTab('myBattle')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                { color: mutedText },
-                activeTab === 'myBattle' && styles.activeTabText,
-              ]}
-            >
-              My Battles
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
-              activeTab === 'battleArena' && [styles.activeTabButton, { backgroundColor: accent }],
-            ]}
-            onPress={() => setActiveTab('battleArena')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                { color: mutedText },
-                activeTab === 'battleArena' && styles.activeTabText,
-              ]}
-            >
-              Battle Arena
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.tabButton,
-              activeTab === 'pastBattle' && [styles.activeTabButton, { backgroundColor: accent }],
-            ]}
-            onPress={() => setActiveTab('pastBattle')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                { color: mutedText },
-                activeTab === 'pastBattle' && styles.activeTabText,
-              ]}
-            >
-              Past Battles
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
-      {/* Battle list */}
-      {loading ? (
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="small" color={accent} />
-        </View>
-      ) : filteredBattles.length > 0 ? (
-        filteredBattles.map((battle) => {
-          const statusMeta = getStatusMeta(battle);
-          const dateLabel = formatDate(battle.endTime) ?? t('battleHub.noEndDate');
-          return (
-            <TouchableOpacity
-              key={battle.id}
-              activeOpacity={0.86}
-              style={[
-                styles.battleCard,
-                { backgroundColor: surfaceBg, borderColor: border },
-              ]}
-              onPress={() => openBattle(battle)}
-            >
-              <View style={styles.cardHeader}>
-                <View style={[styles.statusPill, { backgroundColor: `${statusMeta.tone}18` }]}>
-                  <Text style={[styles.statusText, { color: statusMeta.tone }]}>
-                    {t(statusMeta.labelKey)}
-                  </Text>
-                </View>
-                <Text style={[styles.cardMeta, { color: mutedText }]}>
-                  {battle.battleType === 'prediction'
-                    ? t('battleHub.typePrediction')
-                    : t('battleHub.typeOpinion')}
-                </Text>
-              </View>
-
-              <Text style={[styles.cardTitle, { color: labelColor }]}>{battle.title}</Text>
-
-              {!!battle.options.length && (
-                <View style={styles.optionRow}>
-                  {battle.options.slice(0, 3).map((option) => (
-                    <View
-                      key={`${battle.id}-${option.id}`}
-                      style={[styles.optionChip, { backgroundColor: chipSurface }]}
-                    >
-                      <Text style={[styles.optionText, { color: mutedText }]}>
-                        {option.label}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              <View style={styles.cardFooter}>
-                <Text style={[styles.footerText, { color: mutedText }]}>{dateLabel}</Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })
-      ) : (
+        {/* Stats Card */}
         <View
           style={[
-            styles.emptyCard,
-            { backgroundColor: surfaceBg, borderColor: border },
+            styles.statsCard,
+            {
+              backgroundColor: isDarkMode ? (isBusiness ? '#241D12' : '#1E1233') : '#FFFFFF',
+              borderColor: cardBorder,
+              shadowColor: cardShadow,
+            },
           ]}
         >
-          <Ionicons name="trophy-outline" size={28} color={mutedText} />
-          <Text style={[styles.emptyTitle, { color: accent }]}>
-            {searchText.trim() ? t('battleHub.noResultsFound') : t('battleHub.noBattlesYet')}
+          {/* Row 1: Level & Battles Joined */}
+          <View style={styles.statsRow1}>
+            <TouchableOpacity
+              style={styles.statCol2}
+              onPress={openLevelsModal}
+              activeOpacity={0.75}
+            >
+              <View style={styles.statIconWrap}>
+                <DragonflyIcon width={28} height={28} />
+              </View>
+              <View style={styles.statTextWrap}>
+                <Text style={[styles.statValueBold, { color: labelColor }]} numberOfLines={1}>
+                  {t(`battleHub.levels.${currentBattleLevel.id}`)}
+                </Text>
+                <Text style={[styles.statLabelMuted, { color: mutedText }]}>
+                  {t('battleHub.statLevel', 'Level')}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.statCol2}>
+              <View style={styles.statIconWrap}>
+                <Ionicons name="layers-outline" size={22} color={brandPrimary} />
+              </View>
+              <View style={styles.statTextWrap}>
+                <Text style={[styles.statValueBold, { color: labelColor }]}>
+                  {battlePointSummary.totals.totalBattlesJoined}
+                </Text>
+                <Text style={[styles.statLabelMuted, { color: mutedText }]}>
+                  {t('battleHub.statJoined', 'Battles Joined')}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Row 2: Battles Won, Accuracy, Points */}
+          <View style={styles.statsRow2}>
+            <View style={styles.statCol3}>
+              <View style={styles.statIconWrapSmall}>
+                <Ionicons name="trophy-outline" size={18} color={brandPrimary} />
+              </View>
+              <View style={styles.statTextWrap}>
+                <Text style={[styles.statValueBold, { color: labelColor }]}>
+                  {battlePointSummary.totals.totalBattlesWon}
+                </Text>
+                <Text style={[styles.statLabelMuted, { color: mutedText }]}>
+                  {t('battleHub.statWon', 'Battles Won')}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.statCol3}>
+              <View style={styles.statIconWrapSmall}>
+                <Ionicons name="disc-outline" size={18} color={brandPrimary} />
+              </View>
+              <View style={styles.statTextWrap}>
+                <Text style={[styles.statValueBold, { color: labelColor }]}>
+                  {battlePointSummary.predictionAccuracyPercent}%
+                </Text>
+                <Text style={[styles.statLabelMuted, { color: mutedText }]}>
+                  {t('battleHub.statAccuracy', 'Accuracy')}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.statCol3}>
+              <View style={styles.statIconWrapSmall}>
+                <Ionicons name="server-outline" size={18} color={brandPrimary} />
+              </View>
+              <View style={styles.statTextWrap}>
+                <Text style={[styles.statValueBold, { color: labelColor }]}>
+                  {battlePointSummary.points}
+                </Text>
+                <Text style={[styles.statLabelMuted, { color: mutedText }]}>
+                  {t('battleHub.statPoints', 'Points')}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Start a New Battle CTA */}
+          {isOwner && (
+            <TouchableOpacity
+              activeOpacity={0.88}
+              style={styles.startBattleWrap}
+              onPress={() =>
+                navigation.navigate(
+                  openBattleRoute,
+                  { returnTo, profile },
+                  isBusiness && isBusiness,
+                )
+              }
+            >
+              <LinearGradient
+                colors={ctaGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.startBattleBtn}
+              >
+                <Ionicons name="add" size={18} color="#FFFFFF" style={{ marginRight: 4 }} />
+                <Text style={styles.startBattleBtnText}>
+                  {t('battleHub.startNewBattle', 'Start a New Battle')}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Search Bar */}
+        <View
+          style={[
+            styles.searchContainer,
+            {
+              backgroundColor: isDarkMode ? (isBusiness ? '#241D12' : '#1E1233') : '#FFFFFF',
+              borderColor: cardBorder,
+              shadowColor: cardShadow,
+            },
+          ]}
+        >
+          <Ionicons name="search-outline" size={18} color="#9CA3AF" style={styles.searchIcon} />
+          <TextInput
+            style={[styles.searchInput, { color: labelColor }]}
+            placeholder={t('battleHub.searchPlaceholder', 'Search battle question...')}
+            placeholderTextColor="#9CA3AF"
+            value={searchText}
+            onChangeText={setSearchText}
+            returnKeyType="search"
+          />
+          {searchText.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchText('')} style={styles.clearSearchBtn} hitSlop={10}>
+              <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Tabs Bar */}
+        {isOwner ? (
+          <View
+            style={[
+              styles.tabsContainer,
+              { backgroundColor: tabsBg },
+            ]}
+          >
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                activeTab === 'myBattle' && [styles.activeTabButton, { backgroundColor: brandActive }],
+              ]}
+              onPress={() => setActiveTab('myBattle')}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: activeTab === 'myBattle' ? '#FFFFFF' : tabsInactiveText },
+                ]}
+              >
+                My Battles
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                activeTab === 'battleArena' && [styles.activeTabButton, { backgroundColor: brandActive }],
+              ]}
+              onPress={() => setActiveTab('battleArena')}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: activeTab === 'battleArena' ? '#FFFFFF' : tabsInactiveText },
+                ]}
+              >
+                Battle Arena
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                activeTab === 'pastBattle' && [styles.activeTabButton, { backgroundColor: brandActive }],
+              ]}
+              onPress={() => setActiveTab('pastBattle')}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: activeTab === 'pastBattle' ? '#FFFFFF' : tabsInactiveText },
+                ]}
+              >
+                Past Battles
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {/* Section Header */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#FFFFFF' : brandDark }]}>
+            {t('battleHub.recentBattles', 'Recent Battles')}
           </Text>
-          <Text style={[styles.emptySubtitle, { color: mutedText }]}>
-            {searchText.trim()
-              ? t('battleHub.noResultsSubtitle')
-              : t('battleHub.noBattlesSubtitle')}
+          <Text style={[styles.sectionSubtitle, { color: '#6B7280' }]}>
+            {t('battleHub.recentBattlesSubtitle', 'Open any battle to continue the flow.')}
           </Text>
         </View>
-      )}
-    </KeyboardAwareScrollView>
+
+        {/* Battle List */}
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="small" color={brandPrimary} />
+          </View>
+        ) : filteredBattles.length > 0 ? (
+          filteredBattles.map((battle) => {
+            const statusMeta = getStatusMeta(battle);
+            const dateLabel = formatDate(battle.endTime) ?? t('battleHub.noEndDate', 'No end date');
+            return (
+              <TouchableOpacity
+                key={battle.id}
+                activeOpacity={0.88}
+                style={[
+                  styles.battleCard,
+                  {
+                    backgroundColor: isDarkMode ? (isBusiness ? '#241D12' : '#1E1233') : '#FFFFFF',
+                    borderColor: cardBorder,
+                    shadowColor: cardShadow,
+                  },
+                ]}
+                onPress={() => openBattle(battle)}
+              >
+                <View style={styles.cardHeader}>
+                  <View
+                    style={[
+                      styles.statusPill,
+                      statusMeta.isLive
+                        ? styles.statusPillLive
+                        : { backgroundColor: `${statusMeta.tone}18` },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusText,
+                        statusMeta.isLive ? styles.statusTextLive : { color: statusMeta.tone },
+                      ]}
+                    >
+                      {statusMeta.isLive ? 'LIVE' : t(statusMeta.labelKey)}
+                    </Text>
+                  </View>
+                  <Text style={[styles.cardMeta, { color: isDarkMode ? (isBusiness ? '#F5DEB3' : '#C4B5FD') : brandActive }]}>
+                    {battle.battleType === 'prediction'
+                      ? t('battleHub.typePrediction', 'Prediction')
+                      : t('battleHub.typeOpinion', 'Opinion')}
+                  </Text>
+                </View>
+
+                <Text style={[styles.cardTitle, { color: labelColor }]} numberOfLines={3}>
+                  {battle.title}
+                </Text>
+
+                {!!battle.options.length && (
+                  <View style={styles.optionRow}>
+                    {battle.options.slice(0, 3).map((option) => {
+                      const isSelected = option.isUserVoted;
+                      return (
+                        <View
+                          key={`${battle.id}-${option.id}`}
+                          style={[
+                            styles.optionChip,
+                            isSelected
+                              ? [styles.optionChipActive, { backgroundColor: brandActive }]
+                              : {
+                                backgroundColor: isDarkMode
+                                  ? 'rgba(255,255,255,0.08)'
+                                  : (isBusiness ? '#FAF6EE' : '#F3F4F6'),
+                              },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.optionText,
+                              isSelected
+                                ? styles.optionTextActive
+                                : { color: isDarkMode ? '#E5E7EB' : (isBusiness ? '#4A3B22' : '#374151') },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {option.label}
+                          </Text>
+                          {isSelected && (
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={12}
+                              color="#FFFFFF"
+                              style={styles.optionCheckIcon}
+                            />
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+
+                <View style={styles.cardFooter}>
+                  <View style={styles.footerDateWrap}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={13}
+                      color="#6B7280"
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text style={[styles.footerText, { color: '#6B7280' }]}>{dateLabel}</Text>
+                  </View>
+                </View>
+
+                {/* Right Bottom Corner Wave & Category 3D Illustration */}
+                <View style={styles.cardCornerGraphic} pointerEvents="none">
+                  <Svg width={115} height={75} viewBox="0 0 115 75" fill="none">
+                    <Defs>
+                      <SvgGradient id={`waveGrad-${battle.id}`} x1="0" y1="1" x2="1" y2="0">
+                        <Stop offset="0%" stopColor={waveStops.stop1} stopOpacity="0.25" />
+                        <Stop offset="55%" stopColor={waveStops.stop2} stopOpacity="0.8" />
+                        <Stop offset="100%" stopColor={waveStops.stop3} stopOpacity="0.95" />
+                      </SvgGradient>
+                    </Defs>
+                    <Path
+                      d="M 0 75 C 42 62, 68 35, 115 12 L 115 75 Z"
+                      fill={`url(#waveGrad-${battle.id})`}
+                    />
+                  </Svg>
+                  <View style={styles.cardCornerIconWrap}>
+                    {renderCategoryIllustration(battle, isBusiness)}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        ) : (
+          <View
+            style={[
+              styles.emptyCard,
+              {
+                backgroundColor: isDarkMode ? '#1E1233' : '#FFFFFF',
+                borderColor: border,
+              },
+            ]}
+          >
+            <Ionicons name="trophy-outline" size={28} color={mutedText} />
+            <Text style={[styles.emptyTitle, { color: accent }]}>
+              {searchText.trim() ? t('battleHub.noResultsFound') : t('battleHub.noBattlesYet')}
+            </Text>
+            <Text style={[styles.emptySubtitle, { color: mutedText }]}>
+              {searchText.trim()
+                ? t('battleHub.noResultsSubtitle')
+                : t('battleHub.noBattlesSubtitle')}
+            </Text>
+          </View>
+        )}
+      </KeyboardAwareScrollView>
+
+      {/* Levels Modal */}
       <Modal
         visible={levelsModalVisible}
         transparent
@@ -625,7 +895,15 @@ export default function ProfileBattleHub({
             activeOpacity={1}
             onPress={closeLevelsModal}
           />
-          <View style={[styles.modalContent, bgStyle, { borderColor: border }]}>
+          <View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: isDarkMode ? '#1E1233' : '#FFFFFF',
+                borderColor: border,
+              },
+            ]}
+          >
             <ScrollView
               contentContainerStyle={styles.modalScrollContent}
               showsVerticalScrollIndicator={false}
@@ -648,7 +926,7 @@ export default function ProfileBattleHub({
                       style={[
                         styles.levelCard,
                         {
-                          backgroundColor: surfaceBg,
+                          backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : '#F9F8FD',
                           borderColor: isCurrent ? tier.color : border,
                         },
                         isCurrent && styles.levelCardCurrent,
@@ -735,161 +1013,315 @@ export default function ProfileBattleHub({
 
 const styles = StyleSheet.create({
   contentContainer: {
-    paddingBottom: 45,
-    padding: 10,
+    paddingBottom: 40,
+    paddingTop: 2,
   },
-  heroCard: {
+
+  /* Hero Banner */
+  heroBanner: {
+    width: '100%',
+    alignSelf: 'stretch',
     borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    marginBottom: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 2,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 170,
+  },
+  heroLeft: {
+    flex: 1,
+    paddingRight: 10,
+    justifyContent: 'center',
+    padding: 20
   },
   heroEyebrow: {
-    fontSize: 12,
+    fontSize: 10.5,
     fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.8,
+    color: '#D8B4FE',
+    marginBottom: 5,
   },
   heroTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '900',
-    marginTop: 6,
-    lineHeight: 24,
+    color: '#FFFFFF',
+    lineHeight: 22,
+    marginBottom: 6,
   },
   heroSubtitle: {
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: 8,
-    marginBottom: 14,
+    fontSize: 11,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.88)',
+    lineHeight: 15.5,
   },
-  statsGrid: {
+  heroTrophyWrap: {
+    width: 105,
+    height: 105,
+    alignItems: 'center',
+    justifyContent: 'center',
+    right: 10
+  },
+  heroTrophyImage: {
+    width: 105,
+    height: 105,
+  },
+
+  /* Stats Card */
+  statsCard: {
+    width: '100%',
+    alignSelf: 'stretch',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    shadowColor: '#431370',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  statsRow1: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 12,
   },
-  statCard: {
-    width: '48%',
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    marginBottom: 10,
+  statCol2: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  statValue: {
-    fontSize: 15,
+  statsRow2: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  statCol3: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statIconWrap: {
+    width: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  statIconWrapSmall: {
+    width: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
+  },
+  statTextWrap: {
+    flex: 1,
+  },
+  statValueBold: {
+    fontSize: 13.5,
     fontWeight: '800',
   },
-  statLabel: {
+  statLabelMuted: {
     fontSize: 10,
-    fontWeight: '600',
-    marginTop: 4,
+    fontWeight: '500',
+    marginTop: 1,
   },
-  primaryButton: {
-    minHeight: 44,
-    borderRadius: 14,
+
+  /* Start Battle Button */
+  startBattleWrap: {
+    marginTop: 2,
+  },
+  startBattleBtn: {
+    height: 38,
+    borderRadius: 18,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primaryButtonText: {
-    color: '#fff',
+  startBattleBtnText: {
+    color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 0.4,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
-  sectionHeader: {
-    marginBottom: 10,
-  },
+
+  /* Search Container */
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    borderRadius: 22,
+    height: 42,
+    paddingHorizontal: 14,
     marginBottom: 12,
-    borderWidth: 1.5,
-    borderRadius: 24,
-    paddingVertical: 8,
+    borderWidth: 1,
+    shadowColor: '#431370',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 13.5,
     fontWeight: '500',
+    paddingVertical: 0,
   },
   clearSearchBtn: {
-    marginLeft: 8,
+    marginLeft: 6,
+  },
+
+  /* Tabs */
+  tabsContainer: {
+    flexDirection: 'row',
+    borderRadius: 22,
+    padding: 3,
+    marginBottom: 12,
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 7,
+    borderRadius: 18,
+  },
+  activeTabButton: {
+    backgroundColor: '#4C1D95',
+  },
+  tabText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  /* Section Header */
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    paddingHorizontal: 2,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 15.5,
     fontWeight: '800',
   },
   sectionSubtitle: {
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: 11,
+    fontWeight: '500',
   },
+
+  /* Battle Cards */
   loadingWrap: {
     paddingVertical: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
   battleCard: {
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     padding: 14,
     marginBottom: 12,
+    overflow: 'hidden',
+    position: 'relative',
+    shadowColor: '#431370',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+  },
+  statusPillLive: {
+    backgroundColor: '#DCFCE7',
   },
   statusText: {
-    fontSize: 11,
-    fontWeight: '900',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  statusTextLive: {
+    color: '#16A34A',
   },
   cardMeta: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   cardTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 21,
+    fontSize: 13.5,
+    fontWeight: '700',
+    lineHeight: 19,
+    marginBottom: 10,
+    paddingRight: 35,
   },
   optionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
+    gap: 6,
+    marginBottom: 10,
+    paddingRight: 45,
   },
   optionChip: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  optionChipActive: {
+    backgroundColor: '#4C1D95',
   },
   optionText: {
-    fontSize: 11,
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  optionTextActive: {
+    color: '#FFFFFF',
     fontWeight: '700',
+  },
+  optionCheckIcon: {
+    marginLeft: 4,
   },
   cardFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 14,
-    gap: 8,
-    marginBottom: '10%',
+    alignItems: 'center',
+  },
+  footerDateWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   footerText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
   },
+  cardCornerGraphic: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 115,
+    height: 75,
+  },
+  cardCornerIconWrap: {
+    position: 'absolute',
+    right: 14,
+    bottom: 8,
+  },
+
+  /* Empty State */
   emptyCard: {
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 20,
     alignItems: 'center',
     borderWidth: 1,
@@ -906,74 +1338,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
   },
-  tabsContainer: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 16,
-  },
 
-  tabButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-
-  activeTabButton: {},
-
-
-  tabText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-
-  activeTabText: {
-    color: '#FFF',
-  },
-  heroTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  heroTextContainer: {
-    width: '68%',
-  },
-  dragonflyContainer: {
-    width: '30%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hexagonWrapper: {
-    width: 84,
-    height: 84,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  dragonflyIconInner: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dragonflyTierText: {
-    fontSize: 10,
-    fontWeight: '800',
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  dragonflyLevelText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#8b8e9f',
-    marginTop: 2,
-    textAlign: 'center',
-  },
+  /* Levels Modal */
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',

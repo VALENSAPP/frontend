@@ -224,24 +224,75 @@ const getBattleParticipant = (battle, index) => {
   return buildBattleFallbackParticipant(battle, index);
 };
 
+const extractImageUrl = val => {
+  if (!val) return null;
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed || trimmed === '[object Object]' || trimmed === 'null' || trimmed === 'undefined') return null;
+    return trimmed;
+  }
+  if (typeof val === 'object') {
+    return (
+      extractImageUrl(val.url) ||
+      extractImageUrl(val.uri) ||
+      extractImageUrl(val.image) ||
+      extractImageUrl(val.imageUrl) ||
+      extractImageUrl(val.mediaUrl) ||
+      extractImageUrl(val.media) ||
+      extractImageUrl(val.picture) ||
+      extractImageUrl(val.pict) ||
+      extractImageUrl(val.pic) ||
+      extractImageUrl(val.photo) ||
+      extractImageUrl(val.thumbnail) ||
+      extractImageUrl(val.thumb) ||
+      extractImageUrl(val.src) ||
+      null
+    );
+  }
+  return null;
+};
+
 const buildBattleOptions = battle => {
   const rawOptions = Array.isArray(battle?.options) ? battle.options : [];
-  const optionImages = Array.isArray(battle?.optionImages) ? battle.optionImages : [];
+  const optionImages =
+    (Array.isArray(battle?.optionImages) && battle.optionImages.length > 0 && battle.optionImages) ||
+    (Array.isArray(battle?.optionsImages) && battle.optionsImages.length > 0 && battle.optionsImages) ||
+    (Array.isArray(battle?.images) && battle.images.length > 0 && battle.images) ||
+    (Array.isArray(battle?.pictures) && battle.pictures.length > 0 && battle.pictures) ||
+    (Array.isArray(battle?.optionMedia) && battle.optionMedia.length > 0 && battle.optionMedia) ||
+    (Array.isArray(battle?.media) && battle.media.length > 0 && battle.media) ||
+    (Array.isArray(battle?.raw?.optionImages) && battle.raw.optionImages.length > 0 && battle.raw.optionImages) ||
+    [];
+
   const normalizedOptions = rawOptions
     .map((option, index) => {
       const label = normalizeBattleOptionLabel(option, index);
       if (!label) return null;
+      const directImage =
+        extractImageUrl(optionImages[index]) ||
+        extractImageUrl(option?.image) ||
+        extractImageUrl(option?.imageUrl) ||
+        extractImageUrl(option?.mediaUrl) ||
+        extractImageUrl(option?.media) ||
+        extractImageUrl(option?.picture) ||
+        extractImageUrl(option?.pict) ||
+        extractImageUrl(option?.pic) ||
+        extractImageUrl(option?.optionImage) ||
+        extractImageUrl(option?.photo) ||
+        extractImageUrl(option?.thumbnail) ||
+        extractImageUrl(option?.thumb) ||
+        extractImageUrl(option?.url) ||
+        extractImageUrl(option?.uri) ||
+        extractImageUrl(battle?.raw?.options?.[index]?.image) ||
+        extractImageUrl(battle?.raw?.options?.[index]?.imageUrl) ||
+        extractImageUrl(battle?.raw?.options?.[index]?.picture) ||
+        extractImageUrl(battle?.raw?.options?.[index]?.pict) ||
+        null;
+
       return {
         id: String(option?.id || option?._id || label || index),
         label,
-        image: pickBattleDisplayText(
-          optionImages[index],
-          option?.optionImage,
-          option?.image,
-          option?.icon,
-          option?.picture,
-          option?.photo,
-        ),
+        image: directImage,
       };
     })
     .filter(Boolean);
@@ -250,7 +301,8 @@ const buildBattleOptions = battle => {
     return [getBattleParticipant(battle, 0), getBattleParticipant(battle, 1)]
       .map((participant, index) => {
         const label = pickBattleDisplayText(participant?.name, participant?.userName, `Option ${index + 1}`);
-        return { id: `fallback-${index + 1}`, label, image: optionImages[index] || participant?.avatar };
+        const fallbackImage = extractImageUrl(optionImages[index]) || extractImageUrl(participant?.avatar);
+        return { id: `fallback-${index + 1}`, label, image: fallbackImage };
       })
       .filter(item => item?.label);
   }
@@ -1269,6 +1321,10 @@ const SearchScreen = () => {
       const response = await exploretBattle();
       if (response?.statusCode === 200 || response?.status === 200) {
         const rawBattles = response?.data?.battles || response?.data?.data || response?.data || [];
+        console.log('🔍 [SearchScreen Explore Battles Fetched]:', {
+          count: Array.isArray(rawBattles) ? rawBattles.length : 0,
+          rawBattles,
+        });
         const normalizedBattles = [];
         const seenBattleIds = new Set();
         if (Array.isArray(rawBattles)) {
@@ -1279,11 +1335,13 @@ const SearchScreen = () => {
             normalizedBattles.push(mappedBattle);
           });
         }
+        console.log('📊 [SearchScreen Normalized Battles]:', normalizedBattles);
         setLiveBattles(normalizedBattles);
       } else {
         setLiveBattles([]);
       }
     } catch (error) {
+      console.error('❌ [SearchScreen Fetch Battles Error]:', error);
       setLiveBattles([]);
     } finally {
       setLoadingLiveBattles(false);
@@ -1371,7 +1429,7 @@ const SearchScreen = () => {
     return liveBattles.length > 0 ? liveBattles : [...liveBattles].sort((a, b) =>
       Number(b.totalParticipants || 0) - Number(a.totalParticipants || 0)
     );
-  }, [liveBattles, getBattleFeedType]);
+  }, [liveBattles]);
 
   // ─── Stable callbacks passed down to memoized children ──────────────────
   const handleUserProfile = useCallback(user => {
@@ -1409,13 +1467,16 @@ const SearchScreen = () => {
       params: {
         userId: String(targetId),
         username: user?.userName || user?.username || '',
+        user,
+        userData: user,
+        profileType: user?.profile || user?.profileType,
         returnTo: 'Search',
         returnParams: route?.params,
         stackName: 'Search',
         battleLive: Boolean(user?.battleLive || user?.isBattleLive) || Number(String(targetId).slice(-1)) % 3 === 0,
       },
     });
-  }, [navigation, route?.name, route?.params, userId, t, fetchSearchHistory]);
+  }, [navigation, route?.params, userId, t, fetchSearchHistory]);
 
   const handlePostPress = useCallback((item, isVideo) => {
     const uniqueKey = Date.now().toString();
@@ -1613,6 +1674,14 @@ const SearchScreen = () => {
     const tbb = String(raw?.typeByBattle || battleItem?.typeByBattle || '').toLowerCase();
     const chosenOption = optionLabel || selectedBattleOptionsRef.current[battleItem?.id] || '';
 
+    console.log('👆 [SearchScreen Battle Card Pressed]:', {
+      id: battleItem?.id,
+      format: fmt,
+      typeByBattle: tbb,
+      chosenOption,
+      rawBattle: raw,
+    });
+
     // Boosted product — open the winner product detail
     if (fmt === 'boosted' || tbb === 'boosted_product') {
       const bwp = raw?.battleWinnerProduct || {};
@@ -1674,23 +1743,67 @@ const SearchScreen = () => {
 
     // Marketplace battle
     if (fmt === 'marketplace' || String(battleItem?.typeByBattle || '').toLowerCase() === 'marketplace') {
+      const resolvedBattleId = String(
+        battleItem?.id ||
+        battleItem?._id ||
+        battleItem?.battleId ||
+        raw?.id ||
+        raw?._id ||
+        raw?.battleId ||
+        ''
+      );
       const mappedBattle = mapBattle(battleItem.raw || battleItem, 0);
+      const effectiveBattleId = resolvedBattleId || mappedBattle?.id;
+      const isOwnProfileBattle = Boolean(
+        userId && (
+          String(userId) === String(mappedBattle?.closet?.id || mappedBattle?.closetId || battleItem?.raw?.closet?.id || battleItem?.raw?.closetId || mappedBattle?.closet?.userId || battleItem?.raw?.sellerId || '')
+        )
+      );
+
+      console.log('🛍️ [SearchScreen Navigating to BattleLive]:', {
+        battleId: effectiveBattleId,
+        mappedBattle,
+        isOwnProfile: isOwnProfileBattle,
+      });
+
       navigateToBattleLive(navigation, {
-        battleId: mappedBattle?.id,
-        initialBattle: mappedBattle?.raw || mappedBattle,
+        battleId: effectiveBattleId,
+        initialBattle: mappedBattle?.raw || battleItem.raw || battleItem,
         userProfile: profile,
         entryPoint: 'search',
         profileType: battleProfileType,
         returnTo: { tab: 'Search', screen: 'SearchHome', params: route?.params || {} },
         selectedItems: [mappedBattle?.left, mappedBattle?.right].filter(Boolean),
-        isOwnProfile: String(userId || '') === String(mappedBattle?.closet?.id || mappedBattle?.closetId || battleItem?.raw?.closet?.id || battleItem?.raw?.closetId || ''),
+        isOwnProfile: isOwnProfileBattle,
         returnToProfile: buildClosetReturnTo({
-          isOwnProfile: String(userId || '') === String(mappedBattle?.closet?.id || mappedBattle?.closetId || battleItem?.raw?.closet?.id || battleItem?.raw?.closetId || ''),
+          isOwnProfile: isOwnProfileBattle,
           sellerProfile: profile,
           sellerId: route?.params?.sellerId || route?.params?.seller?.id,
         }),
       });
       return;
+    }
+
+    console.log('⚔️ [SearchScreen Navigating to BattleInProgress]:', {
+      battleId: battleItem?.id,
+      battle: battleItem,
+      chosenOption,
+    });
+
+    if (navigation?.navigate) {
+      try {
+        navigation.navigate('BattleInProgress', {
+          battleId: battleItem?.id,
+          battle: battleItem,
+          entryPoint: 'search',
+          selectedOption: chosenOption,
+          returnTo: { tab: 'Search', screen: 'SearchHome', params: route.params || {} },
+          returnParams: route.params,
+          profile,
+          profileType: battleProfileType,
+        });
+        return;
+      } catch (_e) {}
     }
 
     navigation.navigate('ProfileMain', {
@@ -1761,7 +1874,7 @@ const SearchScreen = () => {
       onLongPress={openPreview}
       text={text}
     />
-  ), [isScreenFocused, previewVisible, isSearchActive, playingVideoIndexes, donationTotals, handlePostPress, openPreview]);
+  ), [isScreenFocused, previewVisible, isSearchActive, playingVideoIndexes, donationTotals, handlePostPress, openPreview, text]);
 
   const masonryKeyExtractor = useCallback((item, idx) =>
     item?.post?.id ? `${item.post.id}-${item.post.imageIndex ?? 0}` : `masonry-${idx}`,
@@ -2103,6 +2216,13 @@ const SearchScreen = () => {
                             // width + height matched, explicit gap to next card
                             if (rawFmt === 'marketplace') {
                               const mappedBattle = mapBattle(item.raw || item, i);
+                              console.log(`🛍️ [Rendering Marketplace Battle Card #${i}]:`, {
+                                id: item.id || mappedBattle.id,
+                                title: mappedBattle?.title,
+                                leftItem: mappedBattle?.left,
+                                rightItem: mappedBattle?.right,
+                                raw: item.raw || item,
+                              });
                               return (
                                 <View
                                   key={item.id || mappedBattle.id}
@@ -2137,6 +2257,14 @@ const SearchScreen = () => {
                             }
 
                             // Normal battle (POLL / HEAD_TO_HEAD) — measured for height reference
+                            console.log(`⚔️ [Rendering Normal Battle Card #${i}]:`, {
+                              id: item.id,
+                              format: item.format,
+                              title: item.title,
+                              options: item.options,
+                              creator: item.creator,
+                              raw: item.raw || item,
+                            });
                             return (
                               <View key={item.id} onLayout={handleBattleCardLayout}>
                                 <BattleCard

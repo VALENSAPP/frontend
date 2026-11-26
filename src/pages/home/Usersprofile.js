@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,6 +6,7 @@ import {
   Keyboard,
   DeviceEventEmitter,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRoute, useNavigation } from '@react-navigation/native';
@@ -39,20 +40,43 @@ const Usersprofile = () => {
   const targetUserId = route.params?.userId || route.params?.params?.userId;
   const initialTab = route.params?.initialTab || route.params?.params?.initialTab; 
 
-  const screenParams = route?.params?.params || route?.params || {};
+  const screenParams = useMemo(
+    () => route?.params?.params || route?.params || {},
+    [route?.params],
+  );
   const returnTo = screenParams?.returnTo;
   const battleLiveFromRoute = Boolean(screenParams?.battleLive);
 
-  const passedUserData =
-    screenParams?.userData ||
-    screenParams?.user ||
-    route.params?.userData ||
-    route.params?.user ||
-    null;
+  const passedUserData = useMemo(
+    () =>
+      screenParams?.userData ||
+      screenParams?.user ||
+      route.params?.userData ||
+      route.params?.user ||
+      null,
+    [screenParams, route.params],
+  );
+
+  const passedProfileType = useMemo(
+    () =>
+      screenParams?.profileType ||
+      screenParams?.profile ||
+      screenParams?.user?.profile ||
+      screenParams?.userData?.profile ||
+      route.params?.profileType ||
+      route.params?.profile ||
+      route.params?.user?.profile ||
+      route.params?.userData?.profile ||
+      passedUserData?.profile ||
+      passedUserData?.profileType ||
+      null,
+    [screenParams, route.params, passedUserData],
+  );
 
   const [posts, setPosts] = useState([]);
   const [userDashboard, setUserDashboard] = useState();
   const [userData, setUserData] = useState(passedUserData);
+  const [initialLoading, setInitialLoading] = useState(!passedUserData);
   const [refreshing, setRefreshing] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followsMe, setFollowsMe] = useState(false);
@@ -74,9 +98,14 @@ const Usersprofile = () => {
   const purchaseSheetRef = useRef(null);
   const sellSheetRef = useRef(null);
   const profileThemeType = normalizeProfileType(
-    userData?.profile || screenParams?.profileType || route.params?.profileType || 'user',
+    userData?.profile || passedProfileType || 'user',
   );
-  const { bgStyle, textStyle, accent } = useAppTheme(profileThemeType);
+  const { bgStyle, textStyle, accent, isDarkMode } = useAppTheme(profileThemeType);
+
+  useEffect(() => {
+    setUserData(passedUserData);
+    setInitialLoading(!passedUserData);
+  }, [targetUserId, passedUserData]);
 
   const fetchLoggedInUserId = useCallback(async () => {
     try {
@@ -246,6 +275,7 @@ const Usersprofile = () => {
       console.error('Error fetching profile screen data:', error);
       showToastMessage(toast, 'danger', t('usersProfile.networkError'));
     } finally {
+      setInitialLoading(false);
       dispatch(hideLoader());
     }
   }, [targetUserId, toast, dispatch, fetchProfile, fetchLoggedInUserId, checkSubscriptionStatus, checkFollowsMe, t]);
@@ -376,18 +406,22 @@ const Usersprofile = () => {
     }, [fetchAllData, fetchLoggedInUserId, navigation, resetProfileHeader, returnTo, screenParams, targetUserId]),
   );
 
+  const effectiveProfileTypeToEmit = normalizeProfileType(
+    userData?.profile || passedProfileType || null,
+  );
+
   useFocusEffect(
     useCallback(() => {
-      if (userData?.profile) {
+      if (effectiveProfileTypeToEmit) {
         DeviceEventEmitter.emit('VIEWED_PROFILE_THEME', {
-          profileType: normalizeProfileType(userData.profile),
+          profileType: effectiveProfileTypeToEmit,
         });
       }
 
       return () => {
         DeviceEventEmitter.emit('VIEWED_PROFILE_THEME', { profileType: null });
       };
-    }, [userData?.profile]),
+    }, [effectiveProfileTypeToEmit]),
   );
 
   const onRefresh = wrapOnRefresh(async () => {
@@ -419,7 +453,7 @@ const Usersprofile = () => {
     sellSheetRef.current?.close();
     showToastMessage(toast, 'success', t('usersProfile.tokensSoldSuccess'));
     await fetchAllData();
-  }, [fetchAllData, toast]);
+  }, [fetchAllData, toast, t]);
 
   const handleModalClose = useCallback(() => {
     Keyboard.dismiss();
@@ -430,6 +464,20 @@ const Usersprofile = () => {
 
   if (redirectingToOwnProfile || isOwnProfileView) {
     return null;
+  }
+
+  if (initialLoading && !userData) {
+    const isCompanyCandidate = profileThemeType === 'company';
+    const loaderBg = isCompanyCandidate
+      ? bgStyle?.backgroundColor || (isDarkMode ? '#1E1B16' : '#FAF7F0')
+      : (isDarkMode ? '#121212' : '#FFFFFF');
+    const loaderColor = isCompanyCandidate ? accent : (isDarkMode ? '#CBA257' : '#402090');
+
+    return (
+      <SafeAreaView style={[styles.container, styles.loaderCenter, { backgroundColor: loaderBg }]}>
+        <ActivityIndicator size="large" color={loaderColor} />
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -556,6 +604,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingBottom: 20,
+  },
+  loaderCenter: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollContainer: {
     flexGrow: 1,

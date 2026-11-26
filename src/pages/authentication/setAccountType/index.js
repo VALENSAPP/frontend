@@ -9,7 +9,7 @@ import {
     ScrollView,
 } from "react-native";
 import Icon from "react-native-vector-icons/Ionicons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -34,7 +34,7 @@ const AnimatedBackground = () => {
         floatAnim1.value = withTiming(1, { duration: 6000 });
         floatAnim2.value = withTiming(1, { duration: 8000 });
         floatAnim3.value = withTiming(1, { duration: 7000 });
-    }, []);
+    }, [floatAnim1, floatAnim2, floatAnim3]);
 
     const style1 = useAnimatedStyle(() => ({
         transform: [{ translateY: floatAnim1.value * 30 - 15 }],
@@ -279,6 +279,7 @@ const SelectAccountType = () => {
     const styles = createStyles();
     const { height } = Dimensions.get("window");
     const navigation = useNavigation();
+    const route = useRoute();
     const { t } = useLanguage();
 
     useEffect(() => {
@@ -317,11 +318,11 @@ const SelectAccountType = () => {
                 <View style={styles.contentContainer}>
                     <AuthHeader
                         subtitle={t('selectAccountType.subtitle')}
-                        // showBackButton={true}
                         headerHeight={height * 0.28}
                         fromsetAccountType={true}
                         onBackPress={() => navigation.goBack()}
                         isFirstLaunch={isFirstLaunch}
+                        profileType={route?.params?.profile}
                     />
 
                     <View style={styles.cardsContainer}>

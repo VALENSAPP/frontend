@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,20 +9,35 @@ import {
   Image,
   Share,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { saveService } from './servicesStorage';
+import {
+  createServiceDraft,
+  updateService,
+  uploadServiceCover,
+  setTicketTypes,
+  getServiceDetails,
+  publishService,
+  getServiceMetaTypes,
+} from '../../../services/proServices';
+import {
+  formatPriceWithUnit,
+  getDeviceTimezone,
+  mapReadinessToStep,
+} from '../../../services/proServices/helpers';
 
-const EVENT_TYPES = [
-  { id: 'birthday', name: 'Birthday Party', desc: "Celebrate life's special moments.", icon: 'gift-outline' },
-  { id: 'bachelorette', name: 'Bachelorette Party', desc: 'Fun, unforgettable celebrations.', icon: 'wine-outline' },
-  { id: 'corporate', name: 'Corporate Event', desc: 'Conferences, meetups & networking.', icon: 'business-outline' },
-  { id: 'theater', name: 'Theater / Show', desc: 'Live performances & plays.', icon: 'film-outline' },
-  { id: 'nightclub', name: 'Nightclub Entry', desc: 'Party & exclusive admission.', icon: 'musical-notes-outline' },
-  { id: 'concert', name: 'Concert / Festival', desc: 'Live music & festivals.', icon: 'headset-outline' },
-  { id: 'workshop', name: 'Workshop / Class', desc: 'Learning & interactive events.', icon: 'school-outline' },
-  { id: 'other', name: 'Other Event', desc: 'Custom event type.', icon: 'ellipsis-horizontal-circle-outline' },
+const FALLBACK_CATEGORIES = [
+  { id: 'Birthday Party', name: 'Birthday Party', desc: "Celebrate life's special moments.", icon: 'gift-outline' },
+  { id: 'Bachelorette Party', name: 'Bachelorette Party', desc: 'Fun, unforgettable celebrations.', icon: 'wine-outline' },
+  { id: 'Corporate Event', name: 'Corporate Event', desc: 'Conferences, meetups & networking.', icon: 'business-outline' },
+  { id: 'Theater / Show', name: 'Theater / Show', desc: 'Live performances & plays.', icon: 'film-outline' },
+  { id: 'Nightclub Entry', name: 'Nightclub Entry', desc: 'Party & exclusive admission.', icon: 'musical-notes-outline' },
+  { id: 'Concert / Festival', name: 'Concert / Festival', desc: 'Live music & festivals.', icon: 'headset-outline' },
+  { id: 'Workshop / Class', name: 'Workshop / Class', desc: 'Learning & interactive events.', icon: 'school-outline' },
+  { id: 'Other Event', name: 'Other Event', desc: 'Custom event type.', icon: 'ellipsis-horizontal-circle-outline' },
 ];
 
 export default function EventFlow({
@@ -32,607 +47,802 @@ export default function EventFlow({
   onBack,
   onFinish,
   userProfilePic,
+  initialServiceId = null,
 }) {
-  // Step: 1 = Choose Event Type, 2 = Create Event, 3 = Set Details, 4 = Tickets & Pricing, 5 = Review, 6 = All Set
+  // Step: 1 = Choose Category, 2 = Create Event, 3 = Set Details, 4 = Tickets & Pricing, 5 = Review, 6 = All Set
   const [step, setStep] = useState(1);
+  const [serviceId, setServiceId] = useState(initialServiceId);
+  const [loading, setLoading] = useState(false);
+  const [publishLoading, setPublishLoading] = useState(false);
 
-  const [selectedType, setSelectedType] = useState(EVENT_TYPES[0]);
+  // Theme accents
+  const brandAccent = colors?.primary?.[0] || '#7C3AED';
+  const textColor = colors?.text || (isDarkMode ? '#FFFFFF' : '#111827');
+  const mutedColor = colors?.textMuted || (isDarkMode ? '#9CA3AF' : '#6B7280');
+  const cardBg = isDarkMode ? '#1E1B2E' : '#FFFFFF';
+  const border = colors?.border || (isDarkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)');
+  const inputBg = isDarkMode ? '#252033' : '#F9FAFB';
+
+  // Meta categories
+  const [categories, setCategories] = useState(FALLBACK_CATEGORIES);
+  const [selectedCategory, setSelectedCategory] = useState(FALLBACK_CATEGORIES[0].name);
+
+  // Step 2: Basic info
   const [eventTitle, setEventTitle] = useState('Glow Birthday Party');
   const [description, setDescription] = useState(
     "Let's celebrate my birthday with good vibes, music and unforgettable memories!",
   );
-  const [location, setLocation] = useState('Luminous Lounge, 123 Party Street, Miami, FL 33101, USA');
-  const [date, setDate] = useState('Saturday, June 15, 2024');
-  const [startTime, setStartTime] = useState('9:00 PM');
-  const [endTime, setEndTime] = useState('2:00 AM');
-  const [ageRestriction, setAgeRestriction] = useState('21+');
+  const [coverUri, setCoverUri] = useState(null);
+
+  // Step 3: Venue & Times
+  const [venueName, setVenueName] = useState('Luminous Lounge');
+  const [venueAddress, setVenueAddress] = useState('123 Party Street, Miami, FL 33101, USA');
+  const [eventDate, setEventDate] = useState('2027-06-15');
+  const [startTime, setStartTime] = useState('21:00');
+  const [endTime, setEndTime] = useState('02:00');
+  const [ageRestriction, setAgeRestriction] = useState('21');
   const [dressCode, setDressCode] = useState('Dress to impress');
 
+  // Step 4: Tickets & Sales Window
   const [tickets, setTickets] = useState([
-    { id: '1', type: 'Early Bird', subtitle: 'Limited time offer', price: '25.00', count: 100 },
-    { id: '2', type: 'General Admission', subtitle: 'Standard entry', price: '40.00', count: 200 },
-    { id: '3', type: 'VIP Access', subtitle: 'Skip the line + VIP area', price: '80.00', count: 50 },
+    { name: 'Early Bird', description: 'Limited time offer', price: 25, quantity: 100 },
+    { name: 'General Admission', description: 'Standard entry', price: 40, quantity: 200 },
+    { name: 'VIP Access', description: 'Skip the line + VIP area', price: 80, quantity: 50 },
   ]);
-  const [salesStart, setSalesStart] = useState('May 1, 2024 at 10:00 AM');
-  const [salesEnd, setSalesEnd] = useState('June 15, 2024 at 9:00 PM');
+  const [salesStartAt, setSalesStartAt] = useState('2027-05-01T10:00:00');
+  const [salesEndAt, setSalesEndAt] = useState('2027-06-15T18:00:00');
 
-  const updateTicketCount = (id, delta) => {
-    setTickets(prev =>
-      prev.map(tk => (tk.id === id ? { ...tk, count: Math.max(10, tk.count + delta) } : tk)),
-    );
+  // Step 5: Review
+  const [serviceDetails, setServiceDetails] = useState(null);
+  const [readinessProblems, setReadinessProblems] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const typesRes = await getServiceMetaTypes();
+        if (typesRes.success && typesRes.data?.eventCategories) {
+          const list = typesRes.data.eventCategories.map(name => ({
+            id: name,
+            name,
+            desc: `${name} experience and gathering.`,
+            icon: 'ticket-outline',
+          }));
+          setCategories(list);
+          if (list[0]) setSelectedCategory(list[0].name);
+        }
+      } catch (_) {}
+    })();
+  }, []);
+
+  const updateTicketField = (index, field, value) => {
+    const updated = [...tickets];
+    updated[index] = { ...updated[index], [field]: value };
+    setTickets(updated);
   };
 
   const addTicketType = () => {
-    const newTk = {
-      id: String(Date.now()),
-      type: 'VIP Table Experience',
-      subtitle: 'Reserved bottle service',
-      price: '150.00',
-      count: 20,
-    };
-    setTickets(prev => [...prev, newTk]);
+    if (tickets.length >= 10) {
+      Alert.alert('Limit Reached', 'Up to 10 ticket types allowed.');
+      return;
+    }
+    setTickets([
+      ...tickets,
+      {
+        name: 'VIP Table Experience',
+        description: 'Reserved table & premium admission',
+        price: 150,
+        quantity: 20,
+      },
+    ]);
   };
 
-  const handleConfirm = async () => {
-    const serviceData = {
-      id: `svc_event_${Date.now()}`,
-      type: 'event',
-      title: eventTitle.trim() || 'Glow Birthday Party',
-      subtitle: `${date} • ${startTime} – ${endTime}`,
-      category: selectedType.name,
-      location,
-      date,
-      time: `${startTime} – ${endTime}`,
-      ageRestriction,
-      dressCode,
-      tickets: tickets.map(tk => ({ type: tk.type, price: tk.price, count: tk.count, sold: 0 })),
-      price: tickets[0]?.price || '40.00',
-      status: 'active',
-      totalSold: 0,
-      createdAt: new Date().toISOString(),
-      icon: 'ticket-outline',
-    };
+  const removeTicketType = index => {
+    if (tickets.length <= 1) {
+      Alert.alert('Required', 'An event requires at least one ticket type.');
+      return;
+    }
+    setTickets(tickets.filter((_, i) => i !== index));
+  };
 
-    await saveService(serviceData);
-    setStep(6);
+  // STEP 1 -> STEP 2
+  const handleSelectCategory = catName => {
+    setSelectedCategory(catName);
+    setStep(2);
+  };
+
+  // STEP 2 -> STEP 3 (Create event draft)
+  const handleStep2Continue = async () => {
+    if (!eventTitle.trim()) {
+      Alert.alert('Required', 'Please enter an event title.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const payload = {
+        type: 'EVENT',
+        category: selectedCategory,
+        title: eventTitle.trim(),
+        description: description.trim(),
+        format: 'IN_PERSON',
+      };
+
+      let id = serviceId;
+      if (!id) {
+        const res = await createServiceDraft(payload);
+        if (res.success && res.data?.id) {
+          id = res.data.id;
+          setServiceId(id);
+        } else {
+          Alert.alert('Error', res.message || 'Failed to create event draft.');
+          setLoading(false);
+          return;
+        }
+      } else {
+        const res = await updateService(id, payload);
+        if (!res.success) {
+          Alert.alert('Error', res.message || 'Failed to update event draft.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // If cover image was selected
+      if (coverUri && id) {
+        try {
+          await uploadServiceCover(id, coverUri);
+        } catch (_) {}
+      }
+
+      setStep(3);
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to save event.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // STEP 3 -> STEP 4 (Set venue & dates)
+  const handleStep3Continue = async () => {
+    if (!serviceId) return;
+    if (!venueName.trim() || !venueAddress.trim()) {
+      Alert.alert('Required', 'Please enter venue name and address.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Build ISO date strings
+      // Handle overnight end time
+      let endDateStr = eventDate;
+      const startH = parseInt(startTime.split(':')[0], 10);
+      const endH = parseInt(endTime.split(':')[0], 10);
+      if (endH < startH) {
+        // End time is next morning
+        const d = new Date(eventDate);
+        d.setDate(d.getDate() + 1);
+        endDateStr = d.toISOString().split('T')[0];
+      }
+
+      const startIso = `${eventDate}T${startTime}:00Z`;
+      const endIso = `${endDateStr}T${endTime}:00Z`;
+
+      const ageNum = parseInt(ageRestriction.replace(/[^0-9]/g, ''), 10) || 0;
+
+      const eventPayload = {
+        event: {
+          venueName: venueName.trim(),
+          venueAddress: venueAddress.trim(),
+          startAt: startIso,
+          endAt: endIso,
+          ageRestriction: ageNum,
+          dressCode: dressCode.trim(),
+        },
+      };
+
+      const res = await updateService(serviceId, eventPayload);
+      if (res.success) {
+        setStep(4);
+      } else {
+        Alert.alert('Error', res.message || 'Failed to save event details.');
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to save event details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // STEP 4 -> STEP 5 (Set tickets & sales window, then check review)
+  const handleStep4Continue = async () => {
+    if (!serviceId) return;
+    if (tickets.length === 0) {
+      Alert.alert('Required', 'Please add at least one ticket type.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 1. PUT ticket-types
+      const formattedTickets = tickets.map(tk => ({
+        ...(tk.id ? { id: tk.id } : {}),
+        name: tk.name.trim(),
+        description: tk.description?.trim() || '',
+        price: Number(tk.price) || 0,
+        quantity: parseInt(tk.quantity, 10) || 1,
+      }));
+
+      const ticketRes = await setTicketTypes(serviceId, formattedTickets);
+      if (!ticketRes.success) {
+        Alert.alert('Error', ticketRes.message || 'Failed to save tickets.');
+        setLoading(false);
+        return;
+      }
+
+      // 2. Sales window PATCH
+      const salesPayload = {
+        event: {
+          salesStartAt: salesStartAt.includes('Z') ? salesStartAt : `${salesStartAt}Z`,
+          salesEndAt: salesEndAt.includes('Z') ? salesEndAt : `${salesEndAt}Z`,
+        },
+      };
+      await updateService(serviceId, salesPayload);
+
+      // 3. Load review details
+      const reviewRes = await getServiceDetails(serviceId);
+      if (reviewRes.success && reviewRes.data) {
+        setServiceDetails(reviewRes.data);
+        setReadinessProblems(reviewRes.data.readiness?.problems || []);
+      }
+
+      setStep(5);
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to save ticket pricing.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // STEP 5 -> PUBLISH
+  const handlePublish = async () => {
+    if (!serviceId) return;
+    setPublishLoading(true);
+    try {
+      const res = await publishService(serviceId);
+      if (res.success) {
+        setStep(6);
+      } else {
+        Alert.alert(
+          'Cannot Publish Event',
+          res.message || 'Please complete all required fields and ensure dates are in the future.',
+        );
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to publish event.');
+    } finally {
+      setPublishLoading(false);
+    }
   };
 
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Join me at ${eventTitle}! Get tickets on Valens: https://valens.app/events/glow`,
-        title: eventTitle,
+        message: `Join me at ${eventTitle}! Book your tickets on Valens: ${venueName}`,
       });
     } catch (_) {}
   };
 
-  const renderProgressBar = (curr, total = 4) => (
-    <View style={styles.progressWrap}>
-      <Text style={[styles.stepIndicatorText, { color: colors.muted }]}>
-        Step {curr} of {total}
-      </Text>
-      <View style={styles.progressBarTrack}>
-        {Array.from({ length: total }).map((_, i) => (
-          <View
-            key={`step-${i}`}
-            style={[
-              styles.progressBarSegment,
-              {
-                backgroundColor: i < curr ? colors.accent : (isDarkMode ? colors.cardBorder : (colors.divider || (colors.isBusiness ? '#F0E2C8' : '#E9D7FD'))),
-              },
-            ]}
-          />
-        ))}
-      </View>
-    </View>
-  );
-
-  // STEP 1: CHOOSE EVENT TYPE
+  // ─────────────────────────────────────────────────────────────────────────
+  // STEP 1: CHOOSE CATEGORY
+  // ─────────────────────────────────────────────────────────────────────────
   if (step === 1) {
     return (
-      <View style={styles.flex}>
+      <View style={[styles.root, { backgroundColor: cardBg }]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={onBack} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
-            <Ionicons name="chevron-back" size={22} color={colors.title} />
+          <TouchableOpacity onPress={onBack} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="arrow-back" size={24} color={textColor} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.title }]}>Choose Event Type</Text>
-          <View style={{ width: 40 }} />
+          <Text style={[styles.headerTitle, { color: textColor }]}>Choose Event Type</Text>
+          <View style={{ width: 24 }} />
         </View>
 
-        <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          <Text style={[styles.stepSubHeading, { color: colors.title }]}>
-            What type of event are you creating?
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <Text style={[styles.stepIndicator, { color: brandAccent }]}>STEP 1 OF 4</Text>
+          <Text style={[styles.screenTitle, { color: textColor }]}>Select Event Category</Text>
+          <Text style={[styles.screenSub, { color: mutedColor }]}>
+            Pick the format that best fits your gathering or live experience.
           </Text>
 
-          <View style={styles.gridWrap}>
-            {EVENT_TYPES.map(cat => {
-              const isSelected = selectedType.id === cat.id;
-              return (
-                <TouchableOpacity
-                  key={cat.id}
-                  onPress={() => setSelectedType(cat)}
-                  activeOpacity={0.8}
-                  style={[
-                    styles.gridItem,
-                    {
-                      backgroundColor: colors.card,
-                      borderColor: isSelected ? colors.accent : colors.cardBorder,
-                      borderWidth: isSelected ? 2 : 1,
-                    },
-                  ]}
-                >
-                  <View style={[styles.gridIconWrap, { backgroundColor: isSelected ? colors.accent : colors.iconBg }]}>
-                    <Ionicons name={cat.icon} size={22} color={isSelected ? '#FFFFFF' : colors.accent} />
-                  </View>
-                  <Text style={[styles.gridTitle, { color: colors.title }]}>{cat.name}</Text>
-                  <Text style={[styles.gridDesc, { color: colors.muted }]} numberOfLines={2}>
-                    {cat.desc}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </ScrollView>
-
-        <View style={[styles.bottomBar, { backgroundColor: colors.surface }]}>
-          <TouchableOpacity onPress={() => setStep(2)} activeOpacity={0.85} style={styles.primaryContinueBtn}>
-            <LinearGradient
-              colors={colors.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.primaryContinueGradient}
-            >
-              <Text style={styles.primaryContinueText}>Continue</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  // STEP 2: CREATE EVENT (Title, description, category, photo)
-  if (step === 2) {
-    return (
-      <View style={styles.flex}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => setStep(1)} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
-            <Ionicons name="chevron-back" size={22} color={colors.title} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.title }]}>Create Event</Text>
-          <View style={{ width: 40 }} />
-        </View>
-
-        <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          {renderProgressBar(1, 4)}
-
-          <View style={styles.iconCircleWrap}>
-            <View style={[styles.bigIconBubble, { backgroundColor: colors.iconBg }]}>
-              <Ionicons name="calendar" size={32} color={colors.accent} />
-            </View>
-          </View>
-
-          <Text style={[styles.fieldLabel, { color: colors.title }]}>Event Title</Text>
-          <TextInput
-            value={eventTitle}
-            onChangeText={setEventTitle}
-            placeholder="e.g. Glow Birthday Party"
-            placeholderTextColor={colors.muted}
-            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.cardBorder, color: colors.title }]}
-          />
-
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
-            <Text style={[styles.fieldLabel, { color: colors.title }]}>Short Description</Text>
-            <Text style={[styles.counterText, { color: colors.muted }]}>{description.length}/300</Text>
-          </View>
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Tell guests about your event..."
-            placeholderTextColor={colors.muted}
-            multiline
-            numberOfLines={4}
-            maxLength={300}
-            style={[styles.input, styles.textArea, { backgroundColor: colors.card, borderColor: colors.cardBorder, color: colors.title }]}
-          />
-
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 16 }]}>Event Category</Text>
-          <View style={[styles.readOnlyField, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <Text style={[styles.readOnlyText, { color: colors.title }]}>{selectedType.name}</Text>
-            <Ionicons name="checkmark-circle" size={18} color={colors.accent} />
-          </View>
-
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 16 }]}>Event Image</Text>
-          <View style={[styles.imagePickerCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <LinearGradient colors={colors.btnGradient} style={styles.imagePlaceholder}>
-              <Ionicons name="sparkles" size={32} color="#FFFFFF" />
-              <Text style={styles.imagePlaceholderText}>Party Banner Image</Text>
-            </LinearGradient>
-            <TouchableOpacity style={[styles.changeImgBtn, { backgroundColor: colors.surface }]}>
-              <Ionicons name="camera-outline" size={18} color={colors.title} />
-              <Text style={[styles.changeImgText, { color: colors.title }]}>Change Image</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-
-        <View style={[styles.bottomBar, { backgroundColor: colors.surface }]}>
-          <TouchableOpacity onPress={() => setStep(3)} activeOpacity={0.85} style={styles.primaryContinueBtn}>
-            <LinearGradient
-              colors={colors.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.primaryContinueGradient}
-            >
-              <Text style={styles.primaryContinueText}>Continue</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  // STEP 3: SET DETAILS (Location, Date, Time, Age restriction, Dress code)
-  if (step === 3) {
-    return (
-      <View style={styles.flex}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => setStep(2)} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
-            <Ionicons name="chevron-back" size={22} color={colors.title} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.title }]}>Set Details</Text>
-          <View style={{ width: 40 }} />
-        </View>
-
-        <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          {renderProgressBar(2, 4)}
-
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 12 }]}>Location</Text>
-          <View style={[styles.addressInputWrap, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <Ionicons name="location" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-            <TextInput
-              value={location}
-              onChangeText={setLocation}
-              placeholder="Venue address"
-              placeholderTextColor={colors.muted}
-              style={[styles.addressInput, { color: colors.title }]}
-            />
-          </View>
-
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 16 }]}>Date</Text>
-          <View style={[styles.addressInputWrap, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <Ionicons name="calendar-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-            <TextInput
-              value={date}
-              onChangeText={setDate}
-              placeholder="e.g. Saturday, June 15, 2024"
-              placeholderTextColor={colors.muted}
-              style={[styles.addressInput, { color: colors.title }]}
-            />
-          </View>
-
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 16 }]}>Time</Text>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <View style={[styles.addressInputWrap, { flex: 1, backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-              <Ionicons name="time-outline" size={16} color={colors.accent} style={{ marginRight: 6 }} />
-              <TextInput
-                value={startTime}
-                onChangeText={setStartTime}
-                placeholder="Start"
-                placeholderTextColor={colors.muted}
-                style={[styles.addressInput, { color: colors.title }]}
-              />
-            </View>
-            <View style={{ justifyContent: 'center' }}>
-              <Text style={{ color: colors.muted, fontWeight: '700' }}>to</Text>
-            </View>
-            <View style={[styles.addressInputWrap, { flex: 1, backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-              <Ionicons name="time-outline" size={16} color={colors.accent} style={{ marginRight: 6 }} />
-              <TextInput
-                value={endTime}
-                onChangeText={setEndTime}
-                placeholder="End"
-                placeholderTextColor={colors.muted}
-                style={[styles.addressInput, { color: colors.title }]}
-              />
-            </View>
-          </View>
-
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 16 }]}>Age Restriction</Text>
-          <View style={styles.pillsRow}>
-            {['All Ages', '18+', '21+'].map(a => (
+          {categories.map(cat => {
+            const isSelected = selectedCategory === cat.name;
+            return (
               <TouchableOpacity
-                key={a}
-                onPress={() => setAgeRestriction(a)}
+                key={cat.id || cat.name}
+                activeOpacity={0.88}
+                onPress={() => handleSelectCategory(cat.name)}
                 style={[
-                  styles.pillOption,
+                  styles.categoryCard,
                   {
-                    backgroundColor: ageRestriction === a ? colors.accent : colors.card,
-                    borderColor: ageRestriction === a ? colors.accent : colors.cardBorder,
+                    borderColor: isSelected ? brandAccent : border,
+                    backgroundColor: isSelected ? (isDarkMode ? 'rgba(124, 58, 237, 0.12)' : 'rgba(124, 58, 237, 0.06)') : inputBg,
                   },
                 ]}
               >
-                <Text style={[styles.pillOptionText, { color: ageRestriction === a ? '#FFFFFF' : colors.title }]}>
-                  {a}
-                </Text>
+                <View style={[styles.catIconWrap, { backgroundColor: brandAccent }]}>
+                  <Ionicons name={cat.icon || 'ticket-outline'} size={20} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.catName, { color: textColor }]}>{cat.name}</Text>
+                  <Text style={[styles.catDesc, { color: mutedColor }]}>{cat.desc}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={mutedColor} />
               </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 16 }]}>Dress Code (Optional)</Text>
-          <TextInput
-            value={dressCode}
-            onChangeText={setDressCode}
-            placeholder="e.g. Dress to impress, All White, Casual"
-            placeholderTextColor={colors.muted}
-            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.cardBorder, color: colors.title }]}
-          />
+            );
+          })}
         </ScrollView>
-
-        <View style={[styles.bottomBar, { backgroundColor: colors.surface }]}>
-          <TouchableOpacity onPress={() => setStep(4)} activeOpacity={0.85} style={styles.primaryContinueBtn}>
-            <LinearGradient
-              colors={colors.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.primaryContinueGradient}
-            >
-              <Text style={styles.primaryContinueText}>Continue</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
       </View>
     );
   }
 
-  // STEP 4: TICKETS & PRICING
-  if (step === 4) {
+  // ─────────────────────────────────────────────────────────────────────────
+  // STEP 2: CREATE EVENT
+  // ─────────────────────────────────────────────────────────────────────────
+  if (step === 2) {
     return (
-      <View style={styles.flex}>
+      <View style={[styles.root, { backgroundColor: cardBg }]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => setStep(3)} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
-            <Ionicons name="chevron-back" size={22} color={colors.title} />
+          <TouchableOpacity onPress={() => setStep(1)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="arrow-back" size={24} color={textColor} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.title }]}>Tickets & Pricing</Text>
-          <View style={{ width: 40 }} />
+          <Text style={[styles.headerTitle, { color: textColor }]}>Create Event</Text>
+          <View style={{ width: 24 }} />
         </View>
 
-        <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          {renderProgressBar(3, 4)}
-
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 12, marginBottom: 10 }]}>
-            Ticket Types
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <Text style={[styles.stepIndicator, { color: brandAccent }]}>STEP 2 OF 4</Text>
+          <Text style={[styles.screenTitle, { color: textColor }]}>Event Basics</Text>
+          <Text style={[styles.screenSub, { color: mutedColor }]}>
+            Category: <Text style={{ color: brandAccent, fontWeight: '700' }}>{selectedCategory}</Text>
           </Text>
 
-          {tickets.map(tk => (
-            <View key={tk.id} style={[styles.ticketTierCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.ticketTypeTitle, { color: colors.title }]}>{tk.type}</Text>
-                <Text style={[styles.ticketSubtitle, { color: colors.muted }]}>{tk.subtitle}</Text>
-                <Text style={[styles.ticketPrice, { color: colors.accent }]}>${tk.price}</Text>
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: textColor }]}>Event Title *</Text>
+            <TextInput
+              value={eventTitle}
+              onChangeText={setEventTitle}
+              placeholder="e.g. Glow Birthday Party"
+              placeholderTextColor={mutedColor}
+              maxLength={120}
+              style={[styles.input, { color: textColor, borderColor: border, backgroundColor: inputBg }]}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: textColor }]}>Description *</Text>
+            <TextInput
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Tell guests what to expect, highlights, music, and vibe..."
+              placeholderTextColor={mutedColor}
+              multiline
+              numberOfLines={4}
+              maxLength={5000}
+              style={[styles.textArea, { color: textColor, borderColor: border, backgroundColor: inputBg }]}
+            />
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.88}
+            disabled={loading}
+            onPress={handleStep2Continue}
+            style={[styles.continueBtn, { backgroundColor: brandAccent, marginTop: 12 }]}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.continueBtnText}>Continue to Date & Location</Text>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // STEP 3: SET DETAILS (VENUE, TIME, AGE, DRESS CODE)
+  // ─────────────────────────────────────────────────────────────────────────
+  if (step === 3) {
+    return (
+      <View style={[styles.root, { backgroundColor: cardBg }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => setStep(2)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="arrow-back" size={24} color={textColor} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: textColor }]}>Date & Venue</Text>
+          <View style={{ width: 24 }} />
+        </View>
+
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <Text style={[styles.stepIndicator, { color: brandAccent }]}>STEP 3 OF 4</Text>
+          <Text style={[styles.screenTitle, { color: textColor }]}>Where & When</Text>
+          <Text style={[styles.screenSub, { color: mutedColor }]}>
+            Set the venue, event timing in 24-hour format, and guest guidelines.
+          </Text>
+
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: textColor }]}>Venue Name *</Text>
+            <TextInput
+              value={venueName}
+              onChangeText={setVenueName}
+              placeholder="e.g. Luminous Lounge"
+              placeholderTextColor={mutedColor}
+              style={[styles.input, { color: textColor, borderColor: border, backgroundColor: inputBg }]}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: textColor }]}>Venue Full Address *</Text>
+            <TextInput
+              value={venueAddress}
+              onChangeText={setVenueAddress}
+              placeholder="123 Party Street, Miami, FL 33101, USA"
+              placeholderTextColor={mutedColor}
+              style={[styles.input, { color: textColor, borderColor: border, backgroundColor: inputBg }]}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: textColor }]}>Event Date (YYYY-MM-DD) *</Text>
+            <TextInput
+              value={eventDate}
+              onChangeText={setEventDate}
+              placeholder="2027-06-15"
+              placeholderTextColor={mutedColor}
+              style={[styles.input, { color: textColor, borderColor: border, backgroundColor: inputBg }]}
+            />
+          </View>
+
+          <View style={styles.row}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={[styles.label, { color: textColor }]}>Start Time (24h)</Text>
+              <TextInput
+                value={startTime}
+                onChangeText={setStartTime}
+                placeholder="21:00"
+                placeholderTextColor={mutedColor}
+                style={[styles.input, { color: textColor, borderColor: border, backgroundColor: inputBg }]}
+              />
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.label, { color: textColor }]}>End Time (24h)</Text>
+              <TextInput
+                value={endTime}
+                onChangeText={setEndTime}
+                placeholder="02:00"
+                placeholderTextColor={mutedColor}
+                style={[styles.input, { color: textColor, borderColor: border, backgroundColor: inputBg }]}
+              />
+            </View>
+          </View>
+
+          <View style={[styles.row, { marginTop: 12 }]}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={[styles.label, { color: textColor }]}>Min Age</Text>
+              <TextInput
+                value={ageRestriction}
+                onChangeText={setAgeRestriction}
+                placeholder="21"
+                keyboardType="numeric"
+                placeholderTextColor={mutedColor}
+                style={[styles.input, { color: textColor, borderColor: border, backgroundColor: inputBg }]}
+              />
+            </View>
+
+            <View style={{ flex: 1.5 }}>
+              <Text style={[styles.label, { color: textColor }]}>Dress Code</Text>
+              <TextInput
+                value={dressCode}
+                onChangeText={setDressCode}
+                placeholder="Dress to impress"
+                placeholderTextColor={mutedColor}
+                style={[styles.input, { color: textColor, borderColor: border, backgroundColor: inputBg }]}
+              />
+            </View>
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.88}
+            disabled={loading}
+            onPress={handleStep3Continue}
+            style={[styles.continueBtn, { backgroundColor: brandAccent, marginTop: 20 }]}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.continueBtnText}>Continue to Tickets & Pricing</Text>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // STEP 4: TICKETS & PRICING
+  // ─────────────────────────────────────────────────────────────────────────
+  if (step === 4) {
+    return (
+      <View style={[styles.root, { backgroundColor: cardBg }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => setStep(3)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="arrow-back" size={24} color={textColor} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: textColor }]}>Tickets & Pricing</Text>
+          <View style={{ width: 24 }} />
+        </View>
+
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <Text style={[styles.stepIndicator, { color: brandAccent }]}>STEP 4 OF 4</Text>
+          <Text style={[styles.screenTitle, { color: textColor }]}>Ticket Tiers & Capacity</Text>
+          <Text style={[styles.screenSub, { color: mutedColor }]}>
+            Set up ticket tiers (price 0 = free ticket). Fee for events is 6.99%.
+          </Text>
+
+          {tickets.map((tk, idx) => (
+            <View key={idx} style={[styles.ticketCard, { borderColor: border, backgroundColor: inputBg }]}>
+              <View style={styles.rowBetween}>
+                <Text style={[styles.ticketNumber, { color: brandAccent }]}>TIER #{idx + 1}</Text>
+                {tickets.length > 1 && (
+                  <TouchableOpacity onPress={() => removeTicketType(idx)}>
+                    <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                  </TouchableOpacity>
+                )}
               </View>
 
-              {/* Quantity Counter */}
-              <View style={[styles.ticketCounterWrap, { backgroundColor: colors.surface }]}>
-                <TouchableOpacity onPress={() => updateTicketCount(tk.id, -25)} style={styles.counterBtn}>
-                  <Text style={[styles.counterSymbol, { color: colors.title }]}>−</Text>
-                </TouchableOpacity>
-                <Text style={[styles.counterVal, { color: colors.title }]}>{tk.count}</Text>
-                <TouchableOpacity onPress={() => updateTicketCount(tk.id, 25)} style={styles.counterBtn}>
-                  <Text style={[styles.counterSymbol, { color: colors.title }]}>+</Text>
-                </TouchableOpacity>
+              <TextInput
+                value={tk.name}
+                onChangeText={v => updateTicketField(idx, 'name', v)}
+                placeholder="Tier name (e.g. Early Bird)"
+                placeholderTextColor={mutedColor}
+                style={[styles.input, { color: textColor, borderColor: border, backgroundColor: cardBg, marginTop: 6 }]}
+              />
+
+              <TextInput
+                value={tk.description}
+                onChangeText={v => updateTicketField(idx, 'description', v)}
+                placeholder="Description / perks"
+                placeholderTextColor={mutedColor}
+                style={[styles.input, { color: textColor, borderColor: border, backgroundColor: cardBg, marginTop: 6 }]}
+              />
+
+              <View style={[styles.row, { marginTop: 6 }]}>
+                <View style={{ flex: 1, marginRight: 6 }}>
+                  <Text style={[styles.subHint, { color: mutedColor }]}>Price ($)</Text>
+                  <TextInput
+                    value={String(tk.price)}
+                    onChangeText={v => updateTicketField(idx, 'price', v.replace(/[^0-9.]/g, ''))}
+                    keyboardType="decimal-pad"
+                    placeholder="25"
+                    placeholderTextColor={mutedColor}
+                    style={[styles.input, { color: textColor, borderColor: border, backgroundColor: cardBg }]}
+                  />
+                </View>
+
+                <View style={{ flex: 1, marginLeft: 6 }}>
+                  <Text style={[styles.subHint, { color: mutedColor }]}>Quantity</Text>
+                  <TextInput
+                    value={String(tk.quantity)}
+                    onChangeText={v => updateTicketField(idx, 'quantity', v.replace(/[^0-9]/g, ''))}
+                    keyboardType="numeric"
+                    placeholder="100"
+                    placeholderTextColor={mutedColor}
+                    style={[styles.input, { color: textColor, borderColor: border, backgroundColor: cardBg }]}
+                  />
+                </View>
               </View>
             </View>
           ))}
 
-          <TouchableOpacity onPress={addTicketType} style={styles.addTicketRow}>
-            <Ionicons name="add-circle-outline" size={20} color={colors.accent} style={{ marginRight: 6 }} />
-            <Text style={[styles.addTicketText, { color: colors.accent }]}>+ Add Another Ticket Type</Text>
-          </TouchableOpacity>
-
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 20 }]}>Sales Start</Text>
-          <View style={[styles.addressInputWrap, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <Ionicons name="calendar-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-            <TextInput
-              value={salesStart}
-              onChangeText={setSalesStart}
-              style={[styles.addressInput, { color: colors.title }]}
-            />
-          </View>
-
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 14 }]}>Sales End</Text>
-          <View style={[styles.addressInputWrap, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <Ionicons name="calendar-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-            <TextInput
-              value={salesEnd}
-              onChangeText={setSalesEnd}
-              style={[styles.addressInput, { color: colors.title }]}
-            />
-          </View>
-        </ScrollView>
-
-        <View style={[styles.bottomBar, { backgroundColor: colors.surface }]}>
-          <TouchableOpacity onPress={() => setStep(5)} activeOpacity={0.85} style={styles.primaryContinueBtn}>
-            <LinearGradient
-              colors={colors.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.primaryContinueGradient}
+          {tickets.length < 10 && (
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={addTicketType}
+              style={[styles.addTierBtn, { borderColor: brandAccent }]}
             >
-              <Text style={styles.primaryContinueText}>Continue</Text>
-            </LinearGradient>
+              <Ionicons name="add" size={18} color={brandAccent} style={{ marginRight: 6 }} />
+              <Text style={[styles.addTierText, { color: brandAccent }]}>Add Ticket Tier</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            activeOpacity={0.88}
+            disabled={loading}
+            onPress={handleStep4Continue}
+            style={[styles.continueBtn, { backgroundColor: brandAccent, marginTop: 24 }]}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.continueBtnText}>Review Event</Text>
+            )}
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </View>
     );
   }
 
-  // STEP 5: REVIEW EVENT (Confirm button!)
+  // ─────────────────────────────────────────────────────────────────────────
+  // STEP 5: REVIEW EVENT & READINESS
+  // ─────────────────────────────────────────────────────────────────────────
   if (step === 5) {
+    const minTicketPrice = tickets.reduce(
+      (min, tk) => (Number(tk.price) < min ? Number(tk.price) : min),
+      tickets[0]?.price || 0,
+    );
+    const canPublish = readinessProblems.length === 0;
+
     return (
-      <View style={styles.flex}>
+      <View style={[styles.root, { backgroundColor: cardBg }]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => setStep(4)} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
-            <Ionicons name="chevron-back" size={22} color={colors.title} />
+          <TouchableOpacity onPress={() => setStep(4)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="arrow-back" size={24} color={textColor} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.title }]}>Review Event</Text>
-          <View style={{ width: 40 }} />
+          <Text style={[styles.headerTitle, { color: textColor }]}>Review Event</Text>
+          <View style={{ width: 24 }} />
         </View>
 
-        <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          {renderProgressBar(4, 4)}
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <Text style={[styles.stepIndicator, { color: brandAccent }]}>STEP 5 OF 5</Text>
+          <Text style={[styles.screenTitle, { color: textColor }]}>Ready to Publish?</Text>
+          <Text style={[styles.screenSub, { color: mutedColor }]}>
+            Review ticket tiers, date and venue details before publishing to your profile.
+          </Text>
 
-          <View style={[styles.reviewHeroCard, { backgroundColor: colors.card, borderColor: colors.cardBorder, flexDirection: 'column', alignItems: 'flex-start' }]}>
-            <LinearGradient colors={colors.btnGradient} style={styles.reviewEventBanner}>
-              <Ionicons name="sparkles" size={32} color="#FFFFFF" />
-              <Text style={styles.bannerEventTag}>{selectedType.name}</Text>
-            </LinearGradient>
+          {/* Readiness Problems Banner */}
+          {readinessProblems.length > 0 && (
+            <View style={styles.warningBanner}>
+              <Ionicons name="alert-circle" size={22} color="#EF4444" style={{ marginRight: 8 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.warningTitle}>Incomplete Information</Text>
+                {readinessProblems.map((prob, i) => (
+                  <TouchableOpacity
+                    key={i}
+                    onPress={() => {
+                      const targetStep = mapReadinessToStep(prob.field);
+                      setStep(targetStep);
+                    }}
+                  >
+                    <Text style={styles.warningItem}>• {prob.message} (Tap to fix)</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
 
-            <View style={{ width: '100%', marginTop: 12 }}>
-              <Text style={[styles.reviewTitle, { color: colors.title, fontSize: 18 }]}>{eventTitle}</Text>
-              <Text style={[styles.reviewSub, { color: colors.muted }]}>
-                {date} • {startTime} – {endTime}
+          {/* Event Review Card */}
+          <View style={[styles.reviewCard, { borderColor: border, backgroundColor: inputBg }]}>
+            <View style={styles.reviewHeaderRow}>
+              <View style={[styles.typeBadge, { backgroundColor: brandAccent }]}>
+                <Text style={styles.typeBadgeText}>EVENT</Text>
+              </View>
+              <Text style={[styles.catName, { color: brandAccent }]}>{selectedCategory}</Text>
+            </View>
+
+            <Text style={[styles.reviewTitle, { color: textColor }]}>{eventTitle}</Text>
+            <Text style={[styles.reviewDesc, { color: mutedColor }]}>{description}</Text>
+
+            <View style={[styles.divider, { backgroundColor: border }]} />
+
+            <View style={styles.rowBetween}>
+              <Text style={[styles.reviewMetricLabel, { color: mutedColor }]}>Venue</Text>
+              <Text style={[styles.reviewMetricVal, { color: textColor }]}>{venueName}</Text>
+            </View>
+
+            <View style={styles.rowBetween}>
+              <Text style={[styles.reviewMetricLabel, { color: mutedColor }]}>Address</Text>
+              <Text style={[styles.reviewMetricVal, { color: textColor, flex: 1, textAlign: 'right', marginLeft: 8 }]}>
+                {venueAddress}
+              </Text>
+            </View>
+
+            <View style={styles.rowBetween}>
+              <Text style={[styles.reviewMetricLabel, { color: mutedColor }]}>Date & Time</Text>
+              <Text style={[styles.reviewMetricVal, { color: textColor }]}>
+                {eventDate} • {startTime} – {endTime}
+              </Text>
+            </View>
+
+            <View style={styles.rowBetween}>
+              <Text style={[styles.reviewMetricLabel, { color: mutedColor }]}>Guidelines</Text>
+              <Text style={[styles.reviewMetricVal, { color: textColor }]}>
+                {ageRestriction}+ • {dressCode}
+              </Text>
+            </View>
+
+            <View style={[styles.rowBetween, { marginTop: 8 }]}>
+              <Text style={[styles.reviewMetricLabel, { color: textColor, fontWeight: '800' }]}>
+                Tickets From
+              </Text>
+              <Text style={[styles.reviewTotalPrice, { color: brandAccent }]}>
+                ${minTicketPrice}
               </Text>
             </View>
           </View>
 
-          <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <View style={styles.summaryMetaRow}>
-              <Ionicons name="location-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.metaLabel, { color: colors.muted }]}>Location</Text>
-                <Text style={[styles.metaVal, { color: colors.title }]}>{location}</Text>
-              </View>
-            </View>
-
-            <View style={styles.summaryDivider, { backgroundColor: colors.divider }} />
-
-            <Text style={[styles.summaryCardTitle, { color: colors.title, fontSize: 13, marginBottom: 8 }]}>
-              Tickets & Admission
-            </Text>
+          {/* Ticket Tiers */}
+          <View style={[styles.reviewCard, { borderColor: border, backgroundColor: inputBg, marginTop: 14 }]}>
+            <Text style={[styles.label, { color: textColor, marginBottom: 8 }]}>Ticket Tiers ({tickets.length})</Text>
             {tickets.map((tk, idx) => (
-              <View key={idx} style={styles.ticketSummaryLine}>
-                <Text style={[styles.summaryItemText, { color: colors.title }]}>{tk.type}</Text>
-                <Text style={[styles.summaryItemText, { color: colors.accent, fontWeight: '700' }]}>
-                  ${tk.price} ({tk.count} tickets)
-                </Text>
+              <View key={idx} style={styles.ticketTierRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.ticketTierName, { color: textColor }]}>{tk.name}</Text>
+                  <Text style={[styles.subHint, { color: mutedColor }]}>
+                    {tk.description || 'General Admission'} • {tk.quantity} tickets
+                  </Text>
+                </View>
+                <Text style={[styles.ticketTierPrice, { color: brandAccent }]}>${tk.price}</Text>
               </View>
             ))}
-
-            <View style={styles.summaryDivider, { backgroundColor: colors.divider }} />
-
-            <View style={styles.summaryMetaRow}>
-              <Ionicons name="shield-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-              <Text style={[styles.metaLabel, { color: colors.muted }]}>Age Restriction:</Text>
-              <Text style={[styles.metaVal, { color: colors.title }]}>{ageRestriction}</Text>
-            </View>
-
-            <View style={styles.summaryMetaRow}>
-              <Ionicons name="shirt-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-              <Text style={[styles.metaLabel, { color: colors.muted }]}>Dress Code:</Text>
-              <Text style={[styles.metaVal, { color: colors.title }]}>{dressCode}</Text>
-            </View>
-
-            <View style={styles.summaryMetaRow}>
-              <Ionicons name="person-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-              <Text style={[styles.metaLabel, { color: colors.muted }]}>Organizer:</Text>
-              <Text style={[styles.metaVal, { color: colors.accent }]}>@yourprofile</Text>
-            </View>
           </View>
-        </ScrollView>
 
-        <View style={[styles.bottomBar, { backgroundColor: colors.surface }]}>
-          {/* USER REQUIREMENT: Changed from "Continue" to "Confirm" */}
-          <TouchableOpacity onPress={handleConfirm} activeOpacity={0.85} style={styles.primaryContinueBtn}>
-            <LinearGradient
-              colors={colors.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.primaryContinueGradient}
-            >
-              <Text style={styles.primaryContinueText}>Confirm</Text>
-            </LinearGradient>
+          <TouchableOpacity
+            activeOpacity={0.88}
+            disabled={publishLoading}
+            onPress={handlePublish}
+            style={[
+              styles.continueBtn,
+              {
+                backgroundColor: canPublish ? brandAccent : '#9CA3AF',
+                marginTop: 24,
+              },
+            ]}
+          >
+            {publishLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.continueBtnText}>
+                {canPublish ? 'Publish Event' : 'Publish (Resolve Issues First)'}
+              </Text>
+            )}
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </View>
     );
   }
 
-  // STEP 6: YOU'RE ALL SET! LIVE CONFIRMATION
+  // ─────────────────────────────────────────────────────────────────────────
+  // STEP 6: ALL SET
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <View style={styles.flex}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
-          <Ionicons name="chevron-back" size={22} color={colors.title} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.title }]}>Event is Live</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={[styles.root, { backgroundColor: cardBg, justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
+      <Ionicons name="checkmark-circle" size={80} color="#10B981" />
+      <Text style={[styles.successTitle, { color: textColor }]}>Event Published!</Text>
+      <Text style={[styles.successSub, { color: mutedColor }]}>
+        Your event has been successfully published and tickets are now live for purchase.
+      </Text>
 
-      <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.celebrationCenter}>
-          <View style={styles.confettiWrap}>
-            <LinearGradient colors={colors.btnGradient} style={[styles.bigCheckCircle, { shadowColor: colors.accent }]}>
-              <Ionicons name="checkmark" size={44} color="#FFFFFF" />
-            </LinearGradient>
-            <Ionicons name="star" size={14} color={colors.isBusiness ? '#F3E2B8' : '#C084FC'} style={{ position: 'absolute', top: 4, left: 24 }} />
-            <Ionicons name="sparkles" size={18} color={colors.isBusiness ? '#DFBA74' : '#E879F9'} style={{ position: 'absolute', top: 10, right: 28 }} />
-            <Ionicons name="sparkles" size={14} color={colors.isBusiness ? '#C9A15A' : '#C4B5FD'} style={{ position: 'absolute', bottom: 16, right: 20 }} />
-          </View>
+      <TouchableOpacity
+        activeOpacity={0.88}
+        onPress={handleShare}
+        style={[styles.shareBtn, { borderColor: brandAccent }]}
+      >
+        <Ionicons name="share-outline" size={18} color={brandAccent} style={{ marginRight: 6 }} />
+        <Text style={[styles.shareBtnText, { color: brandAccent }]}>Share Event Link</Text>
+      </TouchableOpacity>
 
-          <Text style={[styles.allSetTitle, { color: colors.title }]}>You're all set!</Text>
-          <Text style={[styles.allSetSubtitle, { color: colors.muted }]}>
-            Your event is live and ready to sell tickets.
-          </Text>
-        </View>
-
-        <View style={[styles.livePreviewCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-          <LinearGradient colors={colors.btnGradient} style={styles.liveEventBanner}>
-            <Ionicons name="sparkles" size={36} color="#FFFFFF" />
-            <Text style={styles.liveEventBannerTitle}>{eventTitle}</Text>
-          </LinearGradient>
-
-          <View style={{ padding: 14 }}>
-            <Text style={[styles.liveCardTitle, { color: colors.title, fontSize: 16 }]}>{eventTitle}</Text>
-            <Text style={[styles.liveCardSubtitle, { color: colors.muted }]}>
-              {date} • {startTime} – {endTime}
-            </Text>
-            <Text style={[styles.liveInfoValue, { color: colors.title, marginTop: 6 }]}>{location}</Text>
-            <Text style={[styles.liveCardPrice, { color: colors.accent, marginTop: 8 }]}>
-              Tickets from ${tickets[0]?.price}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.liveActionsWrap}>
-          <TouchableOpacity onPress={onFinish} activeOpacity={0.85} style={styles.viewMyServicesBtn}>
-            <LinearGradient
-              colors={colors.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.viewMyServicesGradient}
-            >
-              <Text style={styles.viewMyServicesText}>View My Events</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={handleShare} activeOpacity={0.85} style={[styles.shareServiceBtn, { borderColor: colors.cardBorder }]}>
-            <Ionicons name="share-social-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-            <Text style={[styles.shareServiceText, { color: colors.accent }]}>Share Event</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.lockRow}>
-          <Ionicons name="notifications-outline" size={14} color={colors.muted} />
-          <Text style={[styles.lockText, { color: colors.muted }]}>
-            We'll notify you when someone buys a ticket.
-          </Text>
-        </View>
-      </ScrollView>
+      <TouchableOpacity
+        activeOpacity={0.88}
+        onPress={onFinish}
+        style={[styles.continueBtn, { backgroundColor: brandAccent, width: '100%', marginTop: 12 }]}
+      >
+        <Text style={styles.continueBtnText}>Go to Manage Services</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  root: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -640,416 +850,114 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingBottom: 36,
-  },
-  progressWrap: {
-    marginBottom: 16,
-  },
-  stepIndicatorText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  progressBarTrack: {
+  headerTitle: { fontSize: 18, fontWeight: '800' },
+  scrollContent: { padding: 16, paddingBottom: 40 },
+  stepIndicator: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 4 },
+  screenTitle: { fontSize: 20, fontWeight: '800', marginBottom: 4 },
+  screenSub: { fontSize: 13, lineHeight: 18, marginBottom: 18 },
+  categoryCard: {
     flexDirection: 'row',
-    height: 4,
-    borderRadius: 2,
-    gap: 6,
-  },
-  progressBarSegment: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-  },
-  stepSubHeading: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 14,
-  },
-  gridWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  gridItem: {
-    width: '48%',
-    padding: 12,
-    borderRadius: 14,
-  },
-  gridIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  gridTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  gridDesc: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  iconCircleWrap: {
-    alignItems: 'center',
-    marginVertical: 14,
-  },
-  bigIconBubble: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  counterText: {
-    fontSize: 12,
-  },
-  input: {
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  readOnlyField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    borderRadius: 14,
     padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
+    marginBottom: 10,
   },
-  readOnlyText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  imagePickerCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 12,
-    alignItems: 'center',
-  },
-  imagePlaceholder: {
-    width: '100%',
-    height: 120,
+  catIconWrap: {
+    width: 40,
+    height: 40,
     borderRadius: 10,
-    alignItems: 'center',
     justifyContent: 'center',
-  },
-  imagePlaceholderText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: 6,
-  },
-  changeImgBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-    marginTop: 10,
+    marginRight: 12,
   },
-  changeImgText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-  addressInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  catName: { fontSize: 14, fontWeight: '700' },
+  catDesc: { fontSize: 12, marginTop: 2 },
+  formGroup: { marginBottom: 16 },
+  label: { fontSize: 13, fontWeight: '700', marginBottom: 6 },
+  subHint: { fontSize: 11, marginTop: 2 },
+  input: {
+    height: 46,
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 12,
-  },
-  addressInput: {
-    flex: 1,
     fontSize: 14,
-    paddingVertical: 10,
   },
-  pillsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  pillOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
+  textArea: {
+    minHeight: 88,
     borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    textAlignVertical: 'top',
   },
-  pillOptionText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  ticketTierCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
+  row: { flexDirection: 'row', alignItems: 'center' },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 4 },
+  continueBtn: {
+    height: 50,
     borderRadius: 14,
-    borderWidth: 1,
-    marginBottom: 10,
-  },
-  ticketTypeTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  ticketSubtitle: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  ticketPrice: {
-    fontSize: 15,
-    fontWeight: '800',
-    marginTop: 4,
-  },
-  ticketCounterWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  counterBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  counterSymbol: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  counterVal: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginHorizontal: 8,
-  },
-  addTicketRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  addTicketText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  bottomBar: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 14 : 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
-  },
-  primaryContinueBtn: {
-    width: '100%',
-    height: 52,
-    minHeight: 52,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  primaryContinueGradient: {
-    width: '100%',
-    height: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-  },
-  primaryContinueText: {
-    color: '#FFFFFF',
-    fontSize: 15.5,
-    fontWeight: '700',
-  },
-  viewMyServicesBtn: {
-    width: '100%',
-    height: 52,
-    minHeight: 52,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  viewMyServicesGradient: {
-    width: '100%',
-    height: 52,
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  viewMyServicesText: {
-    color: '#FFFFFF',
-    fontSize: 15.5,
-    fontWeight: '700',
-  },
-  reviewHeroCard: {
-    borderRadius: 16,
+  continueBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  ticketCard: {
     borderWidth: 1,
-    overflow: 'hidden',
-    padding: 14,
-    marginBottom: 16,
-  },
-  reviewEventBanner: {
-    width: '100%',
-    height: 100,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bannerEventTag: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  reviewTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  reviewSub: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  summaryCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 16,
-  },
-  summaryCardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    borderRadius: 14,
+    padding: 12,
     marginBottom: 12,
   },
-  summaryMetaRow: {
+  ticketNumber: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  addTierBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 4,
-  },
-  metaLabel: {
-    fontSize: 13,
-    marginRight: 6,
-  },
-  metaVal: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  ticketSummaryLine: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginVertical: 4,
-  },
-  summaryItemText: {
-    fontSize: 13,
-  },
-  summaryDivider: {
-    height: 1,
-    marginVertical: 12,
-  },
-  celebrationCenter: {
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  confettiWrap: {
-    width: 90,
-    height: 90,
-    alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-  },
-  bigCheckCircle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  allSetTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    marginBottom: 6,
-  },
-  allSetSubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
-  livePreviewCard: {
-    borderRadius: 16,
+    height: 46,
     borderWidth: 1,
-    overflow: 'hidden',
-    marginBottom: 20,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    marginTop: 8,
   },
-  liveEventBanner: {
+  addTierText: { fontSize: 13, fontWeight: '700' },
+  warningBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#FEE2E2',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#F87171',
+  },
+  warningTitle: { color: '#B91C1C', fontSize: 13, fontWeight: '800', marginBottom: 2 },
+  warningItem: { color: '#B91C1C', fontSize: 11, marginTop: 2 },
+  reviewCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+  },
+  reviewHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  typeBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  typeBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
+  reviewTitle: { fontSize: 16, fontWeight: '800', marginBottom: 4 },
+  reviewDesc: { fontSize: 12, lineHeight: 16 },
+  divider: { height: 1, marginVertical: 12 },
+  reviewMetricLabel: { fontSize: 12 },
+  reviewMetricVal: { fontSize: 12, fontWeight: '700' },
+  reviewTotalPrice: { fontSize: 18, fontWeight: '800' },
+  ticketTierRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 4 },
+  ticketTierName: { fontSize: 13, fontWeight: '700' },
+  ticketTierPrice: { fontSize: 14, fontWeight: '800' },
+  successTitle: { fontSize: 22, fontWeight: '800', marginTop: 16, marginBottom: 6 },
+  successSub: { fontSize: 13, textAlign: 'center', lineHeight: 18, marginBottom: 24 },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
     width: '100%',
-    height: 110,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: 8,
   },
-  liveEventBannerTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  liveCardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  liveCardSubtitle: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  liveCardPrice: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  liveInfoValue: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  liveActionsWrap: {
-    gap: 10,
-    marginBottom: 16,
-  },
-  shareServiceBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  shareServiceText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  lockRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  lockText: {
-    fontSize: 12,
-  },
+  shareBtnText: { fontSize: 14, fontWeight: '700' },
 });

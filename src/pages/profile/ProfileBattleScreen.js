@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useLanguage } from '../../i18n';
 import ProfileBattleHub from '../../components/profile/ProfileBattleHub';
 import { useAppTheme } from '../../theme/useApptheme';
@@ -20,11 +20,18 @@ export default function ProfileBattleScreen() {
   const { t } = useLanguage();
   const returnTo = route?.params?.returnTo;
   const { profile } = route.params || {};
-  const { bgStyle, accent, bg } = useAppTheme(profile);
+  const { isBusinessProfile, accent } = useAppTheme(profile);
   const { isDarkMode } = useThemeContext();
   const viewedUserId = route?.params?.viewedUserId || '';
   const isOwner = Boolean(route?.params?.isOwner);
-  const title = route?.params?.title || t('profileBattle.defaultTitle');
+  const title = route?.params?.title || t('profileBattle.defaultTitle', 'My Battles');
+
+  const isBusiness = Boolean(
+    isBusinessProfile ||
+    profile === 'company' ||
+    profile === 'business' ||
+    route?.params?.isCompanyProfile
+  );
 
   const handleBack = () => {
     if (route?.params?.returnTo === 'UserProfile') {
@@ -38,19 +45,26 @@ export default function ProfileBattleScreen() {
     }
   };
 
+  const screenBg = isDarkMode
+    ? (isBusiness ? '#141009' : '#0F091A')
+    : (isBusiness ? '#FAF7F0' : '#F9F8FD');
+  const titleColor = isDarkMode
+    ? (isBusiness ? '#F5DEB3' : '#FFFFFF')
+    : (isBusiness ? '#6B4F1A' : '#2D1152');
+
   return (
-    <View style={[styles.root, { backgroundColor: bg }]}>
+    <View style={[styles.root, { backgroundColor: screenBg }]}>
       <StatusBar
         translucent
         backgroundColor="transparent"
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
       />
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: bg }]} edges={['top', 'bottom']}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: screenBg }]} edges={['top', 'bottom']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn}>
-            <Icon name="arrow-back-ios-new" size={20} color={accent} />
+          <TouchableOpacity onPress={handleBack} style={styles.headerIconBtn} hitSlop={10}>
+            <Ionicons name="chevron-back" size={24} color={titleColor} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: accent }]}>{title}</Text>
+          <Text style={[styles.headerTitle, { color: titleColor }]}>{title}</Text>
           <View style={styles.headerIconBtn} />
         </View>
 
@@ -60,6 +74,7 @@ export default function ProfileBattleScreen() {
           openBattleRoute="OpenBattle"
           profile={profile}
           returnTo={returnTo}
+          isCompanyProfile={isBusiness}
         />
       </SafeAreaView>
     </View>
@@ -78,7 +93,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    paddingVertical: 6,
+    marginBottom: 8,
   },
   headerIconBtn: {
     width: 36,
@@ -87,6 +103,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
+    flex: 1,
+    textAlign: 'center',
     fontSize: 18,
     fontWeight: '800',
   },

@@ -100,24 +100,75 @@ export const getBattleParticipant = (battle, index) => {
   return buildBattleFallbackParticipant(battle, index);
 };
 
+export const extractImageUrl = val => {
+  if (!val) return null;
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed || trimmed === '[object Object]' || trimmed === 'null' || trimmed === 'undefined') return null;
+    return trimmed;
+  }
+  if (typeof val === 'object') {
+    return (
+      extractImageUrl(val.url) ||
+      extractImageUrl(val.uri) ||
+      extractImageUrl(val.image) ||
+      extractImageUrl(val.imageUrl) ||
+      extractImageUrl(val.mediaUrl) ||
+      extractImageUrl(val.media) ||
+      extractImageUrl(val.picture) ||
+      extractImageUrl(val.pict) ||
+      extractImageUrl(val.pic) ||
+      extractImageUrl(val.photo) ||
+      extractImageUrl(val.thumbnail) ||
+      extractImageUrl(val.thumb) ||
+      extractImageUrl(val.src) ||
+      null
+    );
+  }
+  return null;
+};
+
 export const buildBattleOptions = battle => {
   const rawOptions = Array.isArray(battle?.options) ? battle.options : [];
-  const optionImages = Array.isArray(battle?.optionImages) ? battle.optionImages : [];
+  const optionImages =
+    (Array.isArray(battle?.optionImages) && battle.optionImages.length > 0 && battle.optionImages) ||
+    (Array.isArray(battle?.optionsImages) && battle.optionsImages.length > 0 && battle.optionsImages) ||
+    (Array.isArray(battle?.images) && battle.images.length > 0 && battle.images) ||
+    (Array.isArray(battle?.pictures) && battle.pictures.length > 0 && battle.pictures) ||
+    (Array.isArray(battle?.optionMedia) && battle.optionMedia.length > 0 && battle.optionMedia) ||
+    (Array.isArray(battle?.media) && battle.media.length > 0 && battle.media) ||
+    (Array.isArray(battle?.raw?.optionImages) && battle.raw.optionImages.length > 0 && battle.raw.optionImages) ||
+    [];
+
   const normalizedOptions = rawOptions
     .map((option, index) => {
       const label = normalizeBattleOptionLabel(option, index);
       if (!label) return null;
+      const directImage =
+        extractImageUrl(optionImages[index]) ||
+        extractImageUrl(option?.image) ||
+        extractImageUrl(option?.imageUrl) ||
+        extractImageUrl(option?.mediaUrl) ||
+        extractImageUrl(option?.media) ||
+        extractImageUrl(option?.picture) ||
+        extractImageUrl(option?.pict) ||
+        extractImageUrl(option?.pic) ||
+        extractImageUrl(option?.optionImage) ||
+        extractImageUrl(option?.photo) ||
+        extractImageUrl(option?.thumbnail) ||
+        extractImageUrl(option?.thumb) ||
+        extractImageUrl(option?.url) ||
+        extractImageUrl(option?.uri) ||
+        extractImageUrl(battle?.raw?.options?.[index]?.image) ||
+        extractImageUrl(battle?.raw?.options?.[index]?.imageUrl) ||
+        extractImageUrl(battle?.raw?.options?.[index]?.picture) ||
+        extractImageUrl(battle?.raw?.options?.[index]?.pict) ||
+        null;
+
       return {
         id: String(option?.id || option?._id || label || index),
         label,
-        image: pickBattleDisplayText(
-          optionImages[index],
-          option?.optionImage,
-          option?.image,
-          option?.icon,
-          option?.picture,
-          option?.photo,
-        ),
+        image: directImage,
       };
     })
     .filter(Boolean);
@@ -126,7 +177,8 @@ export const buildBattleOptions = battle => {
     return [getBattleParticipant(battle, 0), getBattleParticipant(battle, 1)]
       .map((participant, index) => {
         const label = pickBattleDisplayText(participant?.name, participant?.userName, `Option ${index + 1}`);
-        return { id: `fallback-${index + 1}`, label, image: optionImages[index] || participant?.avatar };
+        const fallbackImage = extractImageUrl(optionImages[index]) || extractImageUrl(participant?.avatar);
+        return { id: `fallback-${index + 1}`, label, image: fallbackImage };
       })
       .filter(item => item?.label);
   }

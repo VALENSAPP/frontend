@@ -51,8 +51,31 @@ export default function FollowCard({
     : (isDarkMode ? '#5a2d82' : '#5a2d82');
   const profileButtonColor = profileAccent;
 
-  const handleUserProfile = userId => {
-    navigation.navigate('UsersProfile', { userId });
+  const handleUserProfile = targetId => {
+    const resolvedProfileType =
+      type ||
+      item?.profile ||
+      targetProfileType ||
+      item?.type ||
+      (isBusinessProfile ? 'company' : 'user');
+
+    const profileData = {
+      ...(item || {}),
+      id: targetId || userId || item?.id,
+      username: username || item?.username,
+      displayName: item?.displayName || item?.name || username,
+      avatar: avatar || item?.avatar || item?.profileImage,
+      profile: resolvedProfileType,
+      profileType: resolvedProfileType,
+    };
+
+    navigation.navigate('UsersProfile', {
+      userId: targetId || userId || item?.id,
+      user: profileData,
+      userData: profileData,
+      profileType: resolvedProfileType,
+      username: username || item?.username,
+    });
   };
 
   useEffect(() => {
@@ -208,9 +231,14 @@ export default function FollowCard({
         </TouchableOpacity>
 
         {/* Username */}
-        <Text style={[styles.username, textStyle]} numberOfLines={1}>
-          {username}
-        </Text>
+        <TouchableOpacity
+          onPress={() => handleUserProfile(userId)}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.username, textStyle]} numberOfLines={1}>
+            {username}
+          </Text>
+        </TouchableOpacity>
 
         {/* Follow Button */}
         <TouchableOpacity

@@ -534,6 +534,41 @@ export default function MainTabNavigator() {
           component={Usersprofile}
           options={{ headerShown: false }}
         />
+        <Stack.Screen
+          name="BattleLive"
+          component={BattleLiveScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="BattleInProgress"
+          component={BattleInProgress}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="BattleResultsScreen"
+          component={BattleResultsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="BattleResults"
+          component={BattleResults}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="MyClosetBuyerItemDetail"
+          component={MyClosetBuyerItemDetailScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="MyClosetBattles"
+          component={MyClosetBattlesScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ProfileBattleScreen"
+          component={ProfileBattleScreen}
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
     );
   }, [bg]);
@@ -897,7 +932,7 @@ export default function MainTabNavigator() {
               <TextGradient
                 style={{ fontWeight: 'bold', fontSize: 20 }}
                 locations={[0, 1]}
-                colors={isBusinessProfile ? ['#CBA257', '#CBA257'] : ['#513189bd', '#e54ba0']}
+                colors={isBusinessProfile ? ['#CBA257', '#CBA257'] : ['#402090', '#5B2D9D']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 text="VALENS"
@@ -1054,11 +1089,18 @@ export default function MainTabNavigator() {
             component={PrivateCircle}
             // ── TRANSLATION CHANGE ───────────────────────────────────────────
             options={{
-              headerTitle: t('walletStack.privateCircle'),
+              headerTitle: t('walletStack.privateCircle', 'Private Circle'),
+              headerTitleAlign: 'center',
               headerTitleStyle: {
                 fontWeight: 'bold',
-                color: isBusinessProfile ? '#CBA257' : headerTitleColor,
+                color: isBusinessProfile ? '#CBA257' : '#402090',
               },
+              headerStyle: {
+                backgroundColor: isBusinessProfile ? '#FAF7F0' : '#FAF5FE',
+                elevation: 0,
+                shadowOpacity: 0,
+              },
+              headerTintColor: isBusinessProfile ? '#CBA257' : '#402090',
             }}
           />
           <Stack.Screen
@@ -1152,17 +1194,56 @@ export default function MainTabNavigator() {
             name="Settings"
             component={SettingsScreen}
             // ── TRANSLATION CHANGE ───────────────────────────────────────────
-            options={{ headerTitle: t('walletStack.settings') }}
+            options={{
+              headerTitle: t('walletStack.settings', 'Settings'),
+              headerTitleAlign: 'center',
+              headerTitleStyle: {
+                fontWeight: 'bold',
+                color: isBusinessProfile ? '#CBA257' : '#402090',
+              },
+              headerStyle: {
+                backgroundColor: isBusinessProfile ? '#FAF7F0' : '#FAF5FE',
+                elevation: 0,
+                shadowOpacity: 0,
+              },
+              headerTintColor: isBusinessProfile ? '#CBA257' : '#402090',
+            }}
           />
           <Stack.Screen
             name="ShopSettings"
             component={ShopSettingsScreen}
-            options={{ headerTitle: t('shopSettings.title') }}
+            options={{
+              headerTitle: t('shopSettings.title', 'Shop Settings'),
+              headerTitleAlign: 'center',
+              headerTitleStyle: {
+                fontWeight: 'bold',
+                color: isBusinessProfile ? '#CBA257' : '#402090',
+              },
+              headerStyle: {
+                backgroundColor: isBusinessProfile ? '#FAF7F0' : '#FAF5FE',
+                elevation: 0,
+                shadowOpacity: 0,
+              },
+              headerTintColor: isBusinessProfile ? '#CBA257' : '#402090',
+            }}
           />
           <Stack.Screen
             name="ServicesSettings"
             component={ServicesSettingsScreen}
-            options={{ headerTitle: t('servicesSettings.title', 'Services Settings') }}
+            options={{
+              headerTitle: t('servicesSettings.title', 'Services Settings'),
+              headerTitleAlign: 'center',
+              headerTitleStyle: {
+                fontWeight: 'bold',
+                color: isBusinessProfile ? '#CBA257' : '#402090',
+              },
+              headerStyle: {
+                backgroundColor: isBusinessProfile ? '#FAF7F0' : '#FAF5FE',
+                elevation: 0,
+                shadowOpacity: 0,
+              },
+              headerTintColor: isBusinessProfile ? '#CBA257' : '#402090',
+            }}
           />
           <Stack.Screen
             name="WalletEditProfile"
@@ -1363,7 +1444,7 @@ export default function MainTabNavigator() {
         />
       </Stack.Navigator>
     );
-  }, [bg, headerTitleColor, headerMenuColor, isBusinessProfile, t, Date.now()]);
+  }, []);
 
   const MarketplaceStack = useMemo(() => {
     return () => (
@@ -1414,6 +1495,46 @@ export default function MainTabNavigator() {
         <Stack.Screen
           name="Usersprofile"
           component={Usersprofile}
+        />
+        <Stack.Screen
+          name="UsersProfile"
+          component={Usersprofile}
+        />
+        <Stack.Screen
+          name="MyClosetBattles"
+          component={MyClosetBattlesScreen}
+        />
+        <Stack.Screen
+          name="MyClosetBuyerItems"
+          component={MyClosetBuyerItemsScreen}
+        />
+        <Stack.Screen
+          name="MyClosetBuyerOptions"
+          component={MyClosetBuyerOptionsScreen}
+        />
+        <Stack.Screen
+          name="BattleLive"
+          component={BattleLiveScreen}
+        />
+        <Stack.Screen
+          name="BattleResultsScreen"
+          component={BattleResultsScreen}
+        />
+        <Stack.Screen
+          name="BattleResults"
+          component={BattleResults}
+        />
+        <Stack.Screen
+          name="BattleInProgress"
+          component={BattleInProgress}
+        />
+        <Stack.Screen
+          name="ProfileBattleScreen"
+          component={ProfileBattleScreen}
+        />
+        <Stack.Screen
+          name="BillingPayments"
+          component={BillingPaymentsScreen}
         />
         <Stack.Screen
           name="UserClosetChat"
@@ -1656,6 +1777,7 @@ export default function MainTabNavigator() {
         'MyClosetItemsManagement',
         'MyClosetItemEditor',
         'MyClosetBuyerItems',
+        'MyClosetBattles',
         'MyClosetBuyerItemDetail',
         'MyClosetBuyerOptions',
         'MyClosetBuyerCart',
@@ -1668,6 +1790,9 @@ export default function MainTabNavigator() {
         'CreateBattle',
         'BattleSetup',
         'BattlePreview',
+        'ServicesComingSoon',
+        'ServiceSetup',
+        'ServicesSettings',
         'ChallengeBattleSetup',
         'ChallengeBattleSettings',
         'ChallengeBattlePreview',
@@ -1814,6 +1939,7 @@ export default function MainTabNavigator() {
           listeners={({ navigation }) => ({
             tabPress: e => {
               e.preventDefault();
+              DeviceEventEmitter.emit('ADD_TAB_PRESS');
               const state = navigation.getState();
               const currentRoute = state.routes.find(r => r.name === 'Add');
               if (currentRoute) {
