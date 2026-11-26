@@ -8,7 +8,7 @@ import Svg, {
   Circle,
 } from 'react-native-svg';
 
-const REMOTE_PLACEHOLDER = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+const REMOTE_PLACEHOLDER = 'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=200&auto=format&fit=crop&q=80';
 
 const normalizeRemoteUrl = (url) => {
   if (!url || typeof url !== 'string') return null;
@@ -79,6 +79,9 @@ const HexAvatar = ({
             <Polygon points={points} />
           </ClipPath>
         </Defs>
+
+        {/* Solid base fill so avatar never appears hollow or transparent */}
+        <Polygon points={points} fill="#EDE9FE" />
 
         {!imageError ? (
           <SvgImage

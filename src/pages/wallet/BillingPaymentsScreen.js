@@ -9,12 +9,13 @@ import {
   Image,
   RefreshControl,
   Platform,
+  BackHandler,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Feather from 'react-native-vector-icons/Feather';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { useNavigation, DrawerActions } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useToast } from 'react-native-toast-notifications';
 import { useBusinessProfileTheme } from '../../theme/useBusinessProfileTheme';
 import { useThemeContext } from '../../theme/ThemeContext';
@@ -25,6 +26,7 @@ import StripePaymentMethodModal from '../../components/modals/StripePaymentMetho
 
 export default function BillingPaymentsScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const toast = useToast();
   const { t } = useLanguage();
   const { isDarkMode } = useThemeContext();
@@ -38,24 +40,76 @@ export default function BillingPaymentsScreen() {
     isBusinessProfile,
   } = useBusinessProfileTheme();
 
-  const handleOpenDrawer = () => {
-    try {
-      navigation.dispatch(DrawerActions.openDrawer());
-    } catch (_e) {
-      navigation.getParent()?.getParent()?.openDrawer?.();
+  const originTab = route?.params?.originTab;
+  const originScreen = route?.params?.originScreen;
+
+  const handleBack = useCallback(() => {
+    // 1. If user came from a different bottom tab (e.g. HomeMain, ProfileMain, Marketplace, Search)
+    if (originTab && originTab !== 'wallet') {
+      try {
+        if (originScreen && originScreen !== 'BillingPayments') {
+          navigation.navigate('MainApp', {
+            screen: originTab,
+            params: { screen: originScreen },
+          });
+        } else {
+          navigation.navigate('MainApp', { screen: originTab });
+        }
+        return;
+      } catch (_e) {}
     }
-  };
+
+    // 2. If stack navigator has history to pop, go back
+    if (navigation.canGoBack?.()) {
+      navigation.goBack();
+      return;
+    }
+
+    // 3. If an originScreen inside wallet was tracked and is not BillingPayments
+    if (originScreen && originScreen !== 'BillingPayments') {
+      try {
+        navigation.navigate(originScreen);
+        return;
+      } catch (_e) {}
+    }
+
+    // 4. If parent navigator can go back
+    if (navigation.getParent?.()?.canGoBack?.()) {
+      navigation.getParent().goBack();
+      return;
+    }
+
+    // 5. Default fallback to Wallet Dashboard
+    try {
+      navigation.navigate('Dashboard');
+    } catch (_e) {
+      try {
+        navigation.navigate('HomeMain');
+      } catch (_err) {}
+    }
+  }, [navigation, originTab, originScreen]);
+
+  useEffect(() => {
+    const onBackPress = () => {
+      handleBack();
+      return true;
+    };
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, [handleBack]);
 
   return (
     <SafeAreaView style={[{ flex: 1 }, bgStyle]}>
       {/* Top Header */}
       <View style={[styles.header, { borderBottomColor: border }]}>
         <TouchableOpacity
-          onPress={handleOpenDrawer}
+          onPress={handleBack}
           style={styles.headerLeftBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
         >
-          <Ionicons name="menu" size={26} color={text} />
+          <Ionicons name="chevron-back" size={26} color={text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: text }]}>
           {t('drawerNav.billingPayments', 'Billing & Payments')}
@@ -159,12 +213,14 @@ export default function BillingPaymentsScreen() {
         {/* Back to Dashboard Button */}
         <TouchableOpacity
           style={[styles.returnButton, { backgroundColor: accent }]}
-          onPress={() => navigation.navigate('Dashboard')}
+          onPress={handleBack}
           activeOpacity={0.8}
         >
           <Ionicons name="arrow-back" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
           <Text style={styles.returnButtonText}>
-            {t('billingPayments.backToDashboard', 'Back to Dashboard')}
+            {originTab && originTab !== 'wallet'
+              ? t('common.back', 'Back')
+              : t('billingPayments.backToDashboard', 'Back to Dashboard')}
           </Text>
         </TouchableOpacity>
 

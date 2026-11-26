@@ -534,6 +534,41 @@ export default function MainTabNavigator() {
           component={Usersprofile}
           options={{ headerShown: false }}
         />
+        <Stack.Screen
+          name="BattleLive"
+          component={BattleLiveScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="BattleInProgress"
+          component={BattleInProgress}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="BattleResultsScreen"
+          component={BattleResultsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="BattleResults"
+          component={BattleResults}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="MyClosetBuyerItemDetail"
+          component={MyClosetBuyerItemDetailScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="MyClosetBattles"
+          component={MyClosetBattlesScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ProfileBattleScreen"
+          component={ProfileBattleScreen}
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
     );
   }, [bg]);
@@ -1462,6 +1497,46 @@ export default function MainTabNavigator() {
           component={Usersprofile}
         />
         <Stack.Screen
+          name="UsersProfile"
+          component={Usersprofile}
+        />
+        <Stack.Screen
+          name="MyClosetBattles"
+          component={MyClosetBattlesScreen}
+        />
+        <Stack.Screen
+          name="MyClosetBuyerItems"
+          component={MyClosetBuyerItemsScreen}
+        />
+        <Stack.Screen
+          name="MyClosetBuyerOptions"
+          component={MyClosetBuyerOptionsScreen}
+        />
+        <Stack.Screen
+          name="BattleLive"
+          component={BattleLiveScreen}
+        />
+        <Stack.Screen
+          name="BattleResultsScreen"
+          component={BattleResultsScreen}
+        />
+        <Stack.Screen
+          name="BattleResults"
+          component={BattleResults}
+        />
+        <Stack.Screen
+          name="BattleInProgress"
+          component={BattleInProgress}
+        />
+        <Stack.Screen
+          name="ProfileBattleScreen"
+          component={ProfileBattleScreen}
+        />
+        <Stack.Screen
+          name="BillingPayments"
+          component={BillingPaymentsScreen}
+        />
+        <Stack.Screen
           name="UserClosetChat"
           component={UserClosetChat}
         />
@@ -1702,6 +1777,7 @@ export default function MainTabNavigator() {
         'MyClosetItemsManagement',
         'MyClosetItemEditor',
         'MyClosetBuyerItems',
+        'MyClosetBattles',
         'MyClosetBuyerItemDetail',
         'MyClosetBuyerOptions',
         'MyClosetBuyerCart',

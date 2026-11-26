@@ -276,10 +276,10 @@ export default ProfileScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingBottom: 20,
+    paddingBottom: 0,
   },
   scrollContainer: {
     flexGrow: 1,
-    paddingBottom: 120
+    paddingBottom: 90,
   },
 });

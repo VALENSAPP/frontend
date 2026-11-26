@@ -35,6 +35,11 @@ import ConsultationFlow from './services/ConsultationFlow';
 import AppointmentFlow from './services/AppointmentFlow';
 import EventFlow from './services/EventFlow';
 import MonthlyPackageFlow from './services/MonthlyPackageFlow';
+import MentorshipFlow from './services/MentorshipFlow';
+import ActivateServicesScreen from './services/ActivateServicesScreen';
+import ChooseServiceTypeModal from './services/ChooseServiceTypeModal';
+import ProfileServicesTab from './services/ProfileServicesTab';
+import { getProviderEligibility } from '../../services/proServices';
 
 const NOTIFY_KEY = 'servicesComingSoonNotifyMe';
 const HERO_FLY = require('../../assets/icons/pngicons/welcome.png');
@@ -188,17 +193,44 @@ export default function ServicesComingSoon() {
   const reduxProfile = useSelector(state => state.userProfile?.userProfile);
   const userProfilePic = useSelector(state => state.profileImage?.profileImg);
 
+  const incomingParams = route?.params?.params || route?.params || {};
+  const isOwnProfile =
+    incomingParams.isOwnProfile !== undefined
+      ? Boolean(incomingParams.isOwnProfile)
+      : incomingParams.fromUsersProfile !== undefined
+      ? !incomingParams.fromUsersProfile
+      : true;
+
+  const targetUser = incomingParams.userData || null;
+  const targetUserId =
+    incomingParams.userId ||
+    incomingParams.targetUserId ||
+    targetUser?.id ||
+    targetUser?._id ||
+    targetUser?.userId ||
+    null;
+
+  const [myUserId, setMyUserId] = useState(null);
+  const [showStorefrontPreview, setShowStorefrontPreview] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const id = await AsyncStorage.getItem('userId');
+        if (id) setMyUserId(id);
+      } catch (_) {}
+    })();
+  }, []);
+
   const incomingProfileType =
-    route?.params?.profileType ||
-    route?.params?.params?.profileType ||
-    route?.params?.userData?.profile ||
+    incomingParams.profileType ||
+    targetUser?.profile ||
     reduxProfile;
 
   const { isBusinessProfile: hookIsBusiness } = useBusinessProfileTheme();
 
   const routeIsBusiness =
-    route?.params?.isBusinessProfile === true ||
-    route?.params?.params?.isBusinessProfile === true ||
+    incomingParams.isBusinessProfile === true ||
     hookIsBusiness === true ||
     normalizeProfileType(incomingProfileType) === 'company';
 
@@ -217,12 +249,32 @@ export default function ServicesComingSoon() {
       : 'professional',
   );
   const [mainTab, setMainTab] = useState(route?.params?.initialTab || 'services'); // 'services' | 'manage'
-  const [activeFlow, setActiveFlow] = useState(null); // 'consultation' | 'appointment' | 'event' | 'monthly_package' | null
+  const [activeFlow, setActiveFlow] = useState(null); // 'consultation' | 'appointment' | 'event' | 'monthly_package' | 'mentorship' | null
   const [storedServices, setStoredServices] = useState([]);
   const [selectedServiceAction, setSelectedServiceAction] = useState(null);
   const [overviewMonthDropdown, setOverviewMonthDropdown] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('This Month');
   const [servicesInfo, setServicesInfo] = useState(null);
+
+  // Pro Services State
+  const [eligibility, setEligibility] = useState(null);
+  const [showActivateScreen, setShowActivateScreen] = useState(false);
+  const [chooseTypeModalVisible, setChooseTypeModalVisible] = useState(false);
+  const [editingServiceId, setEditingServiceId] = useState(null);
+
+  const fetchEligibility = useCallback(async () => {
+    if (!isOwnProfile) return;
+    try {
+      const res = await getProviderEligibility();
+      if (res && res.success && res.data) {
+        setEligibility(res.data);
+      }
+    } catch (_) {}
+  }, [isOwnProfile]);
+
+  useEffect(() => {
+    fetchEligibility();
+  }, [fetchEligibility]);
 
   useEffect(() => {
     (async () => {
@@ -485,33 +537,36 @@ export default function ServicesComingSoon() {
     );
   }, [t]);
 
-  const handleActivateServicesPress = useCallback((preselectedType = null) => {
-    let resolvedType = preselectedType;
-    if (preselectedType === 'mentorships') resolvedType = 'mentorship';
-    else if (preselectedType === 'consultations') resolvedType = 'consultation';
-    else if (preselectedType === 'appointments') resolvedType = 'appointment';
-    else if (preselectedType === 'events') resolvedType = 'event';
-    else if (preselectedType === 'packages') resolvedType = 'monthly_package';
+  const handleActivateServicesPress = useCallback(async (preselectedType = null) => {
+    let resolvedType = typeof preselectedType === 'string' ? preselectedType : null;
+    if (resolvedType === 'mentorships') resolvedType = 'mentorship';
+    else if (resolvedType === 'consultations') resolvedType = 'consultation';
+    else if (resolvedType === 'appointments') resolvedType = 'appointment';
+    else if (resolvedType === 'events') resolvedType = 'event';
+    else if (resolvedType === 'packages') resolvedType = 'monthly_package';
+
+    try {
+      const eligRes = await getProviderEligibility();
+      if (eligRes && eligRes.success && eligRes.data) {
+        setEligibility(eligRes.data);
+        if (eligRes.data.upgradeRequired) {
+          setShowMembershipModal(true);
+          return;
+        }
+        if (!eligRes.data.isActivated) {
+          setShowActivateScreen(true);
+          return;
+        }
+      }
+    } catch (_) {}
 
     if (resolvedType) {
-      setSelectedServiceType(resolvedType);
+      setEditingServiceId(null);
+      setActiveFlow(resolvedType);
+    } else {
+      setChooseTypeModalVisible(true);
     }
-
-    if (isBusiness || hasMembership) {
-      if (!resolvedType) {
-        setCurrentStep(1);
-        return;
-      }
-      if (resolvedType === 'mentorship') {
-        setCurrentStep(2);
-      } else {
-        setActiveFlow(resolvedType);
-      }
-      return;
-    }
-
-    setShowMembershipModal(true);
-  }, [isBusiness, hasMembership]);
+  }, []);
 
   const handleMembershipLearnMore = useCallback(async () => {
     setShowMembershipModal(false);
@@ -669,8 +724,50 @@ export default function ServicesComingSoon() {
   );
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // SUBFLOWS: CONSULTATION, APPOINTMENT, EVENT, MONTHLY PACKAGE
+  // SUBFLOWS: CONSULTATION, APPOINTMENT, EVENT, MONTHLY PACKAGE, MENTORSHIP
   // ─────────────────────────────────────────────────────────────────────────────
+  if (showActivateScreen) {
+    return (
+      <ActivateServicesScreen
+        isBusinessProfile={effectiveIsBusiness}
+        onClose={() => setShowActivateScreen(false)}
+        onBack={() => setShowActivateScreen(false)}
+        onActivated={() => {
+          setShowActivateScreen(false);
+          fetchEligibility();
+          setChooseTypeModalVisible(true);
+        }}
+      />
+    );
+  }
+
+  if (activeFlow === 'mentorship') {
+    return (
+      <LinearGradient colors={colors.bg} style={styles.flex}>
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+          <MentorshipFlow
+            colors={colors}
+            isDarkMode={isDarkMode}
+            t={t}
+            onBack={() => {
+              setActiveFlow(null);
+              setEditingServiceId(null);
+              setCurrentStep(0);
+            }}
+            onFinish={() => {
+              setActiveFlow(null);
+              setEditingServiceId(null);
+              setCurrentStep(0);
+              setMainTab('manage');
+            }}
+            userProfilePic={userProfilePic}
+            initialServiceId={editingServiceId}
+          />
+        </SafeAreaView>
+      </LinearGradient>
+    );
+  }
+
   if (activeFlow === 'consultation') {
     return (
       <LinearGradient colors={colors.bg} style={styles.flex}>
@@ -681,14 +778,17 @@ export default function ServicesComingSoon() {
             t={t}
             onBack={() => {
               setActiveFlow(null);
-              setCurrentStep(1);
+              setEditingServiceId(null);
+              setCurrentStep(0);
             }}
             onFinish={() => {
               setActiveFlow(null);
+              setEditingServiceId(null);
               setCurrentStep(0);
               setMainTab('manage');
             }}
             userProfilePic={userProfilePic}
+            initialServiceId={editingServiceId}
           />
         </SafeAreaView>
       </LinearGradient>
@@ -705,14 +805,17 @@ export default function ServicesComingSoon() {
             t={t}
             onBack={() => {
               setActiveFlow(null);
-              setCurrentStep(1);
+              setEditingServiceId(null);
+              setCurrentStep(0);
             }}
             onFinish={() => {
               setActiveFlow(null);
+              setEditingServiceId(null);
               setCurrentStep(0);
               setMainTab('manage');
             }}
             userProfilePic={userProfilePic}
+            initialServiceId={editingServiceId}
           />
         </SafeAreaView>
       </LinearGradient>
@@ -729,14 +832,17 @@ export default function ServicesComingSoon() {
             t={t}
             onBack={() => {
               setActiveFlow(null);
-              setCurrentStep(1);
+              setEditingServiceId(null);
+              setCurrentStep(0);
             }}
             onFinish={() => {
               setActiveFlow(null);
+              setEditingServiceId(null);
               setCurrentStep(0);
               setMainTab('manage');
             }}
             userProfilePic={userProfilePic}
+            initialServiceId={editingServiceId}
           />
         </SafeAreaView>
       </LinearGradient>
@@ -753,15 +859,240 @@ export default function ServicesComingSoon() {
             t={t}
             onBack={() => {
               setActiveFlow(null);
-              setCurrentStep(1);
+              setEditingServiceId(null);
+              setCurrentStep(0);
             }}
             onFinish={() => {
               setActiveFlow(null);
+              setEditingServiceId(null);
               setCurrentStep(0);
               setMainTab('manage');
             }}
             userProfilePic={userProfilePic}
+            initialServiceId={editingServiceId}
           />
+        </SafeAreaView>
+      </LinearGradient>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // MANAGE SERVICES TAB
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (mainTab === 'manage') {
+    return (
+      <LinearGradient colors={colors.bg} style={styles.flex}>
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+          <View style={styles.mockupHeader}>
+            <TouchableOpacity
+              onPress={() => setMainTab('services')}
+              style={styles.mockupHeaderLeft}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="arrow-back" size={24} color={colors.title} />
+              <Text style={[styles.brandTitleText, { color: colors.title, marginLeft: 8 }]}>
+                {t ? t('services.backToDashboard', 'Services Dashboard') : 'Services Dashboard'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <ManageServicesView
+            colors={colors}
+            isDarkMode={isDarkMode}
+            t={t}
+            initialSide={roleMode}
+            userProfilePic={userProfilePic}
+            onAddNewService={() => handleActivateServicesPress()}
+            onEditService={item => {
+              const rawType = (item.type || '').toUpperCase();
+              const typeFlowMap = {
+                MENTORSHIP: 'mentorship',
+                CONSULTATION: 'consultation',
+                APPOINTMENT: 'appointment',
+                EVENT: 'event',
+                MONTHLY_PACKAGE: 'monthly_package',
+              };
+              setEditingServiceId(item.id);
+              setActiveFlow(typeFlowMap[rawType] || 'consultation');
+            }}
+          />
+
+          {/* Choose Service Type Modal for Manage View */}
+          <ChooseServiceTypeModal
+            visible={chooseTypeModalVisible}
+            onClose={() => setChooseTypeModalVisible(false)}
+            onSelectType={type => {
+              setChooseTypeModalVisible(false);
+              setEditingServiceId(null);
+              const typeFlowMap = {
+                MENTORSHIP: 'mentorship',
+                CONSULTATION: 'consultation',
+                APPOINTMENT: 'appointment',
+                EVENT: 'event',
+                MONTHLY_PACKAGE: 'monthly_package',
+              };
+              setActiveFlow(typeFlowMap[type] || 'mentorship');
+            }}
+            isBusinessProfile={effectiveIsBusiness}
+          />
+        </SafeAreaView>
+      </LinearGradient>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // BUYER / VISITOR STOREFRONT VIEW (When opening another user's services)
+  // Or previewing own storefront
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (!isOwnProfile || showStorefrontPreview) {
+    const isPreview = isOwnProfile && showStorefrontPreview;
+    const providerUser = isPreview
+      ? {
+          displayName: reduxProfile?.displayName || reduxProfile?.first_name || 'My Storefront',
+          userName: reduxProfile?.username || reduxProfile?.userName,
+          profile_image: userProfilePic,
+          headline: reduxProfile?.headline || reduxProfile?.about,
+        }
+      : targetUser;
+
+    const providerId = isPreview ? myUserId : targetUserId;
+
+    const providerName =
+      providerUser?.displayName ||
+      providerUser?.first_name ||
+      providerUser?.name ||
+      providerUser?.userName ||
+      providerUser?.username ||
+      'Professional Provider';
+    const providerUsername =
+      providerUser?.userName || providerUser?.username ? `@${providerUser?.userName || providerUser?.username}` : '';
+    const providerAvatar =
+      providerUser?.profile_image ||
+      providerUser?.profileImg ||
+      providerUser?.profilepic ||
+      (isPreview ? userProfilePic : null);
+    const providerHeadline =
+      providerUser?.headline ||
+      providerUser?.profession ||
+      providerUser?.bio ||
+      providerUser?.about ||
+      (effectiveIsBusiness ? 'Business Services & Solutions' : 'Personal & Professional Services');
+
+    return (
+      <LinearGradient colors={colors.bg} style={styles.flex}>
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+          {/* Top Navigation Bar */}
+          <View style={styles.mockupHeader}>
+            <TouchableOpacity
+              onPress={() => {
+                if (isPreview) {
+                  setShowStorefrontPreview(false);
+                } else {
+                  navigation.goBack();
+                }
+              }}
+              activeOpacity={0.7}
+              style={{ flexDirection: 'row', alignItems: 'center' }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="chevron-back" size={24} color={colors.title} />
+              <Text style={[styles.brandTitleText, { color: colors.title, marginLeft: 4, fontSize: 16 }]}>
+                {isPreview ? 'Exit Preview' : t('common.back', 'Back')}
+              </Text>
+            </TouchableOpacity>
+
+            <Text
+              style={[styles.mockupHeaderCenterTitle, { color: colors.title, maxWidth: width * 0.5 }]}
+              numberOfLines={1}
+            >
+              {isPreview ? 'Storefront Preview' : providerName}
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => {
+                Share.share({
+                  message: `Check out ${providerName}'s services on Valens!`,
+                });
+              }}
+              activeOpacity={0.7}
+              style={styles.mockupHeaderIconBtn}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Ionicons name="share-outline" size={22} color={colors.title} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Provider Profile Summary Card */}
+          <View
+            style={[
+              styles.providerHeaderCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
+            <View style={styles.providerAvatarWrap}>
+              {providerAvatar ? (
+                <Image source={{ uri: providerAvatar }} style={styles.providerAvatarImg} />
+              ) : (
+                <View style={[styles.providerAvatarFallback, { backgroundColor: colors.pillBg }]}>
+                  <Text style={[styles.providerAvatarText, { color: colors.accent }]}>
+                    {providerName.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.providerInfoWrap}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={[styles.providerNameText, { color: colors.title }]} numberOfLines={1}>
+                  {providerName}
+                </Text>
+                {effectiveIsBusiness ? (
+                  <Ionicons name="checkmark-seal" size={16} color="#CBA257" style={{ marginLeft: 4 }} />
+                ) : (
+                  <Ionicons name="shield-checkmark" size={15} color="#7C3AED" style={{ marginLeft: 4 }} />
+                )}
+                {isPreview && (
+                  <View style={{ backgroundColor: colors.pillBg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 6 }}>
+                    <Text style={{ fontSize: 10, color: colors.accent, fontWeight: '700' }}>PREVIEW</Text>
+                  </View>
+                )}
+              </View>
+              {Boolean(providerUsername) && (
+                <Text style={[styles.providerUsernameText, { color: colors.muted }]}>
+                  {providerUsername}
+                </Text>
+              )}
+              {Boolean(providerHeadline) && (
+                <Text style={[styles.providerHeadlineText, { color: colors.body }]} numberOfLines={2}>
+                  {providerHeadline}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          {/* Public Services Tab for this provider */}
+          <View style={{ flex: 1 }}>
+            {providerId ? (
+              <ProfileServicesTab
+                userId={providerId}
+                isOwnProfile={isPreview}
+                isBusinessProfile={effectiveIsBusiness}
+                isDarkMode={isDarkMode}
+                onNavigateToManage={isPreview ? () => setShowStorefrontPreview(false) : null}
+              />
+            ) : (
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+                <Ionicons name="alert-circle-outline" size={48} color={colors.muted} />
+                <Text style={{ color: colors.title, fontSize: 16, fontWeight: '700', marginTop: 12 }}>
+                  Provider Not Found
+                </Text>
+                <Text style={{ color: colors.muted, fontSize: 13, textAlign: 'center', marginTop: 6 }}>
+                  Unable to load services for this user profile.
+                </Text>
+              </View>
+            )}
+          </View>
         </SafeAreaView>
       </LinearGradient>
     );
@@ -812,6 +1143,14 @@ export default function ServicesComingSoon() {
             </Text>
 
             <View style={styles.mockupHeaderRight}>
+              <TouchableOpacity
+                onPress={() => setShowStorefrontPreview(true)}
+                activeOpacity={0.7}
+                style={styles.mockupHeaderIconBtn}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Ionicons name="eye-outline" size={22} color={colors.title} />
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => navigation.navigate('Notification')}
                 activeOpacity={0.7}
@@ -883,6 +1222,32 @@ export default function ServicesComingSoon() {
             </TouchableOpacity>
           </View>
 
+          {/* Eligibility Warning Banners */}
+          {eligibility?.missing?.includes('KYC_REQUIRED') && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F59E0B' }}>
+              <Ionicons name="shield-checkmark-outline" size={18} color="#D97706" style={{ marginRight: 8 }} />
+              <Text style={{ flex: 1, color: '#92400E', fontSize: 12, fontWeight: '600' }}>
+                Complete verification to publish services (Drafts still work).
+              </Text>
+            </View>
+          )}
+          {eligibility?.missing?.includes('PAYOUT_ACCOUNT_REQUIRED') && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#F59E0B' }}>
+              <Ionicons name="card-outline" size={18} color="#D97706" style={{ marginRight: 8 }} />
+              <Text style={{ flex: 1, color: '#92400E', fontSize: 12, fontWeight: '600' }}>
+                Connect your payout account to publish services (Drafts still work).
+              </Text>
+            </View>
+          )}
+          {Boolean(eligibility?.membershipGraceEndsAt) && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEE2E2', marginHorizontal: 16, marginBottom: 8, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#EF4444' }}>
+              <Ionicons name="warning-outline" size={18} color="#DC2626" style={{ marginRight: 8 }} />
+              <Text style={{ flex: 1, color: '#B91C1C', fontSize: 12, fontWeight: '600' }}>
+                Renew your membership soon or your services will be paused.
+              </Text>
+            </View>
+          )}
+
 {/* MAIN SCROLLABLE CONTENT */}
           <ScrollView
             style={styles.flex}
@@ -945,13 +1310,37 @@ export default function ServicesComingSoon() {
 
                     {/* Create New Service or Package Button */}
                     <TouchableOpacity
-                      onPress={handleActivateServicesPress}
+                      onPress={() => handleActivateServicesPress()}
                       activeOpacity={0.85}
                       style={styles.proCreateBtn}
                     >
                       <Ionicons name="add" size={19} color="#FFFFFF" style={{ marginRight: 6 }} />
                       <Text style={styles.proCreateBtnText}>
                         {t('services.createNewService', 'Create New Service or Package')}
+                      </Text>
+                    </TouchableOpacity>
+
+                    {/* Manage All Services Button */}
+                    <TouchableOpacity
+                      onPress={() => setMainTab('manage')}
+                      activeOpacity={0.85}
+                      style={[styles.proCreateBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#FFFFFF', marginTop: 8 }]}
+                    >
+                      <Ionicons name="list-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.proCreateBtnText}>
+                        Manage All Services
+                      </Text>
+                    </TouchableOpacity>
+
+                    {/* Preview Public Storefront Button */}
+                    <TouchableOpacity
+                      onPress={() => setShowStorefrontPreview(true)}
+                      activeOpacity={0.85}
+                      style={[styles.proCreateBtn, { backgroundColor: 'rgba(255,255,255,0.18)', marginTop: 8 }]}
+                    >
+                      <Ionicons name="eye-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.proCreateBtnText}>
+                        Preview Public Storefront
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -1411,6 +1800,25 @@ export default function ServicesComingSoon() {
             isBusinessProfile={isBusiness}
             onLater={() => setShowMembershipModal(false)}
             onLearnMore={handleMembershipLearnMore}
+          />
+
+          {/* Choose Service Type Modal */}
+          <ChooseServiceTypeModal
+            visible={chooseTypeModalVisible}
+            onClose={() => setChooseTypeModalVisible(false)}
+            onSelectType={type => {
+              setChooseTypeModalVisible(false);
+              setEditingServiceId(null);
+              const typeFlowMap = {
+                MENTORSHIP: 'mentorship',
+                CONSULTATION: 'consultation',
+                APPOINTMENT: 'appointment',
+                EVENT: 'event',
+                MONTHLY_PACKAGE: 'monthly_package',
+              };
+              setActiveFlow(typeFlowMap[type] || 'mentorship');
+            }}
+            isBusinessProfile={effectiveIsBusiness}
           />
         </SafeAreaView>
       </LinearGradient>
@@ -3905,5 +4313,55 @@ const styles = StyleSheet.create({
   servicesSetupPromptSub: {
     fontSize: 11.5,
     marginTop: 2,
+  },
+  providerHeaderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  providerAvatarWrap: {
+    marginRight: 12,
+  },
+  providerAvatarImg: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+  },
+  providerAvatarFallback: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  providerAvatarText: {
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  providerInfoWrap: {
+    flex: 1,
+  },
+  providerNameText: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  providerUsernameText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  providerHeadlineText: {
+    fontSize: 12,
+    marginTop: 4,
+    lineHeight: 16,
   },
 });

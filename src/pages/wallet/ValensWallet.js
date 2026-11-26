@@ -43,6 +43,7 @@ import { useLanguage } from '../../i18n';
 import { resolveTransactionAmount } from '../../utils/transactionAmount';
 import { formatDisplayCurrency } from '../../utils/displayLocale';
 import { persistPaymentProvider, persistUserCountry, readPaymentProvider, readUserCountry } from '../../utils/paymentCurrency';
+import { exportStatementFile } from '../../utils/statementExport';
 
 const getProfilePayload = (response) =>
     response?.data?.user ||
@@ -191,6 +192,8 @@ const ValensWallet = ({ navigation }) => {
     const [refreshing, setRefreshing] = useState(false);
     const [selectedFilter, setSelectedFilter] = useState('all');
     const [filterModalVisible, setFilterModalVisible] = useState(false);
+    const [exportModalVisible, setExportModalVisible] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
 
     const dispatch = useDispatch();
     const toast = useToast();
@@ -420,27 +423,26 @@ const ValensWallet = ({ navigation }) => {
         return opt ? opt.label : 'All Transactions';
     }, [selectedFilter]);
 
-    const handleExportStatements = async () => {
+    const handleExportStatements = () => {
+        setExportModalVisible(true);
+    };
+
+    const handleExportFormat = async (format) => {
+        setExportModalVisible(false);
+        setIsExporting(true);
+        showToastMessage(toast, 'info', t('valensWallet.exporting', 'Generating document...'));
         try {
-            const list = activeActivities;
-            const lines = [
-                'VALENS STATEMENTS',
-                `Generated on: ${new Date().toLocaleDateString()}`,
-                `Total Balance: ${displayPortfolioValue}`,
-                '------------------------------------------',
-                ...list.map(
-                    (tx) => `${tx.title} | ${tx.subtitle} | ${tx.formattedDate} | ${tx.amount}`
-                ),
-                '------------------------------------------',
-                'Valens App Financial Statement',
-            ];
-            await Share.share({
-                title: 'Valens Statements',
-                message: lines.join('\n'),
+            await exportStatementFile({
+                format,
+                balance: displayPortfolioValue,
+                filter: activeFilterLabel,
+                activities: activeActivities,
+                toast,
             });
-            showToastMessage(toast, 'success', 'Statement ready to export');
         } catch (e) {
-            // user dismissed
+            console.error('Export error:', e);
+        } finally {
+            setIsExporting(false);
         }
     };
 
@@ -804,6 +806,101 @@ const ValensWallet = ({ navigation }) => {
                 </Pressable>
             </Modal>
 
+            {/* Export Format Selection Modal */}
+            <Modal
+                visible={exportModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setExportModalVisible(false)}
+            >
+                <Pressable style={styles.modalOverlay} onPress={() => setExportModalVisible(false)}>
+                    <Pressable
+                        style={[
+                            styles.exportSheet,
+                            { backgroundColor: cardBg, borderColor: cardBorder },
+                        ]}
+                        onPress={(e) => e.stopPropagation()}
+                    >
+                        <View style={styles.sheetHandle} />
+                        <Text style={[styles.sheetTitle, { color: primaryText, textAlign: 'center' }]}>
+                            {t('valensWallet.exportTitle', 'Export Statement')}
+                        </Text>
+                        <Text style={[styles.exportSubtitle, { color: secondaryText }]}>
+                            {t('valensWallet.exportSubtitle', 'Choose your preferred document format to share or download')}
+                        </Text>
+
+                        {/* PDF Option */}
+                        <TouchableOpacity
+                            style={[
+                                styles.exportOptionCard,
+                                {
+                                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : '#FAF5FE',
+                                    borderColor: isDarkMode ? '#3B185F' : '#E9D5FF',
+                                },
+                            ]}
+                            activeOpacity={0.75}
+                            onPress={() => handleExportFormat('pdf')}
+                        >
+                            <View style={[styles.exportBadgeIcon, { backgroundColor: '#FEE2E2' }]}>
+                                <Ionicons name="document-text" size={24} color="#DC2626" />
+                            </View>
+                            <View style={styles.exportOptionInfo}>
+                                <Text style={[styles.exportOptionTitle, { color: primaryText }]}>
+                                    {t('valensWallet.exportPdfTitle', 'PDF Document (.pdf)')}
+                                </Text>
+                                <Text style={[styles.exportOptionDesc, { color: secondaryText }]}>
+                                    {t('valensWallet.exportPdfDesc', 'Formatted statement with summary, tables & branding')}
+                                </Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={18} color={secondaryText} />
+                        </TouchableOpacity>
+
+                        {/* Excel / CSV Option */}
+                        <TouchableOpacity
+                            style={[
+                                styles.exportOptionCard,
+                                {
+                                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.04)' : '#FAF5FE',
+                                    borderColor: isDarkMode ? '#3B185F' : '#E9D5FF',
+                                },
+                            ]}
+                            activeOpacity={0.75}
+                            onPress={() => handleExportFormat('csv')}
+                        >
+                            <View style={[styles.exportBadgeIcon, { backgroundColor: '#DCFCE7' }]}>
+                                <MaterialCommunityIcons name="file-excel" size={26} color="#16A34A" />
+                            </View>
+                            <View style={styles.exportOptionInfo}>
+                                <Text style={[styles.exportOptionTitle, { color: primaryText }]}>
+                                    {t('valensWallet.exportExcelTitle', 'Excel Spreadsheet (.csv)')}
+                                </Text>
+                                <Text style={[styles.exportOptionDesc, { color: secondaryText }]}>
+                                    {t('valensWallet.exportExcelDesc', 'Compatible with Microsoft Excel, Numbers & Google Sheets')}
+                                </Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={18} color={secondaryText} />
+                        </TouchableOpacity>
+
+                        {/* Cancel Button */}
+                        <TouchableOpacity
+                            style={[
+                                styles.exportCancelBtn,
+                                {
+                                    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : '#F3F4F6',
+                                    borderColor: cardBorder,
+                                },
+                            ]}
+                            activeOpacity={0.75}
+                            onPress={() => setExportModalVisible(false)}
+                        >
+                            <Text style={[styles.exportCancelText, { color: primaryText }]}>
+                                {t('common.cancel', 'Cancel')}
+                            </Text>
+                        </TouchableOpacity>
+                    </Pressable>
+                </Pressable>
+            </Modal>
+
             <TradeModal visible={tradeModalVisible} onClose={() => setTradeModalVisible(false)} />
         </SafeAreaView>
     );
@@ -1100,5 +1197,63 @@ const styles = StyleSheet.create({
     filterOptionText: {
         fontSize: 15,
         fontWeight: '500',
+    },
+    exportSheet: {
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        borderTopWidth: 1,
+        paddingHorizontal: 20,
+        paddingBottom: 36,
+        paddingTop: 12,
+    },
+    exportSubtitle: {
+        fontSize: 13,
+        textAlign: 'center',
+        lineHeight: 18,
+        marginBottom: 20,
+        marginTop: -6,
+        paddingHorizontal: 10,
+    },
+    exportOptionCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 14,
+        borderRadius: 16,
+        borderWidth: 1,
+        marginBottom: 12,
+    },
+    exportBadgeIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 14,
+        flexShrink: 0,
+    },
+    exportOptionInfo: {
+        flex: 1,
+        marginRight: 8,
+    },
+    exportOptionTitle: {
+        fontSize: 14.5,
+        fontWeight: '700',
+        marginBottom: 3,
+    },
+    exportOptionDesc: {
+        fontSize: 11.5,
+        lineHeight: 15,
+    },
+    exportCancelBtn: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        borderRadius: 14,
+        borderWidth: 1,
+        marginTop: 6,
+    },
+    exportCancelText: {
+        fontSize: 14,
+        fontWeight: '700',
     },
 });

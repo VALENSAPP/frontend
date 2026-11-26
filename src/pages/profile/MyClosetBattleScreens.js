@@ -41,6 +41,7 @@ import {
 import { navigateToUserProfile } from '../../utils/navigateToUserProfile';
 import { formSurfaces, selectedSurface, themedCard } from '../../utils/closetTheme';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, StackActions, useIsFocused } from '@react-navigation/native';
 import Svg, { Defs, ClipPath, Polygon, Image as SvgImage } from 'react-native-svg';
 import {
@@ -113,8 +114,9 @@ const currency = value => `$${numberFromPrice(value).toFixed(2)}`;
 
 // Images from the API can arrive as plain strings or as { uri } objects — normalize either to a string.
 const imageUri = img => {
-  const uri = typeof img === 'string' ? img : img?.uri || null;
-  if (!uri) return null;
+  if (!img) return null;
+  const uri = typeof img === 'string' ? img : img?.uri || img?.url || null;
+  if (!uri || typeof uri !== 'string') return null;
   return String(uri).replace(/["'\s]+$/, '');
 };
 
@@ -184,14 +186,16 @@ const prefetchImageUrls = async items => {
   await Promise.allSettled([...new Set(urls)].map(url => Image.prefetch(url)));
 };
 
-const fastImageSource = uri =>
-  uri
+const fastImageSource = uri => {
+  const resolved = imageUri(uri);
+  return resolved
     ? {
-      uri,
+      uri: resolved,
       priority: FastImage.priority.high,
       cache: FastImage.cacheControl.immutable,
     }
     : null;
+};
 
 const CachedImageBox = ({ uri, style, placeholderStyle, iconName, iconSize = 26 }) => {
   const { isDarkMode } = useThemeContext();
@@ -199,13 +203,14 @@ const CachedImageBox = ({ uri, style, placeholderStyle, iconName, iconSize = 26 
   const [failed, setFailed] = useState(false);
   const iconColor = isDarkMode ? '#aaaaaa' : '#9b8c7a';
   const overlayBg = isDarkMode ? 'rgba(30,30,30,0.72)' : 'rgba(246,240,238,0.72)';
+  const resolvedUri = imageUri(uri);
 
   useEffect(() => {
     setLoaded(false);
     setFailed(false);
   }, [uri]);
 
-  if (!uri || failed) {
+  if (!resolvedUri || failed) {
     return (
       <View style={[style, placeholderStyle, isDarkMode && { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
         <Ionicons name={iconName} size={iconSize} color={iconColor} />
@@ -221,7 +226,7 @@ const CachedImageBox = ({ uri, style, placeholderStyle, iconName, iconSize = 26 
         </View>
       )}
       <FastImage
-        source={fastImageSource(uri)}
+        source={fastImageSource(resolvedUri)}
         style={StyleSheet.absoluteFill}
         resizeMode={FastImage.resizeMode.cover}
         fadeDuration={0}
@@ -240,13 +245,15 @@ const CachedImageBox = ({ uri, style, placeholderStyle, iconName, iconSize = 26 
 // into the { items, leftVotePercent, daysLeft, ... } fields the battle screens render.
 
 const daysLeftFromEndAt = endAt => {
-  if (!endAt) return null;
-  const diffMs = new Date(endAt).getTime() - Date.now();
+  if (!endAt) return 0;
+  const endMs = new Date(endAt).getTime();
+  if (!Number.isFinite(endMs)) return 0;
+  const diffMs = endMs - Date.now();
   return Math.max(0, Math.ceil(diffMs / (24 * 60 * 60 * 1000)));
 };
 
 const participantToItem = (participant, raw, idx) => {
-  const product = participant?.product;
+  const product = participant?.product || (participant?.name ? participant : {});
   let userName = '';
   let shopName = '';
 
@@ -285,22 +292,29 @@ const participantToItem = (participant, raw, idx) => {
       ? raw?.sellerId || raw?.seller?.id || raw?.seller?._id
       : raw?.opponentSellerId || raw?.opponentSeller?.id || raw?.opponentSeller?._id);
 
+  const rawItemImage = itemImage(product) || itemImage(participant) ||
+    (Array.isArray(product?.images) ? product.images[0] : null) ||
+    (typeof product?.image === 'string' ? product.image : null) ||
+    (Array.isArray(participant?.images) ? participant.images[0] : null) ||
+    (typeof participant?.image === 'string' ? participant.image : null) ||
+    null;
+
   return {
-    id: participant?.productId || participant?.product?.id,
-    participantId: participant?.id,
-    name: participant?.product?.name || '',
-    price: currency(participant?.product?.price),
-    image: itemImage(participant?.product) || participant?.product?.images?.[0] || null,
-    voteCount: participant?.voteCount ?? 0,
+    id: String(participant?.productId || participant?.product?.id || participant?.product?._id || product?.id || product?._id || participant?.id || participant?._id || `item-${idx}`),
+    participantId: participant?.id || participant?._id || participant?.participantId || null,
+    name: typeof product?.name === 'string' ? product.name : (typeof participant?.name === 'string' ? participant.name : ''),
+    price: currency(product?.price ?? participant?.price),
+    image: rawItemImage,
+    voteCount: Number(participant?.voteCount ?? 0) || 0,
     votePercentage: participant?.votePercentage,
     pct: participant?.pct ?? participant?.votePercentage,
     isWinner: !!participant?.isWinner,
-    userName,
-    shopName,
-    sellerName: raw?.sellerName,
+    userName: typeof userName === 'string' ? userName : '',
+    shopName: typeof shopName === 'string' ? shopName : '',
+    sellerName: typeof raw?.sellerName === 'string' ? raw.sellerName : '',
     sellerId,
     // Keep the complete API product available when the card is opened.
-    raw: product,
+    raw: (product?.id || product?._id) ? product : participant,
   };
 };
 
@@ -315,71 +329,90 @@ const productToBattleItem = (product, fallback = {}) => ({
   sellerName: product?.sellerName || fallback?.sellerName || '',
 });
 
-const normalizeBattle = raw => {
-  if (!raw) return null;
-  const participants = [...(raw?.participants || [])].sort((a, b) => (a?.position ?? 0) - (b?.position ?? 0));
-  const items = participants.map((p, idx) => participantToItem(p, raw, idx));
-  const explicitWinnerParticipant = raw?.winner || participants.find(p => p?.isWinner) || null;
-  const winnerParticipant = explicitWinnerParticipant || participants[0] || null;
-  const loserParticipant = raw?.loser || participants.find(p => !p?.isWinner) || participants[1] || null;
-  const winnerProduct = winnerParticipant?.product || null;
-  const runnerUpProduct = loserParticipant?.product || null;
-  const totalVotes = raw?.totalVotes ?? participants.reduce((sum, p) => sum + (p?.voteCount ?? 0), 0);
-  const leftVotes = items[0]?.voteCount ?? 0;
-  const leftVotePercent = totalVotes > 0 ? Math.round((leftVotes / totalVotes) * 100) : 50;
-  const creatorAvatar =
-    raw?.seller?.image ||
-    raw?.seller?.avatar ||
-    raw?.seller?.profileImage ||
-    raw?.mine?.image ||
-    raw?.closet?.shopLogo ||
-    raw?.mine?.shopLogo ||
-    null;
-  const creatorName =
-    raw?.seller?.displayName ||
-    raw?.seller?.userName ||
-    raw?.seller?.name ||
-    raw?.mine?.displayName ||
-    raw?.mine?.userName ||
-    raw?.sellerName ||
-    '';
-  const creatorShopName =
-    raw?.closet?.shopName ||
-    raw?.mine?.shopName ||
-    '';
-  return {
-    id: raw?.id,
-    battleId: raw?.battleId || raw?.id,
-    title: raw?.title,
-    description: raw?.description || '',
-    category: raw?.category,
-    status: raw?.status,
-    outcome: raw?.outcome,
-    whoCanVote: raw?.whoCanVote,
-    visibility: raw?.visibility,
-    totalVotes,
-    totalComments: raw?.totalComments ?? 0,
-    totalViews: raw?.totalViews ?? raw?.viewCount ?? 0,
-    totalLikes: raw?.totalLikes ?? raw?.likeCount ?? 0,
-    daysLeft: daysLeftFromEndAt(raw?.endAt),
-    items,
-    leftVotePercent,
-    winnerProduct,
-    winnerParticipantId: explicitWinnerParticipant?.id || null,
-    winnerProductId:
-      explicitWinnerParticipant?.product?.id ||
-      explicitWinnerParticipant?.product?._id ||
-      explicitWinnerParticipant?.productId ||
-      null,
-    runnerUpProduct,
-    winnerVotePercent: raw?.winner?.votePercentage ?? participants.find(p => p?.isWinner)?.votePercentage ?? null,
-    createdAt: raw?.createdAt || raw?.startAt || null,
-    createdBy: raw?.sellerId || raw?.createdBy || raw?.userId || null, // NEW — adjust field name if API differs
-    sellerName: raw?.sellerName || raw?.seller?.userName || raw?.seller?.name,
-    creatorAvatar,
-    creatorName,
-    creatorShopName,
-  };
+const normalizeBattle = rawInput => {
+  if (!rawInput) return null;
+  const raw = rawInput?.raw && (rawInput.raw?.participants || rawInput.raw?.id || rawInput.raw?._id || rawInput.raw?.title) ? { ...rawInput, ...rawInput.raw } : rawInput;
+  try {
+    const participants = Array.isArray(raw?.participants)
+      ? [...raw.participants].sort((a, b) => (a?.position ?? 0) - (b?.position ?? 0))
+      : [];
+    let items = [];
+    if (participants.length > 0) {
+      items = participants.map((p, idx) => participantToItem(p, raw, idx));
+    } else if (Array.isArray(raw?.items) && raw.items.length > 0) {
+      items = raw.items.map((it, idx) => participantToItem(it, raw, idx));
+    } else if (raw?.left && raw?.right) {
+      items = [participantToItem(raw.left, raw, 0), participantToItem(raw.right, raw, 1)];
+    } else if (raw?.leftItem && raw?.rightItem) {
+      items = [participantToItem(raw.leftItem, raw, 0), participantToItem(raw.rightItem, raw, 1)];
+    }
+    const explicitWinnerParticipant = raw?.winner || participants.find(p => p?.isWinner) || null;
+    const winnerParticipant = explicitWinnerParticipant || participants[0] || null;
+    const loserParticipant = raw?.loser || participants.find(p => !p?.isWinner) || participants[1] || null;
+    const winnerProduct = winnerParticipant?.product || null;
+    const runnerUpProduct = loserParticipant?.product || null;
+    const totalVotes = Number(raw?.totalVotes) || participants.reduce((sum, p) => sum + (Number(p?.voteCount) || 0), 0);
+    const leftVotes = Number(items[0]?.voteCount) || 0;
+    const leftVotePercent = totalVotes > 0 ? Math.round((leftVotes / totalVotes) * 100) : 50;
+    const creatorAvatar =
+      raw?.seller?.image ||
+      raw?.seller?.avatar ||
+      raw?.seller?.profileImage ||
+      raw?.mine?.image ||
+      raw?.closet?.shopLogo ||
+      raw?.mine?.shopLogo ||
+      null;
+    const creatorName =
+      (typeof raw?.seller?.displayName === 'string' && raw.seller.displayName) ||
+      (typeof raw?.seller?.userName === 'string' && raw.seller.userName) ||
+      (typeof raw?.seller?.name === 'string' && raw.seller.name) ||
+      (typeof raw?.mine?.displayName === 'string' && raw.mine.displayName) ||
+      (typeof raw?.mine?.userName === 'string' && raw.mine.userName) ||
+      (typeof raw?.sellerName === 'string' && raw.sellerName) ||
+      '';
+    const creatorShopName =
+      (typeof raw?.closet?.shopName === 'string' && raw.closet.shopName) ||
+      (typeof raw?.mine?.shopName === 'string' && raw.mine.shopName) ||
+      '';
+    const title = typeof raw?.title === 'string' ? raw.title : (raw?.title?.title || raw?.title?.name || '');
+    const description = typeof raw?.description === 'string' ? raw.description : (raw?.description?.text || '');
+    const category = typeof raw?.category === 'string' ? raw.category : (raw?.category?.name || raw?.category?.title || '');
+    return {
+      id: raw?.id != null ? String(raw.id) : (raw?._id != null ? String(raw._id) : undefined),
+      battleId: raw?.battleId != null ? String(raw.battleId) : (raw?.id != null ? String(raw.id) : (raw?._id != null ? String(raw._id) : undefined)),
+      title,
+      description,
+      category,
+      status: raw?.status,
+      outcome: raw?.outcome,
+      whoCanVote: raw?.whoCanVote,
+      visibility: raw?.visibility,
+      totalVotes,
+      totalComments: Number(raw?.totalComments ?? 0) || 0,
+      totalViews: Number(raw?.totalViews ?? raw?.viewCount ?? 0) || 0,
+      totalLikes: Number(raw?.totalLikes ?? raw?.likeCount ?? 0) || 0,
+      daysLeft: daysLeftFromEndAt(raw?.endAt || raw?.endTime || raw?.endsAt),
+      items,
+      leftVotePercent,
+      winnerProduct,
+      winnerParticipantId: explicitWinnerParticipant?.id || null,
+      winnerProductId:
+        explicitWinnerParticipant?.product?.id ||
+        explicitWinnerParticipant?.product?._id ||
+        explicitWinnerParticipant?.productId ||
+        null,
+      runnerUpProduct,
+      winnerVotePercent: raw?.winner?.votePercentage ?? participants.find(p => p?.isWinner)?.votePercentage ?? null,
+      createdAt: raw?.createdAt || raw?.startAt || null,
+      createdBy: raw?.sellerId || raw?.seller?.id || raw?.seller?._id || raw?.createdBy || raw?.userId || null,
+      sellerName: typeof raw?.sellerName === 'string' ? raw.sellerName : (typeof raw?.seller?.userName === 'string' ? raw.seller.userName : (typeof raw?.seller?.name === 'string' ? raw.seller.name : '')),
+      creatorAvatar,
+      creatorName,
+      creatorShopName,
+    };
+  } catch (_e) {
+    return null;
+  }
 };
 
 // --- Marketplace battle comment normalization ---------------------------
@@ -415,6 +448,7 @@ const normalizeMarketplaceComment = (comment = {}, index = 0) => ({
 
 const CommentAvatarCircle = ({ uri, size = 32 }) => {
   const [imageError, setImageError] = useState(false);
+  const resolvedUri = imageUri(uri);
 
   useEffect(() => {
     setImageError(false);
@@ -422,9 +456,9 @@ const CommentAvatarCircle = ({ uri, size = 32 }) => {
 
   return (
     <View style={[liveStyles.commentAvatarCircle, liveStyles.commentAvatarFallback]}>
-      {uri && !imageError ? (
+      {resolvedUri && !imageError ? (
         <FastImage
-          source={fastImageSource(uri)}
+          source={fastImageSource(resolvedUri)}
           style={liveStyles.commentAvatarImage}
           resizeMode={FastImage.resizeMode.cover}
           fadeDuration={0}
@@ -530,29 +564,65 @@ export const PhoneFrame = ({ children }) => {
   );
 };
 
-export const BattleCard = ({ left, right, showWinner = false, winnerPercent, accent = PURPLE, textColor = TEXT, isDarkMode = false, card, border, inHeroCard = false, onLeftPress, onRightPress }) => {
+export const BattleCard = ({
+  left,
+  right,
+  showWinner = false,
+  winnerPercent,
+  accent = PURPLE,
+  textColor = TEXT,
+  isDarkMode = false,
+  card,
+  border,
+  inHeroCard = false,
+  isBusinessProfile = false,
+  onLeftPress,
+  onRightPress,
+}) => {
   const { t } = useLanguage();
-  const confettiBg = isDarkMode ? (card || 'rgba(255,255,255,0.08)') : '#FBF3FF';
+  const confettiBg = isDarkMode ? (card || '#1F1A24') : '#FFFFFF';
+  const winnerTitleColor = isDarkMode ? '#FFFFFF' : '#111827';
+  const winnerBadgeColor = isDarkMode
+    ? (isBusinessProfile ? '#F3E2B8' : '#D8B4FE')
+    : (isBusinessProfile ? '#967026' : '#6B21A8');
+  const winnerPriceColor = isDarkMode
+    ? (isBusinessProfile ? '#FCD34D' : '#FDE047')
+    : (isBusinessProfile ? '#B45309' : '#6D28D9');
+  const winnerBorderColor = isDarkMode
+    ? (isBusinessProfile ? '#664614' : '#4C1D95')
+    : (isBusinessProfile ? '#E8D9BD' : '#E9D5FF');
   const ProductTile = ({ item, onPress, iconName }) => {
+    if (!item) return <View style={styles.itemTile} />;
+    const itemName = typeof item?.name === 'string' ? item.name : '';
+    const itemPrice = typeof item?.price === 'string' || typeof item?.price === 'number'
+      ? String(item.price)
+      : (item?.price?.amount ? `$${item.price.amount}` : '');
+    const itemSeller = typeof item?.shopName === 'string'
+      ? item.shopName
+      : typeof item?.userName === 'string'
+        ? item.userName
+        : typeof item?.sellerName === 'string'
+          ? item.sellerName
+          : '';
     const content = (
       <>
         <View style={[styles.itemThumbWrap, inHeroCard && styles.itemThumbWrapInHero]}>
           <CachedImageBox
-            uri={item.image}
+            uri={item?.image}
             style={styles.itemThumb}
             placeholderStyle={styles.itemThumbPlaceholder}
             iconName={iconName}
           />
         </View>
-        <Text style={[styles.itemName, { color: inHeroCard ? '#FFFFFF' : textColor }]} numberOfLines={1}>{item.name}</Text>
-        {Boolean(item?.price) && (
+        <Text style={[styles.itemName, { color: inHeroCard ? '#FFFFFF' : textColor }]} numberOfLines={1}>{itemName}</Text>
+        {Boolean(itemPrice) && (
           <View style={styles.yellowPricePill}>
-            <Text style={styles.yellowPriceText}>{item.price}</Text>
+            <Text style={styles.yellowPriceText}>{itemPrice}</Text>
           </View>
         )}
-        {(item.shopName || item.userName || item.sellerName) ? (
+        {Boolean(itemSeller) ? (
           <Text style={[styles.itemSeller, { color: inHeroCard ? 'rgba(255,255,255,0.75)' : (isDarkMode ? '#AAAAAA' : '#666666'), fontSize: 11, marginTop: 2, textAlign: 'center' }]} numberOfLines={1}>
-            {item.shopName || item.userName || item.sellerName}
+            {itemSeller}
           </Text>
         ) : null}
         {showWinner && item === left &&
@@ -566,35 +636,60 @@ export const BattleCard = ({ left, right, showWinner = false, winnerPercent, acc
     );
 
     return onPress ? (
-      <TouchableOpacity style={styles.itemTile} activeOpacity={0.75} onPress={onPress} accessibilityRole="button" accessibilityLabel={`View ${item.name}`}>
+      <TouchableOpacity style={styles.itemTile} activeOpacity={0.75} onPress={onPress} accessibilityRole="button" accessibilityLabel={`View ${itemName || 'product'}`}>
         {content}
       </TouchableOpacity>
     ) : <View style={styles.itemTile}>{content}</View>;
   };
+  const winnerTitle = typeof left?.name === 'string' ? left.name : '';
+  const winnerPrice = typeof left?.price === 'string' || typeof left?.price === 'number'
+    ? String(left.price)
+    : (left?.price?.amount ? `$${left.price.amount}` : '');
+  const winnerSeller = typeof left?.shopName === 'string'
+    ? left.shopName
+    : typeof left?.userName === 'string'
+      ? left.userName
+      : typeof left?.sellerName === 'string'
+        ? left.sellerName
+        : '';
   return (
     <View style={[styles.cardBlock, inHeroCard && { marginTop: 4, marginBottom: 4 }]}>
       {showWinner ? (
-        <View style={[styles.confettiCard, { backgroundColor: confettiBg, borderColor: border || BORDER }]}>
-          <Text style={[styles.winnerBadge, { color: textColor }]}>🏆 {t('battle.winner')}</Text>
+        <View
+          style={[
+            styles.confettiCard,
+            {
+              backgroundColor: confettiBg,
+              borderColor: winnerBorderColor,
+              borderWidth: 1.5,
+              shadowColor: isBusinessProfile ? '#CBA257' : '#7C3AED',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isDarkMode ? 0.2 : 0.08,
+              shadowRadius: 6,
+              elevation: 2,
+            },
+          ]}
+        >
+          <Text style={[styles.winnerBadge, { color: winnerBadgeColor }]}>🏆 {t('battle.winner', 'Winner')}</Text>
           <View style={styles.winnerRow}>
-            <View style={styles.heroThumb}>
+            <View style={[styles.heroThumb, { backgroundColor: isDarkMode ? '#2A2433' : '#F7F5FA' }]}>
               <CachedImageBox
-                uri={left.image}
+                uri={left?.image}
                 style={styles.itemThumb}
                 placeholderStyle={styles.itemThumbPlaceholder}
                 iconName="bag-outline"
               />
             </View>
             <View style={styles.winnerCopy}>
-              <Text style={[styles.winnerTitle, { color: textColor }]}>{left.name}</Text>
-              <Text style={[styles.winnerPrice, { color: textColor }]}>{left.price}</Text>
-              {(left.shopName || left.userName || left.sellerName) ? (
-                <Text style={[styles.winnerSeller, { color: isDarkMode ? '#AAAAAA' : '#666666', fontSize: 12, marginTop: 2 }]} numberOfLines={1}>
-                  {left.shopName || left.userName || left.sellerName}
+              <Text style={[styles.winnerTitle, { color: winnerTitleColor }]} numberOfLines={2}>{winnerTitle}</Text>
+              <Text style={[styles.winnerPrice, { color: winnerPriceColor }]}>{winnerPrice}</Text>
+              {Boolean(winnerSeller) ? (
+                <Text style={[styles.winnerSeller, { color: isDarkMode ? '#9CA3AF' : '#6B7280', fontSize: 12, marginTop: 2 }]} numberOfLines={1}>
+                  {winnerSeller}
                 </Text>
               ) : null}
             </View>
-            <View style={[styles.percentPill, { backgroundColor: '#22C55E' }]}>
+            <View style={[styles.percentPill, { backgroundColor: '#16A34A', alignSelf: 'center' }]}>
               <Text style={styles.percentText}>{winnerPercent != null ? `${winnerPercent}%` : '—'}</Text>
             </View>
           </View>
@@ -602,7 +697,7 @@ export const BattleCard = ({ left, right, showWinner = false, winnerPercent, acc
       ) : null}
       <View style={styles.vsGrid}>
         <ProductTile item={left} onPress={onLeftPress} iconName="bag-outline" />
-        <View style={[styles.vsBubble, { backgroundColor: inHeroCard ? '#3B1768' : accent, borderColor: inHeroCard ? 'rgba(255,255,255,0.4)' : '#ede8fb', borderWidth: 1.5 }]}>
+        <View style={[styles.vsBubble, { backgroundColor: inHeroCard ? (isBusinessProfile ? '#5C3E10' : '#3B1768') : accent, borderColor: inHeroCard ? 'rgba(255,255,255,0.4)' : '#ede8fb', borderWidth: 1.5 }]}>
           <Text style={styles.vsText}>{t('battle.vs')}</Text>
         </View>
         <ProductTile item={right} onPress={onRightPress} iconName="bag-handle-outline" />
@@ -1963,35 +2058,50 @@ export function BattleLiveScreen({ navigation, route }) {
   const surface = card || (isDarkMode ? '#1E1E1E' : '#fff');
   const voteIdleColors = isDarkMode ? [surface, surface] : ['#FFFFFF', '#FFFFFF'];
   const voteIdleBorder = isDarkMode ? (border || '#333') : '#E5E7EB';
-  const battleId = route?.params?.battleId;
+  const rawBattleId = route?.params?.battleId;
   const initialBattle = route?.params?.initialBattle || null;
+  const battleId = (rawBattleId && String(rawBattleId) !== '0' && String(rawBattleId) !== 'undefined')
+    ? String(rawBattleId)
+    : String(initialBattle?.id || initialBattle?._id || initialBattle?.battleId || initialBattle?.raw?.id || initialBattle?.raw?._id || '') || null;
   const returnTo = route?.params?.returnTo;
-  const isOwnProfile = route?.params?.isOwnProfile ?? false;
+  const isOwnProfile = route?.params?.isOwnProfile === true;
   const launchedFromPreview = route?.params?.launchedFromPreview ?? false;
   const cameFromCard = !!initialBattle;
   const battleBack = useBattleBackHandler(navigation, route);
   const targetScreen = useTargetClosetScreen();
   const isFocused = useIsFocused();
 
+  const isMountedRef = useRef(true);
+  const hasTrackedViewRef = useRef(false);
+  const isBackInProgressRef = useRef(false);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const handleBack = useCallback(() => {
-    if (returnTo?.screen === "SearchHome") {
-      navigation.navigate('MainApp', {
-        screen: 'Search',
-      });
+    if (isBackInProgressRef.current) return;
+    isBackInProgressRef.current = true;
+    setTimeout(() => {
+      isBackInProgressRef.current = false;
+    }, 800);
+
+    // When opened from Search (or Search tab), return directly to Search instead of popping to underlying Profile
+    if (returnTo === 'SearchHome' || returnTo?.screen === 'SearchHome' || returnTo?.tab === 'Search') {
+      navigateClosetReturn(navigation, returnTo || 'SearchHome');
       return;
     }
-    else if (returnTo?.screen === "HeartNotification" || returnTo === "HeartNotification") {
-      if (navigation.canGoBack?.()) {
-        navigation.goBack();
-        return;
-      }
+    if (returnTo?.screen === "HeartNotification" || returnTo === "HeartNotification") {
       navigation.navigate('HomeMain', {
         screen: 'HeartNotification'
       });
       return;
     }
-    else if (returnTo?.screen === 'MyClosetBattles' || route?.params?.fromBattlePicks) {
-      if (navigation.canGoBack?.()) {
+    if (returnTo?.screen === 'MyClosetBattles' || route?.params?.fromBattlePicks) {
+      if (navigation?.canGoBack?.()) {
         navigation.goBack();
         return;
       }
@@ -2004,11 +2114,19 @@ export function BattleLiveScreen({ navigation, route }) {
       });
       return;
     }
-    else {
-      battleBack();
+    if (navigation?.canGoBack?.()) {
+      navigation.goBack();
+      return;
     }
-  }, [returnTo, navigation, battleBack, route?.params?.fromBattlePicks]);
+    battleBack();
+  }, [navigation, returnTo, battleBack, route?.params?.fromBattlePicks]);
   const handleDonePress = useCallback(() => {
+    if (isBackInProgressRef.current) return;
+    isBackInProgressRef.current = true;
+    setTimeout(() => {
+      isBackInProgressRef.current = false;
+    }, 800);
+
     // Search opens BattleLive inside the profile stack. Go directly to its tab
     // instead of popping to the profile screen that happens to be beneath it.
     if (returnTo === 'SearchHome' || returnTo?.screen === 'SearchHome' || returnTo?.tab === 'Search') {
@@ -2041,7 +2159,13 @@ export function BattleLiveScreen({ navigation, route }) {
     navigateClosetReturn(navigation, returnTo);
   }, [navigation, returnTo]);
 
-  const [battle, setBattle] = useState(() => (initialBattle ? normalizeBattle(initialBattle) : null));
+  const [battle, setBattle] = useState(() => {
+    try {
+      return initialBattle ? normalizeBattle(initialBattle) : null;
+    } catch (_e) {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(() => !!battleId && !initialBattle);
   const [loadError, setLoadError] = useState(null);
   const [hasVoted, setHasVoted] = useState(false);
@@ -2062,8 +2186,10 @@ export function BattleLiveScreen({ navigation, route }) {
   const [manageModalVisible, setManageModalVisible] = useState(false);
   const reportSheetRef = useRef(null);
 
-  const question = battle?.title || route?.params?.question || t('battle.defaultQuestion');
-  const battleDescription = (battle?.description || route?.params?.description || '').trim();
+  const rawQuestion = battle?.title ?? route?.params?.question;
+  const question = (typeof rawQuestion === 'string' ? rawQuestion : (rawQuestion?.title || rawQuestion?.name || rawQuestion?.question || '')) || t('battle.defaultQuestion');
+  const rawDesc = battle?.description || route?.params?.description;
+  const battleDescription = (typeof rawDesc === 'string' ? rawDesc : '').trim();
   const selectedItems = useMemo(
     () => (battle?.items?.length ? battle.items : route?.params?.selectedItems || []),
     [battle?.items, route?.params?.selectedItems],
@@ -2079,26 +2205,6 @@ export function BattleLiveScreen({ navigation, route }) {
   const isBattleFinished = ['COMPLETED', 'FINISHED', 'ENDED', 'CLOSED', 'RESOLVED'].includes(
     String(battle?.status || '').toUpperCase(),
   );
-  const isBattleVotingOpen =
-    (isBattleLive || (!isBattleExpired && !isBattleFinished)) &&
-    String(battle?.outcome || '').toUpperCase() !== 'CANCELLED';
-  const canVote = isBattleVotingOpen && !hasVoted && !checkingVote;
-  const showResultsBar =
-    hasVoted ||
-    totalItemVotes > 0 ||
-    isBattleFinished ||
-    isBattleExpired ||
-    !!route?.params?.showResultsBar ||
-    (battle && (String(battle.status || '').toUpperCase() !== 'LIVE' || String(battle.outcome || '').toUpperCase() !== 'PENDING'));
-  const voteAudienceText = battle?.whoCanVote === 'Followers' ? t('battle.followersOnly') : t('battle.everyoneCanVote');
-  const battleCreatedAt = battle?.createdAt ? new Date(battle.createdAt).getTime() : NaN;
-  // The API remains the authority for this window. If an older response does
-  // not include a timestamp, leave deletion available and let the API give
-  // the creator the definitive grace-period response.
-  const isWithinDeleteGracePeriod = !Number.isFinite(battleCreatedAt) || Date.now() - battleCreatedAt < 5 * 60 * 1000;
-  const canDeleteBattle = isCreator && isWithinDeleteGracePeriod;
-  const liveScreenTitle = isBattleExpired ? (t('battleInProgress.battleEnded') || 'Battle Ended') : t('battle.liveTitle');
-  const votedLabel = t('battle.voting') || 'Voting...';
   const leftItem = selectedItems[0] || {};
   const rightItem = selectedItems[1] || {};
   const leftProfileId =
@@ -2132,6 +2238,27 @@ export function BattleLiveScreen({ navigation, route }) {
   const rightVotePercent = Number.isFinite(rightPctValue)
     ? Math.round(rightPctValue)
     : 100 - leftVotePercent;
+
+  const isBattleVotingOpen =
+    (isBattleLive || (!isBattleExpired && !isBattleFinished)) &&
+    String(battle?.outcome || '').toUpperCase() !== 'CANCELLED';
+  const canVote = isBattleVotingOpen && !hasVoted && !checkingVote;
+  const showResultsBar =
+    hasVoted ||
+    totalItemVotes > 0 ||
+    isBattleFinished ||
+    isBattleExpired ||
+    !!route?.params?.showResultsBar ||
+    (battle && (String(battle.status || '').toUpperCase() !== 'LIVE' || String(battle.outcome || '').toUpperCase() !== 'PENDING'));
+  const voteAudienceText = battle?.whoCanVote === 'Followers' ? t('battle.followersOnly') : t('battle.everyoneCanVote');
+  const battleCreatedAt = battle?.createdAt ? new Date(battle.createdAt).getTime() : NaN;
+  // The API remains the authority for this window. If an older response does
+  // not include a timestamp, leave deletion available and let the API give
+  // the creator the definitive grace-period response.
+  const isWithinDeleteGracePeriod = !Number.isFinite(battleCreatedAt) || Date.now() - battleCreatedAt < 5 * 60 * 1000;
+  const canDeleteBattle = isCreator && isWithinDeleteGracePeriod;
+  const liveScreenTitle = isBattleExpired ? (t('battleInProgress.battleEnded') || 'Battle Ended') : t('battle.liveTitle');
+  const votedLabel = t('battle.voting') || 'Voting...';
   const battleIsResolved =
     isBattleExpired ||
     isBattleFinished ||
@@ -2189,7 +2316,10 @@ export function BattleLiveScreen({ navigation, route }) {
   const showWinnerCard = battleIsResolved && !!winnerSide;
 
   const handleSellerPress = useCallback(() => {
-    const targetId = battle?.createdBy ? String(battle.createdBy).trim() : '';
+    const rawCreatedBy = battle?.createdBy || battle?.sellerId || battle?.userId;
+    const targetId = typeof rawCreatedBy === 'object'
+      ? String(rawCreatedBy?.id || rawCreatedBy?._id || '').trim()
+      : String(rawCreatedBy || '').trim();
 
     if (!targetId) return;
 
@@ -2205,7 +2335,7 @@ export function BattleLiveScreen({ navigation, route }) {
       },
       battleLive: true,
     });
-  }, [navigation, route?.params, battle?.createdBy, battleId, question, selectedItems, isOwnProfile, returnTo]);
+  }, [navigation, route?.params, battle?.createdBy, battle?.sellerId, battle?.userId, battleId, question, selectedItems, isOwnProfile, returnTo]);
 
 
   const openBattleProduct = useCallback((battleItem) => {
@@ -2248,49 +2378,58 @@ export function BattleLiveScreen({ navigation, route }) {
 
   const checkExistingVote = useCallback(async () => {
     if (!battleId) return;
-    setCheckingVote(true);
+    if (isMountedRef.current) setCheckingVote(true);
     try {
       const userId = currentUserId || await AsyncStorage.getItem('userId');
-      if (!userId) return;
+      if (!userId || !isMountedRef.current) return;
 
       const response = await getBattleVoters(battleId, 1, 100);
+      if (!isMountedRef.current) return;
       const data = response?.data?.data ?? response?.data ?? response;
       const voters = data?.voters || [];
       const myVote = voters.find(v => (v?.user?.id || v?.userId || v?.id) === userId);
-      if (myVote) {
+      if (myVote && isMountedRef.current) {
         setHasVoted(true);
         setVotedParticipantId(myVote?.participant?.id ?? myVote?.participantId ?? null);
       }
     } catch {
       // Non-fatal — if this fails, the user just sees the vote buttons again.
     } finally {
-      setCheckingVote(false);
+      if (isMountedRef.current) setCheckingVote(false);
     }
   }, [battleId, currentUserId]);
 
   const loadBattle = useCallback(async () => {
     if (!battleId) return;
-    setLoading(!initialBattle);
-    setLoadError(null);
+    if (isMountedRef.current) {
+      setLoading(!initialBattle && !battle);
+      setLoadError(null);
+    }
     try {
       const response = await getMarketplaceBattleDetails(battleId);
+      if (!isMountedRef.current) return;
       const data = response?.data?.data ?? response?.data ?? response;
       const raw = data?.battle ?? data?.battles?.[0] ?? data;
-      setBattle(normalizeBattle(raw));
+      if (raw) {
+        setBattle(normalizeBattle(raw));
+      }
     } catch {
-      setLoadError(t('battle.errors.battleLoadFailed') || 'Could not load this battle.');
+      if (isMountedRef.current && !initialBattle && !battle) {
+        setLoadError(t('battle.errors.battleLoadFailed') || 'Could not load this battle.');
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) setLoading(false);
     }
-  }, [battleId, initialBattle, t]);
+  }, [battleId, initialBattle, battle, t]);
 
   // GET /marketplace-battles/{battleId}/comments
   const loadComments = useCallback(async (isSilent = false) => {
-    if (!battleId) return;
-    if (!isSilent) setCommentsLoading(true);
-    setCommentsError(null);
+    if (!battleId || String(battleId) === '0' || String(battleId) === 'undefined') return;
+    if (!isSilent && isMountedRef.current) setCommentsLoading(true);
+    if (isMountedRef.current) setCommentsError(null);
     try {
       const response = await getMarketplaceBattleComments(battleId, 1, 20, 'desc');
+      if (!isMountedRef.current) return;
       const data = response?.data?.data ?? response?.data ?? response;
       const rawComments = Array.isArray(data)
         ? data
@@ -2301,22 +2440,25 @@ export function BattleLiveScreen({ navigation, route }) {
             : [];
       setComments(rawComments.map((comment, index) => normalizeMarketplaceComment(comment, index)));
     } catch (err) {
-      setCommentsError(t('battle.errors.commentsLoadFailed') || 'Could not load comments.');
+      if (isMountedRef.current) {
+        setCommentsError(t('battle.errors.commentsLoadFailed') || 'Could not load comments.');
+      }
     } finally {
-      setCommentsLoading(false);
+      if (isMountedRef.current) setCommentsLoading(false);
     }
   }, [battleId, t]);
 
   const trackBattleView = useCallback(async () => {
-    if (!battleId || !currentUserId) return;
-    if (String(currentUserId) === String(battle?.createdBy)) return;
+    if (!battleId || String(battleId) === '0' || String(battleId) === 'undefined' || hasTrackedViewRef.current) return;
+    const uid = currentUserId || (await AsyncStorage.getItem('userId').catch(() => null));
+    if (uid && battle?.createdBy && String(uid) === String(battle.createdBy)) return;
+    hasTrackedViewRef.current = true;
     try {
       await trackMarketplaceBattleView(battleId);
-      await loadBattle();
     } catch {
       // View tracking is best-effort and should never block the screen.
     }
-  }, [battle?.createdBy, battleId, currentUserId, loadBattle]);
+  }, [battle?.createdBy, battleId, currentUserId]);
 
   const handleVote = async (targetParticipantIdParam) => {
     const chosenId = targetParticipantIdParam || selectedParticipantId;
@@ -2570,7 +2712,9 @@ export function BattleLiveScreen({ navigation, route }) {
   const refreshParam = route?.params?.refresh;
   useEffect(() => {
     if (initialBattle && !refreshParam) {
-      setBattle(normalizeBattle(initialBattle));
+      try {
+        setBattle(normalizeBattle(initialBattle));
+      } catch (_e) {}
       setLoadError(null);
     }
     loadBattle();
@@ -2585,7 +2729,7 @@ export function BattleLiveScreen({ navigation, route }) {
   }, [loadComments]);
 
   useEffect(() => {
-    if (!isFocused || !battleId) return;
+    if (!isFocused || !battleId || String(battleId) === '0' || String(battleId) === 'undefined') return;
 
     const fetchBattleViews = async () => {
       try {
@@ -2616,15 +2760,29 @@ export function BattleLiveScreen({ navigation, route }) {
   // Early returns come AFTER every hook above — nothing hook-related below this point
   if (loading) {
     return (
-      <View style={[styles.screen, bgStyle, { backgroundColor: bg || SOFT_BG, justifyContent: 'center' }]}>
+      <SafeAreaView
+        style={[
+          { flex: 1 },
+          bgStyle,
+          { backgroundColor: bg || SOFT_BG, justifyContent: 'center', alignItems: 'center' },
+        ]}
+        edges={['top', 'bottom']}
+      >
         <ActivityIndicator color={accent} />
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (loadError || selectedItems.length < 2) {
     return (
-      <View style={[styles.screen, bgStyle, { backgroundColor: bg || SOFT_BG }]}>
+      <SafeAreaView
+        style={[
+          { flex: 1 },
+          bgStyle,
+          { backgroundColor: bg || SOFT_BG },
+        ]}
+        edges={['top', 'bottom']}
+      >
         <Header title={liveScreenTitle} onBack={handleBack} titleColor={text} />
         <View style={styles.centeredNotice}>
           <Text style={styles.errorText}>{loadError || t('battle.errors.missingItems')}</Text>
@@ -2634,96 +2792,123 @@ export function BattleLiveScreen({ navigation, route }) {
             </TouchableOpacity>
           ) : null}
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <KeyboardAwareScrollView
-      style={[styles.screen, bgStyle, { paddingTop: Platform.OS === 'android' ? 8 : 4 }]}
-      contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 14, paddingBottom: 16, gap: 4 }]}
-      showsVerticalScrollIndicator={false}
-      enableOnAndroid
-      extraScrollHeight={10}
-      keyboardShouldPersistTaps="handled"
+    <SafeAreaView
+      style={[
+        { flex: 1 },
+        bgStyle,
+        { backgroundColor: bgStyle?.backgroundColor || bg || (isDarkMode ? '#0E0B14' : '#F8F6FC') },
+      ]}
+      edges={['top', 'bottom']}
     >
-      <Header
-        title={liveScreenTitle}
-        onBack={handleBack}
-        rightIcon="share-outline"
-        accentColor={text}
-        titleColor={text}
-        onShare={async () => {
-          try {
-            await Share.share({ message: t('battle.shareLiveMessage') });
-          } catch {
-            Alert.alert(t('battle.shareTitle'), t('battle.shareUnavailable'));
-          }
-        }}
-      />
+      <KeyboardAwareScrollView
+        style={[styles.screen, bgStyle, { paddingTop: 0 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 14, paddingBottom: 16, gap: 4 }]}
+        showsVerticalScrollIndicator={false}
+        enableOnAndroid
+        extraScrollHeight={10}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Header
+          title={liveScreenTitle}
+          onBack={handleBack}
+          rightIcon="share-outline"
+          accentColor={text}
+          titleColor={text}
+          onShare={async () => {
+            try {
+              await Share.share({ message: t('battle.shareLiveMessage') });
+            } catch {
+              Alert.alert(t('battle.shareTitle'), t('battle.shareUnavailable'));
+            }
+          }}
+        />
 
-      <View style={liveStyles.topRow}>
-        <View style={[liveStyles.categoryPill, { borderColor: brandAccent }]}>
-          <Text style={[liveStyles.categoryPillText, { color: brandAccent }]}>{battle?.category || t('battle.opinionBattle')}</Text>
-        </View>
-        {!isCreator ? (
-          <TouchableOpacity
-            onPress={() => reportSheetRef.current?.open()}
-            style={liveStyles.daysLeftRow}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        <View style={liveStyles.topRow}>
+          <View
+            style={[
+              liveStyles.categoryPill,
+              {
+                borderColor: brandAccent,
+                backgroundColor: isDarkMode
+                  ? 'rgba(255,255,255,0.06)'
+                  : (isBusinessProfile ? 'rgba(203,162,87,0.08)' : 'rgba(64,32,144,0.06)'),
+              },
+            ]}
           >
-            <Ionicons name="flag-outline" size={17} color={brandAccent} />
+            <Text style={[liveStyles.categoryPillText, { color: brandAccent }]}>
+              {typeof battle?.category === 'string' && battle.category ? battle.category : (battle?.category?.name || t('battle.opinionBattle'))}
+            </Text>
+          </View>
+          {!isCreator ? (
+            <TouchableOpacity
+              onPress={() => reportSheetRef.current?.open()}
+              style={liveStyles.daysLeftRow}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="flag-outline" size={17} color={brandAccent} />
+            </TouchableOpacity>
+          ) : null}
+          <View style={liveStyles.daysLeftRow}>
+            <Ionicons name="time-outline" size={13} color={subtleMuted} />
+            <Text style={[liveStyles.daysLeftText, { color: subtleMuted }]}>
+              {t('battle.daysLeft', { count: Number(battle?.daysLeft) || 0 })}
+            </Text>
+          </View>
+        </View>
+
+        {(battle?.creatorName || battle?.creatorAvatar || battle?.creatorShopName || battle?.sellerName) ? (
+          <TouchableOpacity activeOpacity={0.8} onPress={()=> handleSellerPress()} style={liveStyles.creatorRow}>
+            <HexAvatar uri={battle.creatorAvatar} size={36} borderWidth={1.5} borderColor={brandAccent} />
+            <View style={liveStyles.creatorDetails}>
+              <Text style={[liveStyles.creatorLabel, { color: mutedText, fontSize: 10 }]}>{t('battle.battleBy') || 'Battle By'}</Text>
+              <Text style={[liveStyles.creatorName, { color: primaryText, fontSize: 13, fontWeight: '800' }]} numberOfLines={1}>
+                {typeof battle.creatorName === 'string' && battle.creatorName
+                  ? battle.creatorName
+                  : (typeof battle.sellerName === 'string' && battle.sellerName
+                    ? battle.sellerName
+                    : (typeof battle.creatorShopName === 'string' && battle.creatorShopName ? battle.creatorShopName : 'Valens User'))}
+              </Text>
+              {typeof battle.creatorShopName === 'string' && battle.creatorShopName ? (
+                <Text style={[liveStyles.creatorShop, { color: mutedText, fontSize: 11 }]} numberOfLines={1}>
+                  {battle.creatorShopName}
+                </Text>
+              ) : null}
+            </View>
           </TouchableOpacity>
         ) : null}
-        <View style={liveStyles.daysLeftRow}>
-          <Ionicons name="time-outline" size={13} color={subtleMuted} />
-          <Text style={[liveStyles.daysLeftText, { color: subtleMuted }]}>{t('battle.daysLeft', { count: battle?.daysLeft ?? 0 })}</Text>
-        </View>
-      </View>
+        {/* Cozy Hero Card with Account-Aware Gradient (Personal #402090, Business #CBA257) */}
+        <LinearGradient
+          colors={isDarkMode
+            ? (isBusinessProfile ? ['#3A3018', '#261F0E'] : ['#351A5A', '#24103E'])
+            : (isBusinessProfile ? ['#B8924F', '#CBA257'] : ['#5227A3', '#402090'])}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[liveStyles.battleHeroCard, { shadowColor: brandAccent }]}
+        >
+          <Text style={liveStyles.battleHeroQuestion}>{question}</Text>
+          <Text style={liveStyles.battleHeroSub}>{t('battle.voteSwipeHint') || 'Your vote swipe others decide'}</Text>
 
-      {(battle?.creatorName || battle?.creatorAvatar || battle?.creatorShopName || battle?.sellerName) ? (
-        <TouchableOpacity activeOpacity={0.8} onPress={()=> handleSellerPress()} style={liveStyles.creatorRow}>
-          <HexAvatar uri={battle.creatorAvatar} size={36} borderWidth={1.5} borderColor={brandAccent} />
-          <View style={liveStyles.creatorDetails}>
-            <Text style={[liveStyles.creatorLabel, { color: mutedText, fontSize: 10 }]}>{t('battle.battleBy') || 'Battle By'}</Text>
-            <Text style={[liveStyles.creatorName, { color: primaryText, fontSize: 13, fontWeight: '800' }]} numberOfLines={1}>
-              {battle.creatorName || battle.sellerName || battle.creatorShopName || 'Valens User'}
-            </Text>
-            {battle.creatorShopName ? (
-              <Text style={[liveStyles.creatorShop, { color: mutedText, fontSize: 11 }]} numberOfLines={1}>
-                {battle.creatorShopName}
-              </Text>
-            ) : null}
-          </View>
-        </TouchableOpacity>
-      ) : null}
-      {/* Cozy Hero Card with Account-Aware Gradient (Personal #402090, Business #CBA257) */}
-      <LinearGradient
-        colors={isDarkMode
-          ? (isBusinessProfile ? ['#3A3018', '#261F0E'] : ['#351A5A', '#24103E'])
-          : (isBusinessProfile ? ['#B8924F', '#CBA257'] : ['#5227A3', '#402090'])}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[liveStyles.battleHeroCard, { shadowColor: brandAccent }]}
-      >
-        <Text style={liveStyles.battleHeroQuestion}>{question}</Text>
-        <Text style={liveStyles.battleHeroSub}>{t('battle.voteSwipeHint') || 'Your vote swipe others decide'}</Text>
-
-        <BattleCard
-          left={showWinnerCard ? winnerItem : leftItem}
-          right={showWinnerCard ? runnerUpItem : rightItem}
-          showWinner={showWinnerCard}
-          winnerPercent={Number.isFinite(winnerPercent) ? Math.round(winnerPercent) : null}
-          accent={brandAccent}
-          textColor="#FFFFFF"
-          isDarkMode={isDarkMode}
-          inHeroCard={true}
-          card={surface}
-          border={border || BORDER}
-          onLeftPress={() => openBattleProduct(showWinnerCard ? winnerItem : leftItem)}
-          onRightPress={() => openBattleProduct(showWinnerCard ? runnerUpItem : rightItem)}
-        />
-      </LinearGradient>
+          <BattleCard
+            left={showWinnerCard ? winnerItem : leftItem}
+            right={showWinnerCard ? runnerUpItem : rightItem}
+            showWinner={showWinnerCard}
+            winnerPercent={Number.isFinite(winnerPercent) ? Math.round(winnerPercent) : null}
+            accent={brandAccent}
+            textColor="#FFFFFF"
+            isDarkMode={isDarkMode}
+            inHeroCard={true}
+            isBusinessProfile={isBusinessProfile}
+            card={surface}
+            border={border || BORDER}
+            onLeftPress={() => openBattleProduct(showWinnerCard ? winnerItem : leftItem)}
+            onRightPress={() => openBattleProduct(showWinnerCard ? runnerUpItem : rightItem)}
+          />
+        </LinearGradient>
 
       {/* About this battle section */}
       {battleDescription ? (
@@ -2828,15 +3013,19 @@ export function BattleLiveScreen({ navigation, route }) {
             </View>
           </View>
           <View style={liveStyles.progressBarTrack}>
-            <View style={[liveStyles.progressBarLeft, { flex: leftVotePercent || 1, backgroundColor: brandAccent }]} />
-            <View style={[liveStyles.progressBarRight, { flex: rightVotePercent || 1, backgroundColor: '#ef4444' }]} />
+            <View style={[liveStyles.progressBarLeft, { flex: Math.max(1, Number(leftVotePercent) || 1), backgroundColor: brandAccent }]} />
+            <View style={[liveStyles.progressBarRight, { flex: Math.max(1, Number(rightVotePercent) || 1), backgroundColor: '#ef4444' }]} />
           </View>
           <View style={liveStyles.progressBottomRow}>
             <View style={[liveStyles.sideTagLeft, !isDarkMode && { backgroundColor: '#e8f5e9' }, isDarkMode && { backgroundColor: 'rgba(34,197,94,0.22)' }]}>
-              <Text style={[liveStyles.sideTagText, isDarkMode ? { color: '#86EFAC' } : { color: '#166534' }]}>{leftItem?.name || leftItem?.label || 'Option 1'}</Text>
+              <Text style={[liveStyles.sideTagText, isDarkMode ? { color: '#86EFAC' } : { color: '#166534' }]}>
+                {typeof leftItem?.name === 'string' ? leftItem.name : (typeof leftItem?.label === 'string' ? leftItem.label : 'Option 1')}
+              </Text>
             </View>
             <View style={[liveStyles.sideTagRight, !isDarkMode && { backgroundColor: '#fde8e8' }, isDarkMode && { backgroundColor: 'rgba(239,68,68,0.22)' }]}>
-              <Text style={[liveStyles.sideTagText, isDarkMode ? { color: '#FCA5A5' } : { color: '#991B1B' }]}>{rightItem?.name || rightItem?.label || 'Option 2'}</Text>
+              <Text style={[liveStyles.sideTagText, isDarkMode ? { color: '#FCA5A5' } : { color: '#991B1B' }]}>
+                {typeof rightItem?.name === 'string' ? rightItem.name : (typeof rightItem?.label === 'string' ? rightItem.label : 'Option 2')}
+              </Text>
             </View>
           </View>
         </View>
@@ -3152,6 +3341,7 @@ export function BattleLiveScreen({ navigation, route }) {
         feature="battle"
       />
     </KeyboardAwareScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -4374,7 +4564,22 @@ const styles = StyleSheet.create({
   inlineRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: BORDER, paddingVertical: 12 },
   inlineValue: { fontWeight: '700' },
   inlineLink: { fontWeight: '800' },
-  errorText: { color: '#ef4444', fontSize: 12, fontWeight: '700', marginTop: 4 },
+  errorText: { color: '#ef4444', fontSize: 12, fontWeight: '700', marginTop: 4, textAlign: 'center' },
+  centeredNotice: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+    gap: 12,
+  },
+  retryBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    marginTop: 8,
+  },
   vsGrid: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   itemTile: {
     flex: 1,
@@ -4426,6 +4631,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 4,
     textAlign: 'center',
+  },
+  itemSeller: {
+    fontSize: 11,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  winnerSeller: {
+    fontSize: 12,
+    marginTop: 2,
   },
   yellowPricePill: {
     backgroundColor: '#F59E0B',

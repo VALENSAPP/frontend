@@ -723,12 +723,12 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: 'row',
-    height: 52,
+    height: 46,
     borderBottomWidth: 1,
     elevation: 2,
     shadowOpacity: 0.08,
     shadowRadius: 4,
-    marginTop: 2,
+    marginTop: 0,
   },
   tabItem: {
     flex: 1,

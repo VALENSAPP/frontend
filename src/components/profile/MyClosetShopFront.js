@@ -42,6 +42,27 @@ import {
 } from '../../utils/closetNavigation';
 import { AutoScrollBattleRow } from '../search/Battlecard';
 import HexAvatar from '../home/story.js/HexAvatar';
+import { BASE_URL } from '../../config/urls';
+
+const DEFAULT_SHOP_AVATAR =
+  'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=200&auto=format&fit=crop&q=80';
+
+const normalizeShopAvatarUrl = (url) => {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('file://')
+  ) {
+    return trimmed;
+  }
+  const cleanBase = (BASE_URL || 'https://api.valens.app').replace(/\/+$/, '');
+  if (trimmed.startsWith('/')) return `${cleanBase}${trimmed}`;
+  return `${cleanBase}/${trimmed}`;
+};
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const CARD_W = Math.floor((SCREEN_W - 24 - 16) / 3);
@@ -98,6 +119,8 @@ const normalizePriorityBattle = battle => {
         ? 'Free Shipping'
         : null,
     pinLabel: battle?.isPinnedOnTop ? 'Pin' : null,
+    left: mapParticipant(left, battle?.closet),
+    right: mapParticipant(right, battle?.opponentCloset || battle?.closet),
     raw: battle,
   };
 };
@@ -208,7 +231,7 @@ const mapParticipant = (p = {}, closet) => {
 };
 
 export const mapBattle = (b, i) => {
-  const sorted = [...(b.participants ?? [])].sort((a, c) => (a.position ?? 0) - (c.position ?? 0));
+  const sorted = [...(b?.participants ?? [])].sort((a, c) => (a?.position ?? 0) - (c?.position ?? 0));
   const [p1, p2] = sorted;
   const winner = b?.winner || sorted.find(p => p?.isWinner) || null;
   const totalVotes = sorted.reduce(
@@ -216,10 +239,10 @@ export const mapBattle = (b, i) => {
     0,
   );
   return {
-    id: String(b.id ?? i),
-    title: b.title,
-    left: mapParticipant(p1, b.closet),
-    right: mapParticipant(p2, b.opponentCloset),
+    id: String(b?.id || b?._id || b?.battleId || (b?.id ?? i)),
+    title: b?.title,
+    left: mapParticipant(p1, b?.closet),
+    right: mapParticipant(p2, b?.opponentCloset),
     participants: sorted,
     winnerParticipantId: winner?.id || null,
     winnerProductId:
@@ -230,9 +253,9 @@ export const mapBattle = (b, i) => {
       null,
     winnerPct: Number(winner?.votePercentage ?? winner?.voteCount ?? winner?.pct ?? 0),
     totalVotes,
-    status: b.status,
-    outcome: b.outcome,
-    sellerName: b.seller?.name,
+    status: b?.status,
+    outcome: b?.outcome,
+    sellerName: b?.seller?.name,
     raw: b
   };
 };
@@ -687,7 +710,7 @@ const MyClosetShopFront = ({ navigation, userData, shopDraft, isOwnProfile = tru
     : (isBusiness ? '#FAF7F0' : '#FAF5FE');
   const bannerGradientColors = isDarkMode
     ? (isBusiness ? ['#201C14', '#2B2317'] : ['#1C172B', '#241D38'])
-    : (isBusiness ? ['#FFFDF9', '#FAF7F0'] : ['#F6EEFD', '#FFFFFF']);
+    : (isBusiness ? ['#FAF2E4', '#F4E6D2'] : ['#F1E5FC', '#E4D3F8']);
   const thumbSurface = isDarkMode ? border : (isBusiness ? '#F5F0E6' : '#F4EEFD');
   const loadingOverlayColor = isDarkMode ? 'rgba(255,255,255,0.06)' : 'rgba(245,243,238,0.72)';
   const logoSurface = isDarkMode ? 'rgba(255,255,255,0.08)' : '#f5f3ff';
@@ -805,8 +828,9 @@ const MyClosetShopFront = ({ navigation, userData, shopDraft, isOwnProfile = tru
     return closetDetails?.shopLogo || '';
   }, [closetDetails?.shopLogo]);
   const avatarUri = useMemo(() => {
-    return shopLogo || userData?.image || '';
-  }, [shopLogo, userData?.image]);
+    const raw = shopLogo || userData?.image || userData?.profilepic || userData?.avatar;
+    return normalizeShopAvatarUrl(raw) || DEFAULT_SHOP_AVATAR;
+  }, [shopLogo, userData?.image, userData?.profilepic, userData?.avatar]);
   const shopLocation = useMemo(() => {
     return closetDetails?.location || '';
   }, [closetDetails?.location]);
@@ -1020,110 +1044,122 @@ const MyClosetShopFront = ({ navigation, userData, shopDraft, isOwnProfile = tru
     >
 
       {/* ── Banner ── */}
-      <View
+      <LinearGradient
+        colors={bannerGradientColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={[
           s.bannerContainer,
           {
-            borderColor: isBusiness ? '#E8D9BD' : '#E8E1F5',
-            backgroundColor: isDarkMode ? card : '#FFFFFF',
+            borderColor: isBusiness ? '#E2D5B5' : '#DDD2F2',
           },
         ]}
       >
-        <LinearGradient
-          colors={bannerGradientColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={s.bannerGradient}
-        >
-          <View style={s.bannerInnerRow}>
-            {/* Left Avatar */}
-            {avatarUri ? (
-              <TouchableOpacity
-                activeOpacity={0.9}
-                style={s.hexAvatarWrap}
-                onPress={() => setLogoPreviewVisible(true)}
-                accessibilityRole="imagebutton"
-                accessibilityLabel="View shop logo"
+        <View style={s.bannerInnerRow}>
+          {/* Left Avatar */}
+          {avatarUri ? (
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={s.hexAvatarWrap}
+              onPress={() => setLogoPreviewVisible(true)}
+              accessibilityRole="imagebutton"
+              accessibilityLabel="View shop logo"
+            >
+              <HexAvatar
+                uri={avatarUri}
+                size={54}
+                borderWidth={2}
+                borderColor={brand}
+                preserveAspectRatio="xMidYMid slice"
+              />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={[
+                s.bannerIcon,
+                {
+                  backgroundColor: '#FFFFFF',
+                  borderColor: isBusiness ? '#E8D9BD' : '#DDD2F2',
+                  borderWidth: 1,
+                },
+              ]}
+              onPress={goStorefront}
+            >
+              <Ionicons
+                name={isBusiness ? 'storefront-outline' : 'bag-handle'}
+                size={22}
+                color={brand}
+              />
+            </TouchableOpacity>
+          )}
+
+          {/* Middle Content: Title, Description, Location Pill */}
+          <View style={s.bannerBody}>
+            <TouchableOpacity activeOpacity={0.9} onPress={goStorefront}>
+              <Text style={[s.bannerTitle, { color: text }]} numberOfLines={1}>
+                {shopName}
+              </Text>
+              <Text
+                style={[s.bannerSub, { color: mutedText }]}
+                numberOfLines={4}
               >
-                <HexAvatar
-                  uri={avatarUri}
-                  size={64}
-                  borderWidth={2}
-                  borderColor={brand}
-                  preserveAspectRatio="xMidYMid slice"
-                />
-              </TouchableOpacity>
-            ) : (
+                {shopDescription
+                  ? shopDescription
+                  : (isBusiness
+                    ? t('myClosetShopFront.shopOwnerBannerSubtitle')
+                    : t('myClosetShopFront.userBannerSubtitle'))}
+              </Text>
+            </TouchableOpacity>
+
+            {!!shopLocation && (
               <TouchableOpacity
-                activeOpacity={0.9}
-                style={[s.bannerIcon, { backgroundColor: `${brand}18` }]}
-                onPress={goStorefront}
+                activeOpacity={0.7}
+                accessibilityRole="link"
+                accessibilityLabel={`Open ${shopLocation} in maps`}
+                onPress={openLocationInMaps}
+                style={[
+                  s.bannerLocationPill,
+                  {
+                    borderColor: isBusiness ? '#D5B77E' : '#C4B5FD',
+                    backgroundColor: isDarkMode
+                      ? 'rgba(255, 255, 255, 0.12)'
+                      : '#FFFFFF',
+                  },
+                ]}
               >
                 <Ionicons
-                  name={isBusiness ? 'storefront-outline' : 'bag-handle'}
-                  size={24}
-                  color={brand}
+                  name="location-outline"
+                  size={12}
+                  color={isBusiness ? '#8A6B1C' : '#5A2D82'}
                 />
+                <Text
+                  style={[
+                    s.bannerLocationPillText,
+                    { color: isBusiness ? '#8A6B1C' : '#5A2D82' },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {shopLocation}
+                </Text>
               </TouchableOpacity>
             )}
-
-            {/* Middle Content: Title, Description, Location Pill */}
-            <View style={s.bannerBody}>
-              <TouchableOpacity activeOpacity={0.9} onPress={goStorefront}>
-                <Text style={[s.bannerTitle, { color: text }]} numberOfLines={1}>
-                  {shopName}
-                </Text>
-                <Text
-                  style={[s.bannerSub, { color: mutedText }]}
-                  numberOfLines={4}
-                >
-                  {shopDescription
-                    ? shopDescription
-                    : (isBusiness
-                      ? t('myClosetShopFront.shopOwnerBannerSubtitle')
-                      : t('myClosetShopFront.userBannerSubtitle'))}
-                </Text>
-              </TouchableOpacity>
-
-              {!!shopLocation && (
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  accessibilityRole="link"
-                  accessibilityLabel={`Open ${shopLocation} in maps`}
-                  onPress={openLocationInMaps}
-                  style={[
-                    s.bannerLocationPill,
-                    {
-                      borderColor: isBusiness ? '#E8D9BD' : '#E0D7F5',
-                      backgroundColor: isBusiness
-                        ? 'rgba(203, 162, 87, 0.08)'
-                        : 'rgba(64, 32, 144, 0.05)',
-                    },
-                  ]}
-                >
-                  <Ionicons name="location-outline" size={12} color={brand} />
-                  <Text style={[s.bannerLocationPillText, { color: text }]} numberOfLines={1}>
-                    {shopLocation}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Right Mascot: Dralens Bees */}
-            <View style={s.bannerMascotWrap} pointerEvents="none">
-              <Image
-                source={
-                  isBusiness
-                    ? require('../../assets/icons/pngicons/GoldenBeee.png')
-                    : require('../../assets/Valens Stickers/Valens Stickers/PNG/friends.png')
-                }
-                style={s.bannerMascotImg}
-                resizeMode="contain"
-              />
-            </View>
           </View>
-        </LinearGradient>
-      </View>
+
+          {/* Right Mascot: Dralens Bees */}
+          <View style={s.bannerMascotWrap} pointerEvents="none">
+            <Image
+              source={
+                isBusiness
+                  ? require('../../assets/icons/pngicons/Golden_Bee_Masco.png')
+                  : require('../../assets/Valens Stickers/Valens Stickers/PNG/friends.png')
+              }
+              style={s.bannerMascotImg}
+              resizeMode="contain"
+            />
+          </View>
+        </View>
+      </LinearGradient>
 
       {/* ── E-books Section ── */}
       {(ebooksLoading || ebooks.length > 0) && (
@@ -1522,26 +1558,33 @@ const s = StyleSheet.create({
     marginHorizontal: 12,
     marginTop: 8,
     marginBottom: 12,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     overflow: 'hidden',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    minHeight: 150,
+    justifyContent: 'center',
     shadowColor: '#402090',
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 2,
-  },
-  bannerGradient: {
-    padding: 12,
-    borderRadius: 18,
   },
   bannerInnerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    width: '100%',
+    paddingVertical: 20,
+    paddingHorizontal:10,
+    bottom:10
   },
   hexAvatarWrap: {
+    width: 58,
+    height: 58,
     marginRight: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   logoPreviewOverlay: {
     flex: 1,
@@ -1587,14 +1630,17 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
+    flexShrink: 0,
   },
   bannerBody: {
     flex: 1,
     minWidth: 0,
     justifyContent: 'center',
+    paddingVertical: 2,
+    marginRight: 4,
   },
   bannerTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     marginBottom: 2,
   },
@@ -1607,24 +1653,29 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: 10,
     borderWidth: 1,
     gap: 4,
-    marginTop: 2,
+    marginTop: 3,
+    shadowColor: '#402090',
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 1,
   },
   bannerLocationPillText: {
     fontSize: 11,
     fontWeight: '700',
   },
   bannerMascotWrap: {
-    width: 90,
-    height: 90,
+    width: 72,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 4,
     alignSelf: 'center',
+    flexShrink: 0,
   },
   bannerMascotImg: {
     width: '100%',
