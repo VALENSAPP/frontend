@@ -1320,8 +1320,7 @@ export default function MainTabNavigator() {
           <Stack.Screen
             name="RevenueFromSubscriptions"
             component={RevenueFromSubscriptions}
-            // ── TRANSLATION CHANGE ───────────────────────────────────────────
-            options={{ headerTitle: t('walletStack.revenueFromSubscriptions') }}
+            options={{ headerShown: false }}
           />
           <Stack.Screen
             name="MarketplaceAnalytics"

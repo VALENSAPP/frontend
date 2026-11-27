@@ -1,7 +1,10 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useId, useMemo, useRef } from 'react';
 import { ScrollView, Text, View, StyleSheet } from 'react-native';
 import Svg, {
   Path,
+  Rect,
+  Circle,
+  Line,
   Text as SvgText,
   Defs,
   LinearGradient as SvgLinearGradient,
@@ -20,8 +23,11 @@ const translateWeekdayLabel = (label, t) => {
   return label;
 };
 
-export const SUBSCRIPTION_CHART_LINE = '#8b5cf6';
-const CHART_POINT_GAP = 46;
+export const SUBSCRIPTION_CHART_LINE = '#7C3AED';
+const CHART_POINT_GAP = 48;
+const Y_AXIS_WIDTH = 40;
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 const getChartPointGap = (interval, pointCount) => {
   if (interval === 'monthly') return pointCount > 10 ? 56 : 64;
@@ -29,14 +35,39 @@ const getChartPointGap = (interval, pointCount) => {
   return CHART_POINT_GAP;
 };
 
-/** Show every bucket label for monthly/weekly; sample crowded daily series. */
+/** Compute 5 clean Y-axis ticks starting at 0 (e.g. [0, 250, 500, 750, 1000]). */
+const computeNiceYAxis = (maxVal) => {
+  const safeMax = Number(maxVal) || 0;
+  if (safeMax <= 0) return [0, 25, 50, 75, 100];
+
+  const rawStep = (safeMax * 1.15) / 4;
+  const pow = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const frac = rawStep / pow;
+
+  let niceFrac = 10;
+  if (frac <= 1) niceFrac = 1;
+  else if (frac <= 2) niceFrac = 2;
+  else if (frac <= 2.5) niceFrac = 2.5;
+  else if (frac <= 5) niceFrac = 5;
+
+  const step = niceFrac * pow;
+  return [0, step, step * 2, step * 3, step * 4];
+};
+
+const formatYAxisTick = (val) => {
+  if (val >= 1000) return Math.round(val).toLocaleString('en-US');
+  if (Number.isInteger(val)) return String(val);
+  return val.toFixed(1);
+};
+
+/** Show every bucket label when sparse; sample crowded daily series. */
 const buildLabelIndexes = (count, interval) => {
   if (count <= 0) return [];
   if (count === 1) return [0];
-  if (interval === 'monthly' || interval === 'weekly') {
+  if (count <= 8 || interval === 'monthly' || interval === 'weekly') {
     return Array.from({ length: count }, (_, i) => i);
   }
-  const maxLabels = Math.min(6, count);
+  const maxLabels = Math.min(7, count);
   const set = new Set([0, count - 1]);
   for (let k = 1; k < maxLabels - 1; k++) {
     set.add(Math.round((k / (maxLabels - 1)) * (count - 1)));
@@ -149,42 +180,26 @@ const resolveGraphLabel = (item, timestamp, interval) => {
     item?.date ??
     item?.label;
 
-  if (interval === 'daily') {
-    const dayName =
-      String(item?.dayname ?? item?.dayName ?? item?.weekday ?? '').trim();
-    if (dayName) return dayName;
-
-    if (bucket != null && String(bucket).trim()) {
-      const bucketTs = parseBucketDate(bucket);
-      if (bucketTs != null) return format(bucketTs, 'EEEE');
-    }
-
-    return format(timestamp, 'EEEE');
-  }
-
   if (bucket != null && String(bucket).trim()) {
     const bucketTs = parseBucketDate(bucket);
     if (bucketTs != null) {
-      if (interval === 'daily') {
-        const dayName = String(item?.dayname || item?.dayName || '').trim();
-        return dayName ? `${dayName.slice(0, 3)} ${format(bucketTs, 'MMM d')}` : format(bucketTs, 'MMM d');
-      }
       if (interval === 'monthly') return formatMonthlyChartLabel(bucketTs);
-      if (interval === 'weekly') return format(bucketTs, 'MMM d');
       return format(bucketTs, 'MMM d');
     }
   }
 
-  if (interval === 'daily' && item?.dayname) {
-    return `${String(item.dayname).trim()} ${format(timestamp, 'MMM d')}`;
+  if (interval === 'daily') {
+    const dayName =
+      String(item?.dayname ?? item?.dayName ?? item?.weekday ?? '').trim();
+    if (dayName) return dayName;
+    return format(timestamp, 'MMM d');
   }
 
   if (interval === 'monthly') return formatMonthlyChartLabel(timestamp);
-  if (interval === 'weekly') return format(timestamp, 'MMM d');
   return format(timestamp, 'MMM d');
 };
 
-/** Parse `billing/subscription-earning/graph` → points + summary */
+/** Parse `billing/subscription-earning/graph` -> points + summary */
 export const parseSubscriptionGraphResponse = (response, requestedInterval = 'daily') => {
   const root = response?.data?.data ?? response?.data ?? response;
   const raw = Array.isArray(root?.points)
@@ -248,23 +263,71 @@ export const seriesDelta = (points) => {
   return b - a;
 };
 
-function SubscriptionTrendSvg({ points, chartWidth, chartHeight, lineColor, interval = 'daily' }) {
-  const { t } = useLanguage();
-  const pairedSorted = useMemo(() => {
-    return [...points]
-      .map((p) => ({
-        t: Number(p.timestamp),
-        v: Number(p.value) || 0,
-        label: p.label,
-      }))
-      .filter((p) => Number.isFinite(p.t))
-      .sort((a, b) => a.t - b.t);
-  }, [points]);
+const computeDeltaPillData = (points, periodDeltaLabel) => {
+  if (!points || points.length < 2) {
+    return {
+      isPositive: true,
+      label: `0.0% ${periodDeltaLabel}`,
+    };
+  }
+  const prev = Number(points[points.length - 2]?.value) || 0;
+  const curr = Number(points[points.length - 1]?.value) || 0;
+  const diff = curr - prev;
 
-  const padL = interval === 'monthly' ? 20 : 32;
-  const padR = interval === 'monthly' ? 20 : 32;
-  const padT = 8;
-  const padB = interval === 'monthly' ? 34 : 30;
+  if (prev > 0) {
+    const pct = (diff / prev) * 100;
+    return {
+      isPositive: pct >= 0,
+      label: `${pct >= 0 ? '+' : '-'}${Math.abs(pct).toFixed(1)}% ${periodDeltaLabel}`,
+    };
+  }
+
+  return {
+    isPositive: diff >= 0,
+    label: `${diff >= 0 ? '+' : '-'}${formatSupportUsd(Math.abs(diff))} ${periodDeltaLabel}`,
+  };
+};
+
+const buildSmoothSvgPath = (coords, minY, maxY) => {
+  if (!coords || coords.length === 0) return '';
+  if (coords.length === 1) {
+    return `M ${coords[0].x.toFixed(1)} ${coords[0].y.toFixed(1)}`;
+  }
+
+  let d = `M ${coords[0].x.toFixed(1)} ${coords[0].y.toFixed(1)}`;
+  for (let i = 0; i < coords.length - 1; i++) {
+    const p0 = coords[i - 1] || coords[i];
+    const p1 = coords[i];
+    const p2 = coords[i + 1];
+    const p3 = coords[i + 2] || p2;
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = clamp(p1.y + (p2.y - p0.y) / 6, minY, maxY);
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = clamp(p2.y - (p3.y - p1.y) / 6, minY, maxY);
+
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return d;
+};
+
+function SubscriptionTrendSvg({
+  pairedSorted,
+  yTicks,
+  chartWidth,
+  chartHeight,
+  lineColor,
+  dotFillColor,
+  labelColor,
+  gridColor,
+  interval = 'daily',
+  gradientId,
+}) {
+  const { t } = useLanguage();
+  const padL = 14;
+  const padR = 16;
+  const padT = 30;
+  const padB = 26;
   const innerW = Math.max(chartWidth - padL - padR, 1);
   const innerH = Math.max(chartHeight - padT - padB, 1);
   const n = pairedSorted.length;
@@ -278,59 +341,128 @@ function SubscriptionTrendSvg({ points, chartWidth, chartHeight, lineColor, inte
     [n, interval],
   );
 
-  const values = pairedSorted.map((r) => r.v);
-  let min = Math.min(...values);
-  let max = Math.max(...values);
-  if (!Number.isFinite(min) || !Number.isFinite(max)) {
-    min = 0;
-    max = 1;
-  }
-  if (max === min) {
-    min -= 1;
-    max += 1;
-  }
+  const yMax = yTicks[yTicks.length - 1] || 100;
+  const coords = pairedSorted.map((item, index) => {
+    const clampedV = Math.max(0, item.v);
+    const ratio = yMax > 0 ? clampedV / yMax : 0;
+    return {
+      x: xs[index],
+      y: padT + innerH - ratio * innerH,
+      v: item.v,
+    };
+  });
 
-  const ys = values.map(
-    (v) => padT + innerH - ((v - min) / (max - min)) * innerH,
-  );
-
-  const linePath = () => {
-    if (n === 0) return '';
-    if (n === 1) return `M ${xs[0]} ${ys[0]} L ${xs[0] + 0.5} ${ys[0]}`;
-    return ys.map((y, i) => `${i === 0 ? 'M' : 'L'} ${xs[i]} ${y}`).join(' ');
-  };
-
-  const areaPath = () => {
-    if (n === 0) return '';
-    const base = padT + innerH;
-    const lp = linePath();
-    if (!lp) return '';
-    return `${lp} L ${xs[n - 1]} ${base} L ${xs[0]} ${base} Z`;
-  };
+  const linePath = buildSmoothSvgPath(coords, padT, padT + innerH);
+  const baseY = padT + innerH;
+  const areaPath =
+    n > 0
+      ? `${linePath} L ${coords[n - 1].x.toFixed(1)} ${baseY.toFixed(1)} L ${coords[0].x.toFixed(1)} ${baseY.toFixed(1)} Z`
+      : '';
 
   const formatLabel = (ts) => {
     const date = new Date(ts);
     if (Number.isNaN(date.getTime())) return '';
     if (interval === 'monthly') return formatMonthlyChartLabel(date);
-    if (interval === 'weekly') return format(date, 'MMM d');
-    return format(date, 'EEEE');
+    return format(date, 'MMM d');
   };
 
-  const labelFontSize = interval === 'monthly' && n > 8 ? 8 : 9;
+  const lastCoord = coords[n - 1];
+  const lastLabel = lastCoord ? formatSupportUsd(lastCoord.v) : '';
+  const pillW = Math.max(54, lastLabel.length * 6.6 + 16);
+  const pillH = 20;
+  const pillX = lastCoord
+    ? clamp(lastCoord.x - pillW / 2, 4, chartWidth - pillW - 4)
+    : 0;
+  const pillY = lastCoord ? Math.max(2, lastCoord.y - pillH - 10) : 2;
 
   return (
     <Svg width={chartWidth} height={chartHeight}>
       <Defs>
-        <SvgLinearGradient id="gradSubscription" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={lineColor} stopOpacity={0.22} />
+        <SvgLinearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={lineColor} stopOpacity={0.28} />
           <Stop offset="1" stopColor={lineColor} stopOpacity={0.02} />
         </SvgLinearGradient>
       </Defs>
 
+      {yTicks.map((tick) => {
+        const y = padT + innerH - (yMax > 0 ? (tick / yMax) * innerH : 0);
+        return (
+          <Line
+            key={`grid-${tick}`}
+            x1={0}
+            y1={y}
+            x2={chartWidth}
+            y2={y}
+            stroke={gridColor}
+            strokeWidth={1}
+          />
+        );
+      })}
+
       {n > 0 ? (
         <>
-          <Path d={areaPath()} fill="url(#gradSubscription)" stroke="none" />
-          <Path d={linePath()} stroke={lineColor} strokeWidth={2.5} fill="none" />
+          <Path d={areaPath} fill={`url(#${gradientId})`} stroke="none" />
+          <Path
+            d={linePath}
+            stroke={lineColor}
+            strokeWidth={2.2}
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {coords.map((c, idx) => {
+            const isLast = idx === n - 1;
+            if (isLast) {
+              return (
+                <React.Fragment key={`pt-${idx}`}>
+                  <Circle cx={c.x} cy={c.y} r={8} fill={lineColor} opacity={0.2} />
+                  <Circle
+                    cx={c.x}
+                    cy={c.y}
+                    r={4.2}
+                    fill={lineColor}
+                    stroke={dotFillColor}
+                    strokeWidth={2}
+                  />
+                </React.Fragment>
+              );
+            }
+            return (
+              <Circle
+                key={`pt-${idx}`}
+                cx={c.x}
+                cy={c.y}
+                r={3.2}
+                fill={dotFillColor}
+                stroke={lineColor}
+                strokeWidth={2}
+              />
+            );
+          })}
+
+          {lastCoord ? (
+            <>
+              <Rect
+                x={pillX}
+                y={pillY}
+                width={pillW}
+                height={pillH}
+                rx={10}
+                fill={lineColor}
+              />
+              <SvgText
+                x={pillX + pillW / 2}
+                y={pillY + 13.5}
+                fill="#FFFFFF"
+                fontSize={10}
+                fontWeight="700"
+                textAnchor="middle"
+              >
+                {lastLabel}
+              </SvgText>
+            </>
+          ) : null}
         </>
       ) : null}
 
@@ -339,15 +471,15 @@ function SubscriptionTrendSvg({ points, chartWidth, chartHeight, lineColor, inte
         const ts = item.t;
         const displayLabel = translateWeekdayLabel(item.label || formatLabel(ts), t);
         if (!displayLabel) return null;
-        const anchor = interval === 'monthly' || interval === 'weekly' ? 'middle' : 'middle';
         return (
           <SvgText
             key={`lb-${ts}-${i}`}
             x={xs[i]}
-            y={chartHeight - 4}
-            fill="#888"
-            fontSize={labelFontSize}
-            textAnchor={anchor}
+            y={chartHeight - 5}
+            fill={labelColor}
+            fontSize={9.5}
+            fontWeight="500"
+            textAnchor="middle"
           >
             {displayLabel}
           </SvgText>
@@ -362,143 +494,216 @@ export default function SubscriptionTrendChart({
   totalAmount,
   periodDeltaLabel,
   chartViewportWidth,
-  chartHeight = 200,
+  chartHeight = 186,
   lineColor = SUBSCRIPTION_CHART_LINE,
-  textColor,
+  textColor = '#402090',
+  mutedTextColor = '#7A7289',
+  iconBgColor = '#F3EEFA',
+  dotFillColor = '#FFFFFF',
+  gridColor = 'rgba(128,128,128,0.12)',
   loading,
   emptyTitle,
   emptySubtitle,
-  footnote,
   interval = 'daily',
 }) {
   const scrollRef = useRef(null);
   const { t } = useLanguage();
-  const trendDelta = seriesDelta(points);
-  const hasData = points.length > 0;
+  const reactId = useId();
+  const gradId = useMemo(
+    () => `subTrendGrad-${String(reactId).replace(/[^a-zA-Z0-9_-]/g, '')}`,
+    [reactId],
+  );
 
+  const pairedSorted = useMemo(() => {
+    return [...(Array.isArray(points) ? points : [])]
+      .map((p) => ({
+        t: Number(p.timestamp),
+        v: Number(p.value) || 0,
+        label: p.label,
+      }))
+      .filter((p) => Number.isFinite(p.t))
+      .sort((a, b) => a.t - b.t);
+  }, [points]);
+
+  const hasData = pairedSorted.length > 0;
+  const deltaPill = useMemo(
+    () => computeDeltaPillData(points, periodDeltaLabel),
+    [points, periodDeltaLabel],
+  );
+
+  const yTicks = useMemo(() => {
+    const maxVal = pairedSorted.reduce((acc, p) => Math.max(acc, p.v), 0);
+    return computeNiceYAxis(maxVal);
+  }, [pairedSorted]);
+
+  const plotViewportWidth = Math.max(chartViewportWidth - Y_AXIS_WIDTH, 160);
   const chartScrollWidth = useMemo(() => {
-    const n = points.length;
-    if (n <= 1) return chartViewportWidth;
+    const n = pairedSorted.length;
+    if (n <= 7) return plotViewportWidth;
     const gap = getChartPointGap(interval, n);
-    return Math.round(Math.max(chartViewportWidth, 40 + (n - 1) * gap));
-  }, [chartViewportWidth, interval, points.length]);
+    return Math.round(Math.max(plotViewportWidth, 32 + (n - 1) * gap));
+  }, [plotViewportWidth, interval, pairedSorted.length]);
 
   useEffect(() => {
-    if (!hasData || chartScrollWidth <= chartViewportWidth) return;
+    if (!hasData || chartScrollWidth <= plotViewportWidth) return;
     const timer = setTimeout(() => {
-      const scrollX = Math.max(chartScrollWidth - chartViewportWidth, 0);
+      const scrollX = Math.max(chartScrollWidth - plotViewportWidth, 0);
       scrollRef.current?.scrollTo({ x: scrollX, animated: false });
     }, 0);
     return () => clearTimeout(timer);
-  }, [hasData, chartScrollWidth, chartViewportWidth, interval, points]);
+  }, [hasData, chartScrollWidth, plotViewportWidth, interval, points]);
+
+  const headerBlock = (
+    <View style={styles.cardHeaderRow}>
+      <View style={[styles.iconBadge, { backgroundColor: iconBgColor }]}>
+        <Ionicons name="stats-chart-outline" size={18} color={textColor} />
+      </View>
+      <View style={styles.headerMetrics}>
+        <Text style={[styles.headerTitle, { color: mutedTextColor }]}>
+          {t('revenue.subscriptionEarnings')}
+        </Text>
+        <Text
+          style={[styles.headerAmount, { color: textColor }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.75}
+        >
+          {formatSupportUsd(totalAmount)}
+        </Text>
+        {hasData ? (
+          <View
+            style={[
+              styles.deltaPill,
+              deltaPill.isPositive ? styles.deltaPositiveBg : styles.deltaNegativeBg,
+            ]}
+          >
+            <Ionicons
+              name={deltaPill.isPositive ? 'arrow-up' : 'arrow-down'}
+              size={11}
+              color={deltaPill.isPositive ? '#059669' : '#DC2626'}
+            />
+            <Text
+              style={[
+                styles.deltaText,
+                deltaPill.isPositive ? styles.deltaPositiveText : styles.deltaNegativeText,
+              ]}
+              numberOfLines={1}
+            >
+              {deltaPill.label}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
 
   if (loading) {
     return (
-      <View style={styles.emptyChart}>
-        <Ionicons name="hourglass-outline" size={48} color={textColor} />
-        <Text style={[styles.emptyChartText, { color: textColor }]}>{emptyTitle}</Text>
+      <View>
+        {headerBlock}
+        <View style={styles.emptyChart}>
+          <Ionicons name="hourglass-outline" size={40} color={textColor} />
+          <Text style={[styles.emptyChartText, { color: textColor }]}>{emptyTitle}</Text>
+        </View>
       </View>
     );
   }
 
   if (!hasData) {
     return (
-      <View style={styles.emptyChart}>
-        <Ionicons name="bar-chart-outline" size={48} color="#ccc" />
-        <Text style={[styles.emptyChartText, { color: textColor }]}>{emptyTitle}</Text>
-        {emptySubtitle ? (
-          <Text style={[styles.emptyChartSubtext, { color: textColor }]}>{emptySubtitle}</Text>
-        ) : null}
+      <View>
+        {headerBlock}
+        <View style={styles.emptyChart}>
+          <Ionicons name="bar-chart-outline" size={40} color={mutedTextColor} />
+          <Text style={[styles.emptyChartText, { color: textColor }]}>{emptyTitle}</Text>
+          {emptySubtitle ? (
+            <Text style={[styles.emptyChartSubtext, { color: mutedTextColor }]}>
+              {emptySubtitle}
+            </Text>
+          ) : null}
+        </View>
       </View>
     );
   }
 
+  const yMax = yTicks[yTicks.length - 1] || 100;
+  const padT = 30;
+  const padB = 26;
+  const innerH = Math.max(chartHeight - padT - padB, 1);
+
   return (
-    <>
-      <View style={styles.metricRow}>
-        <View style={[styles.metricCard, { borderColor: `${lineColor}33` }]}>
-          <Text style={[styles.metricValue, { color: lineColor }]}>
-            {formatSupportUsd(totalAmount)}
-          </Text>
-          <Text style={styles.metricLabel}>{t('revenue.periodEarnings')}</Text>
-          <View
-            style={[
-              styles.deltaPill,
-              {
-                backgroundColor:
-                  trendDelta >= 0 ? 'rgba(16,185,129,0.14)' : 'rgba(239,68,68,0.14)',
-              },
-            ]}
-          >
-            <Ionicons
-              name={trendDelta >= 0 ? 'arrow-up' : 'arrow-down'}
-              size={10}
-              color={trendDelta >= 0 ? '#059669' : '#dc2626'}
-            />
-            <Text
-              style={[
-                styles.deltaText,
-                { color: trendDelta >= 0 ? '#059669' : '#dc2626' },
-              ]}
-              numberOfLines={1}
-            >
-              {`${trendDelta >= 0 ? '+' : '-'}${formatSupportUsd(Math.abs(trendDelta))} ${periodDeltaLabel}`}
-            </Text>
-          </View>
+    <View>
+      {headerBlock}
+      <View style={[styles.chartRow, { height: chartHeight }]}>
+        <View style={[styles.yAxisCol, { height: chartHeight }]}>
+          {yTicks.map((tick) => {
+            const top = padT + innerH - (yMax > 0 ? (tick / yMax) * innerH : 0) - 6;
+            return (
+              <Text
+                key={`ytick-${tick}`}
+                style={[styles.yAxisLabel, { top, color: mutedTextColor }]}
+              >
+                {formatYAxisTick(tick)}
+              </Text>
+            );
+          })}
         </View>
+
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          nestedScrollEnabled
+          keyboardShouldPersistTaps="handled"
+          showsHorizontalScrollIndicator={false}
+          style={styles.scrollViewport}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <SubscriptionTrendSvg
+            pairedSorted={pairedSorted}
+            yTicks={yTicks}
+            chartWidth={chartScrollWidth}
+            chartHeight={chartHeight}
+            lineColor={lineColor}
+            dotFillColor={dotFillColor}
+            labelColor={mutedTextColor}
+            gridColor={gridColor}
+            interval={interval}
+            gradientId={gradId}
+          />
+        </ScrollView>
       </View>
-
-      <View style={styles.legend}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: lineColor }]} />
-          <Text style={styles.legendText}>{t('revenue.subscriptionEarnings')}</Text>
-        </View>
-      </View>
-
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        nestedScrollEnabled
-        keyboardShouldPersistTaps="handled"
-        showsHorizontalScrollIndicator
-        style={styles.scrollViewport}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <SubscriptionTrendSvg
-          points={points}
-          chartWidth={chartScrollWidth}
-          chartHeight={chartHeight}
-          lineColor={lineColor}
-          interval={interval}
-        />
-      </ScrollView>
-
-      {footnote ? <Text style={styles.footnote}>{footnote}</Text> : null}
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  metricRow: {
+  cardHeaderRow: {
     flexDirection: 'row',
-    marginBottom: 12,
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 8,
   },
-  metricCard: {
+  iconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  headerMetrics: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
   },
-  metricValue: {
-    fontSize: 22,
-    fontWeight: '800',
+  headerTitle: {
+    fontSize: 12.5,
+    fontWeight: '600',
     marginBottom: 2,
   },
-  metricLabel: {
-    fontSize: 11,
-    color: '#64748b',
-    fontWeight: '600',
-    marginBottom: 8,
+  headerAmount: {
+    fontSize: 25,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    marginBottom: 6,
   },
   deltaPill: {
     flexDirection: 'row',
@@ -506,63 +711,60 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     gap: 4,
     borderRadius: 20,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
   },
+  deltaPositiveBg: {
+    backgroundColor: 'rgba(16,185,129,0.14)',
+  },
+  deltaNegativeBg: {
+    backgroundColor: 'rgba(239,68,68,0.14)',
+  },
+  deltaPositiveText: {
+    color: '#059669',
+  },
+  deltaNegativeText: {
+    color: '#DC2626',
+  },
   deltaText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
   },
-  legend: {
+  chartRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 8,
+    alignItems: 'flex-start',
   },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  yAxisCol: {
+    width: Y_AXIS_WIDTH,
+    position: 'relative',
+    paddingRight: 6,
   },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  legendText: {
-    fontSize: 11,
-    color: '#64748b',
+  yAxisLabel: {
+    position: 'absolute',
+    right: 6,
+    fontSize: 10,
     fontWeight: '500',
   },
   scrollViewport: {
-    marginTop: 4,
-    alignSelf: 'stretch',
+    flex: 1,
   },
   scrollContent: {
     alignItems: 'flex-start',
-    paddingLeft: 8,
-    paddingRight: 8,
-  },
-  footnote: {
-    fontSize: 11,
-    color: '#94a3b8',
-    marginTop: 10,
-    lineHeight: 15,
   },
   emptyChart: {
-    height: 200,
+    height: 170,
     justifyContent: 'center',
     alignItems: 'center',
   },
   emptyChartText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
-    opacity: 0.6,
-    marginTop: 12,
+    opacity: 0.7,
+    marginTop: 10,
   },
   emptyChartSubtext: {
-    fontSize: 13,
-    opacity: 0.4,
+    fontSize: 12,
+    opacity: 0.65,
     marginTop: 4,
     textAlign: 'center',
   },
