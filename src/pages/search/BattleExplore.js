@@ -335,23 +335,49 @@ export default function BattleExplore({ onClose, profile }) {
     }
 
     if (fmt === 'marketplace' || tbb === 'marketplace') {
+      const resolvedBattleId = String(
+        battleItem?.id ||
+        battleItem?._id ||
+        battleItem?.battleId ||
+        raw?.id ||
+        raw?._id ||
+        raw?.battleId ||
+        ''
+      );
       const mappedBattle = mapBattle(raw || battleItem, 0);
+      const effectiveBattleId = resolvedBattleId || mappedBattle?.id;
       const closet = raw?.closet || battleItem?.raw?.closet || battleItem?.closet || {};
+      const isOwnProfile = await isOwnProfileForCloset(closet);
       navigateToBattleLive(navigation, {
-        battleId: mappedBattle?.id,
-        initialBattle: mappedBattle?.raw || mappedBattle,
+        battleId: effectiveBattleId,
+        initialBattle: mappedBattle?.raw || battleItem.raw || battleItem,
         userProfile: profile,
         entryPoint: 'battleExplore',
         profileType: battleProfileType,
         returnTo: { tab: 'Search', screen: 'SearchHome', params: {} },
         selectedItems: [mappedBattle?.left, mappedBattle?.right].filter(Boolean),
-        isOwnProfile: isOwnProfileForCloset(closet),
+        isOwnProfile: Boolean(isOwnProfile),
         returnToProfile: buildClosetReturnTo({
-          isOwnProfile: isOwnProfileForCloset(closet),
+          isOwnProfile: Boolean(isOwnProfile),
           sellerProfile: profile,
         }),
       });
       return;
+    }
+
+    if (navigation?.navigate) {
+      try {
+        navigation.navigate('BattleInProgress', {
+          battleId: battleItem?.id,
+          battle: battleItem,
+          entryPoint: 'battleExplore',
+          selectedOption: chosenOption,
+          returnTo: { tab: 'Search', screen: 'SearchHome', params: {} },
+          profile,
+          profileType: battleProfileType,
+        });
+        return;
+      } catch (_e) {}
     }
 
     navigation.navigate('ProfileMain', {
@@ -361,7 +387,7 @@ export default function BattleExplore({ onClose, profile }) {
         battle: battleItem,
         entryPoint: 'battleExplore',
         selectedOption: chosenOption,
-        returnTo: 'Search',
+        returnTo: { tab: 'Search', screen: 'SearchHome', params: {} },
         profile,
         profileType: battleProfileType,
       },

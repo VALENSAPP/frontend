@@ -21,11 +21,13 @@ import HexAvatar from '../../components/home/story.js/HexAvatar';
 import { showToastMessage } from '../../components/displaytoastmessage';
 import { getTransactionDetails } from '../../services/wallet';
 import { useAppTheme } from '../../theme/useApptheme';
+import { useThemeContext } from '../../theme/ThemeContext';
 import { useLanguage } from '../../i18n';
 import { formatDisplayCurrency } from '../../utils/displayLocale';
 import { resolveTransactionDirection, resolveTransactionType } from '../../utils/transactionAmount';
 import { Dragonfly } from '../../assets/icons';
 import { navigateToUserProfile } from '../../utils/navigateToUserProfile';
+import Svg, { Path, Rect, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 
 const pickFirst = (...values) =>
   values.find(value => value !== undefined && value !== null && value !== '');
@@ -284,11 +286,105 @@ const statusMeta = (status, typeLabel, isReceived, t) => {
   };
 };
 
+const ReceiptIllustration = () => (
+  <View style={styles.receiptGraphicWrap} pointerEvents="none">
+    <Svg width={105} height={85} viewBox="0 0 110 96" fill="none">
+      <Defs>
+        <SvgGradient id="waveGrad" x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0%" stopColor="#EDE4FA" />
+          <Stop offset="100%" stopColor="#DFD0F6" />
+        </SvgGradient>
+        <SvgGradient id="checkGrad" x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0%" stopColor="#34D399" />
+          <Stop offset="100%" stopColor="#10B981" />
+        </SvgGradient>
+        <SvgGradient id="paperFold" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0%" stopColor="#E2E8F0" />
+          <Stop offset="100%" stopColor="#F8FAFC" />
+        </SvgGradient>
+      </Defs>
+
+      {/* Background Soft Purple Wave */}
+      <Path
+        d="M 12 70 C 25 50, 75 42, 108 50 L 108 86 C 85 96, 35 94, 12 86 Z"
+        fill="url(#waveGrad)"
+      />
+
+      {/* Yellow Spark / Rays above receipt */}
+      <Path
+        d="M 38 12 L 34 5"
+        stroke="#FBBF24"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <Path
+        d="M 50 8 L 50 1"
+        stroke="#FBBF24"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <Path
+        d="M 62 12 L 66 5"
+        stroke="#FBBF24"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+
+      {/* 3D Paper Shadow */}
+      <Path
+        d="M 37 17 L 85 17 C 88 17, 90 19, 90 22 L 87 75 L 83 71 L 79 75 L 75 71 L 71 75 L 67 71 L 63 75 L 59 71 L 55 75 L 51 71 L 47 75 L 43 71 L 39 75 L 35 71 L 32 75 L 34 22 C 34 19, 35 17, 37 17 Z"
+        fill="rgba(0, 0, 0, 0.05)"
+        transform="translate(1, 2)"
+      />
+
+      {/* Main White Receipt Sheet with zigzag bottom */}
+      <Path
+        d="M 37 16 L 85 16 C 88 16, 90 18, 90 21 L 87 74 L 83 70 L 79 74 L 75 70 L 71 74 L 67 70 L 63 74 L 59 70 L 55 74 L 51 70 L 47 74 L 43 70 L 39 74 L 35 70 L 32 74 L 34 21 C 34 18, 35 16, 37 16 Z"
+        fill="#FFFFFF"
+      />
+
+      {/* Top Fold / Curved Header of Receipt */}
+      <Path
+        d="M 34 21 C 34 17, 39 15, 45 15 L 77 15 C 83 15, 88 17, 88 21 L 87 25 L 35 25 Z"
+        fill="url(#paperFold)"
+      />
+
+      {/* Purple Logo Emblem on receipt */}
+      <Rect x="54" y="27" width="13" height="13" rx="3.5" fill="#431370" />
+      <Path
+        d="M 57.5 33.5 L 59.5 35.5 L 63.5 30.5"
+        stroke="#FFFFFF"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {/* Receipt Line Items */}
+      <Rect x="44" y="44" width="33" height="2.5" rx="1.25" fill="#CBD5E1" />
+      <Rect x="44" y="49.5" width="23" height="2.5" rx="1.25" fill="#CBD5E1" />
+      <Rect x="44" y="55" width="28" height="2.5" rx="1.25" fill="#CBD5E1" />
+
+      {/* Green 3D Checkmark Badge on bottom-right of receipt */}
+      <Circle cx="83" cy="67" r="14" fill="rgba(0,0,0,0.12)" />
+      <Circle cx="82" cy="66" r="13" fill="#059669" />
+      <Circle cx="82" cy="65" r="12.5" fill="url(#checkGrad)" />
+      <Path
+        d="M 77 65 L 80.5 68.5 L 87.5 61"
+        stroke="#FFFFFF"
+        strokeWidth="2.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  </View>
+);
+
 export default function TransactionDetailsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const toast = useToast();
   const { t, currentLanguage } = useLanguage();
+  const { isDarkMode } = useThemeContext();
   const { bg, bgStyle, text, card, border, mutedText, accent, icon } = useAppTheme();
 
   const paymentId = pickFirst(route?.params?.paymentId, route?.params?.id, '');
@@ -414,63 +510,58 @@ export default function TransactionDetailsScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9 }} style={{ backgroundColor: bgStyle?.backgroundColor || '#F9F8FD' }}>
-            <View style={[styles.receiptCard, { backgroundColor: card }]}>
+            <View style={[styles.receiptCard, { backgroundColor: card, borderColor: isDarkMode ? border : '#EFE8F8' }]}>
             
             {/* Top Logo and Status */}
             <View style={styles.cardHeader}>
               <View style={styles.logoContainer}>
-                {Dragonfly ? (
-                  <Dragonfly width={32} height={32} color={accent || '#5B21B6'} />
-                ) : (
-                  <Ionicons name="color-wand" size={28} color={accent || '#5B21B6'} />
-                )}
-                <Text style={[styles.logoText, { color: accent || '#5B21B6' }]}>Valens</Text>
+                <View style={[styles.logoBadge, { backgroundColor: accent || '#431370' }]}>
+                  <Ionicons name="shield-checkmark" size={15} color="#FFFFFF" />
+                </View>
+                <Text style={[styles.logoText, { color: accent || '#3B1768' }]}>Valens</Text>
               </View>
               <StatusBadge />
             </View>
 
-            {/* Title and Date Row */}
-            <View style={styles.titleRow}>
-              <View style={styles.titleLeft}>
+            {/* Hero Row: Title & 3D Receipt Graphic */}
+            <View style={styles.heroRow}>
+              <View style={styles.heroLeft}>
                 <Text style={[styles.successTitle, { color: accent || text }]}>
-                  {details.status === 'succeeded' ? t('transactionDetails.statusSucceededTitle') : status.title}
+                  {details.status === 'succeeded' ? (t('transactionDetails.statusSucceededTitle') || 'Transaction\nsuccessful') : status.title}
                 </Text>
                 <Text style={[styles.successSubtitle, { color: mutedText }]}>
-                  {t('transactionDetails.thankYouMessage')}
+                  {t('transactionDetails.thankYouMessage') || 'Thank you for using Valens.'}
                 </Text>
               </View>
-              <View style={styles.titleRight}>
-                <Text style={[styles.receiptDateLabel, { color: mutedText }]}>{t('transactionDetails.receiptDate')}</Text>
-                <Text style={[styles.receiptDateValue, { color: text }]}>{details.date}</Text>
-              </View>
+              <ReceiptIllustration />
             </View>
 
             {/* Transaction ID Box */}
-            <View style={[styles.txnBox, { backgroundColor: `${accent}10` || '#F3F0FF' }]}>
+            <View style={[styles.txnBox, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : '#F3EEFA' }]}>
               <View style={styles.txnIconWrap}>
-                <Ionicons name="document-text-outline" size={20} color={accent || '#5B21B6'} />
+                <Ionicons name="document-text-outline" size={18} color={accent || '#5B21B6'} />
               </View>
               <View style={styles.txnTextWrap}>
-                <Text style={[styles.txnLabel, { color: mutedText }]}>{t('transactionDetails.transactionId')}</Text>
-                <Text style={[styles.txnValue, { color: accent || '#5B21B6' }]} numberOfLines={1}>
+                <Text style={[styles.txnLabel, { color: mutedText }]}>{t('transactionDetails.transactionId') || 'Transaction ID'}</Text>
+                <Text style={[styles.txnValue, { color: accent || '#2D1152' }]} numberOfLines={1}>
                   {details.transactionId || '—'}
                 </Text>
               </View>
               <TouchableOpacity onPress={copyId} style={styles.copyBtn} hitSlop={10}>
-                <Ionicons name="copy-outline" size={20} color={accent || '#5B21B6'} />
+                <Ionicons name="copy-outline" size={18} color={accent || '#5B21B6'} />
               </TouchableOpacity>
             </View>
 
             {/* From / To Section */}
             <View style={styles.partiesRow}>
               <View style={styles.partyCol}>
-                <Text style={[styles.partyLabel, { color: mutedText }]}>{t('transactionDetails.from')}</Text>
+                <Text style={[styles.partyLabel, { color: mutedText }]}>{t('transactionDetails.from') || 'From'}</Text>
                 <TouchableOpacity 
                   style={styles.partyProfile}
                   onPress={() => handleProfilePress(details.fromId)}
                   activeOpacity={details.fromId ? 0.7 : 1}
                 >
-                  <HexAvatar uri={details.fromImage} size={44} borderWidth={1} borderColor={border} />
+                  <HexAvatar uri={details.fromImage} size={38} borderWidth={1} borderColor={border} />
                   <View style={styles.partyInfo}>
                     <Text style={[styles.partyName, { color: accent || text }]} numberOfLines={1}>
                       {details.fromName}
@@ -485,19 +576,19 @@ export default function TransactionDetailsScreen() {
               </View>
               
               <View style={styles.arrowContainer}>
-                <View style={[styles.arrowCircle, { backgroundColor: `${accent}15` || '#F3F0FF' }]}>
-                  <Ionicons name="arrow-forward" size={16} color={accent || '#5B21B6'} />
+                <View style={[styles.arrowCircle, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : '#F0E8FA' }]}>
+                  <Ionicons name="arrow-forward" size={14} color={accent || '#5B21B6'} />
                 </View>
               </View>
               
               <View style={styles.partyCol}>
-                <Text style={[styles.partyLabel, { color: mutedText, textAlign: 'right' }]}>{t('transactionDetails.to')}</Text>
+                <Text style={[styles.partyLabel, { color: mutedText, textAlign: 'right' }]}>{t('transactionDetails.to') || 'To'}</Text>
                 <TouchableOpacity 
                   style={styles.partyProfileRight}
                   onPress={() => handleProfilePress(details.toId)}
                   activeOpacity={details.toId ? 0.7 : 1}
                 >
-                  <HexAvatar uri={details.toImage} size={44} borderWidth={1} borderColor={border} />
+                  <HexAvatar uri={details.toImage} size={38} borderWidth={1} borderColor={border} />
                   <View style={styles.partyInfoRight}>
                     <Text style={[styles.partyName, { color: accent || text }]} numberOfLines={1}>
                       {details.toName}
@@ -512,11 +603,9 @@ export default function TransactionDetailsScreen() {
               </View>
             </View>
 
-            <View style={[styles.divider, { backgroundColor: border }]} />
-
             {/* Details List */}
             <View style={styles.detailsList}>
-              {row('heart-outline', t('transactionDetails.type'), details.typeLabel, accent || text, styles.boldValue)}
+              {row('heart-outline', t('transactionDetails.type') || 'Type', details.typeLabel, accent || text, styles.boldValue)}
               {details.isCreditWithFee ? (
                 <>
                   {row(
@@ -546,55 +635,40 @@ export default function TransactionDetailsScreen() {
                 )
               ) : (
                 <>
-                  {row('calendar-outline', t('transactionDetails.totalReceived'), details.total, amountColor, styles.totalValue, styles.totalLabel)}
-                  {row('time-outline', t('transactionDetails.amount'), details.amount, amountColor, styles.boldValue)}
+                  {row('calendar-outline', t('transactionDetails.totalReceived') || 'Total Received', details.total, amountColor, styles.totalValue, styles.totalLabel)}
+                  {row('time-outline', t('transactionDetails.amount') || 'Amount', details.amount, amountColor, styles.boldValue)}
                 </>
               )}
-              {row('card-outline', t('transactionDetails.paymentMethod'), details.paymentMethod, accent || text, styles.boldValue)}
-              {row('calendar-outline', t('transactionDetails.dateTime'), details.date, text, styles.boldValue)}
+              {row('card-outline', t('transactionDetails.paymentMethod') || 'Payment Method', details.paymentMethod, accent || text, styles.boldValue)}
+              {row('calendar-outline', t('transactionDetails.dateTime') || 'Date & Time', details.date, text, styles.boldValue)}
               
               {/* Custom Status Row */}
               <View style={styles.detailRow}>
                 <View style={styles.detailLeft}>
                   <View style={styles.detailIconContainer}>
-                    <Ionicons name="shield-checkmark-outline" size={18} color={accent || text} style={{ opacity: 0.7 }} />
+                    <Ionicons name="shield-checkmark-outline" size={17} color={accent || text} style={{ opacity: 0.7 }} />
                   </View>
-                  <Text style={[styles.detailLabel, { color: mutedText }]}>{t('transactionDetails.status')}</Text>
+                  <Text style={[styles.detailLabel, { color: mutedText }]}>{t('transactionDetails.status') || 'Status'}</Text>
                 </View>
                 <StatusBadge />
               </View>
             </View>
 
             {/* Official Receipt Notice */}
-            <View style={[styles.noticeBox, { backgroundColor: `${accent}10` || '#F3F0FF' }]}>
-              <Ionicons name="shield-checkmark-outline" size={24} color={accent || '#5B21B6'} style={styles.noticeIcon} />
+            <View style={[styles.noticeBox, { backgroundColor: isDarkMode ? 'rgba(255,255,255,0.06)' : '#F3EEFA' }]}>
+              <Ionicons name="shield-checkmark-outline" size={22} color={accent || '#5B21B6'} style={styles.noticeIcon} />
               <View style={styles.noticeTextWrap}>
-                <Text style={[styles.noticeTitle, { color: accent || '#5B21B6' }]}>
-                  {t('transactionDetails.officialReceiptTitle')}
+                <Text style={[styles.noticeTitle, { color: accent || '#2D1152' }]}>
+                  {t('transactionDetails.officialReceiptTitle') || 'This is an official receipt for your records.'}
                 </Text>
                 <Text style={[styles.noticeBody, { color: mutedText }]}>
-                  {t('transactionDetails.officialReceiptBody')}
+                  {t('transactionDetails.officialReceiptBody') || 'No physical goods or services were provided in exchange for this donation.'}
                 </Text>
               </View>
             </View>
 
           </View>
           </ViewShot>
-
-          <TouchableOpacity
-            style={[styles.helpCard, { backgroundColor: card }]}
-            onPress={openHelp}
-            activeOpacity={0.85}
-          >
-            <View style={[styles.helpIcon, { backgroundColor: accent || text }]}>
-              <Ionicons name="help" size={18} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.helpTitle, { color: accent || text }]}>{t('transactionDetails.needHelp')}</Text>
-              <Text style={[styles.helpSubtitle, { color: mutedText }]}>{t('transactionDetails.helpBody')}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={mutedText} />
-          </TouchableOpacity>
         </ScrollView>
       )}
     </SafeAreaView>
@@ -612,97 +686,103 @@ const styles = StyleSheet.create({
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  content: { padding: 16, paddingBottom: 120 },
+  content: { padding: 16, paddingTop: 4, paddingBottom: 24 },
   
   receiptCard: {
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
+    borderRadius: 22,
+    padding: 16,
+    shadowColor: '#431370',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 3,
-    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#EFE8F8',
+    marginBottom: 12,
   },
   
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 24,
+    alignItems: 'center',
+    marginBottom: 8,
   },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
+  logoBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   logoText: {
     fontSize: 18,
-    fontWeight: '600',
-    // letterSpacing: 1,
+    fontWeight: '800',
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingVertical: 4,
+    borderRadius: 12,
     gap: 4,
   },
   statusBadgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   
-  titleRow: {
+  heroRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: 20,
+    alignItems: 'center',
+    marginBottom: 10,
   },
-  titleLeft: {
+  heroLeft: {
     flex: 1,
-    paddingRight: 12,
+    paddingRight: 6,
   },
   successTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '800',
-    marginBottom: 4,
+    lineHeight: 25,
   },
   successSubtitle: {
     fontSize: 12,
+    marginTop: 4,
   },
-  titleRight: {
-    alignItems: 'flex-end',
-  },
-  receiptDateLabel: {
-    fontSize: 10,
-    marginBottom: 2,
-  },
-  receiptDateValue: {
-    fontSize: 11,
-    fontWeight: '700',
+  receiptGraphicWrap: {
+    width: 105,
+    height: 85,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   
   txnBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 12,
-    marginBottom: 24,
+    marginBottom: 12,
   },
   txnIconWrap: {
-    marginRight: 12,
+    marginRight: 10,
   },
   txnTextWrap: {
     flex: 1,
   },
   txnLabel: {
-    fontSize: 11,
-    marginBottom: 2,
+    fontSize: 10.5,
+    marginBottom: 1,
+    fontWeight: '500',
   },
   txnValue: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '700',
   },
   copyBtn: {
@@ -711,15 +791,17 @@ const styles = StyleSheet.create({
   
   partiesRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 12,
   },
   partyCol: {
     flex: 1,
   },
   partyLabel: {
-    fontSize: 12,
-    marginBottom: 8,
+    fontSize: 11,
+    marginBottom: 4,
+    fontWeight: '500',
   },
   partyProfile: {
     flexDirection: 'row',
@@ -739,20 +821,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   partyName: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 12.5,
+    fontWeight: '700',
   },
   partyHandle: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 10.5,
+    marginTop: 1,
   },
   
   arrowContainer: {
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
     justifyContent: 'center',
     alignItems: 'center',
-    height: 44, // Match avatar height
-    marginTop: 24, // Push down below label
+    height: 38,
+    marginTop: 18,
   },
   arrowCircle: {
     width: 24,
@@ -764,56 +846,58 @@ const styles = StyleSheet.create({
   
   divider: {
     height: StyleSheet.hairlineWidth,
-    marginVertical: 20,
+    marginVertical: 10,
     opacity: 0.5,
   },
   
   detailsList: {
-    gap: 16,
-    marginBottom: 24,
+    gap: 8,
+    marginBottom: 10,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 2.5,
   },
   detailLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   detailIconContainer: {
-    width: 24,
+    width: 22,
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: 6,
   },
   detailLabel: {
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '500',
   },
   detailValue: {
-    fontSize: 14,
+    fontSize: 13.5,
   },
   boldValue: {
     fontWeight: '700',
   },
   totalLabel: {
-    fontSize: 15,
-   
-   
+    fontSize: 13,
+    fontWeight: '500',
   },
   totalValue: {
     fontSize: 15,
-   fontWeight: '700',
+    fontWeight: '800',
   },
   
   noticeBox: {
     flexDirection: 'row',
-    padding: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderRadius: 12,
     alignItems: 'flex-start',
-    marginTop: 8,
+    marginTop: 6,
   },
   noticeIcon: {
-    marginRight: 12,
+    marginRight: 10,
     marginTop: 2,
   },
   noticeTextWrap: {
@@ -822,27 +906,10 @@ const styles = StyleSheet.create({
   noticeTitle: {
     fontSize: 12,
     fontWeight: '800',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   noticeBody: {
     fontSize: 11,
-    lineHeight: 16,
+    lineHeight: 15,
   },
-  
-  helpCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    padding: 16,
-    gap: 12,
-  },
-  helpIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  helpTitle: { fontSize: 15, fontWeight: '800' },
-  helpSubtitle: { fontSize: 12, marginTop: 2 },
 });

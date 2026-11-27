@@ -11,6 +11,7 @@ import {
   Modal,
   Dimensions,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -21,12 +22,20 @@ import {
   getProviderOrders,
   saveService,
 } from './servicesStorage';
+import {
+  getMyServices,
+  pauseService,
+  publishService,
+  deleteService,
+} from '../../../services/proServices';
+import { formatPriceWithUnit } from '../../../services/proServices/helpers';
 
 export default function ManageServicesView({
   colors,
   isDarkMode,
   t,
   onAddNewService,
+  onEditService,
   initialSide = 'professional',
   userProfilePic,
 }) {
@@ -45,6 +54,9 @@ export default function ManageServicesView({
 
   // Filter for services product list
   const [serviceFilter, setServiceFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'ACTIVE' | 'DRAFT' | 'PAUSED'
+  const [serviceCounts, setServiceCounts] = useState({ ACTIVE: 0, DRAFT: 0, PAUSED: 0 });
+  const [apiLoading, setApiLoading] = useState(false);
 
   // Data states
   const [services, setServices] = useState([]);
@@ -59,16 +71,47 @@ export default function ManageServicesView({
   const [qrModalVisible, setQrModalVisible] = useState(false);
 
   const loadAllData = useCallback(async () => {
-    const svcs = await getStoredServices();
+    setApiLoading(true);
+    try {
+      const params = {};
+      if (serviceFilter !== 'all') {
+        const typeMap = {
+          mentorship: 'MENTORSHIP',
+          consultation: 'CONSULTATION',
+          appointment: 'APPOINTMENT',
+          event: 'EVENT',
+          monthly_package: 'MONTHLY_PACKAGE',
+        };
+        params.type = typeMap[serviceFilter] || serviceFilter.toUpperCase();
+      }
+      if (statusFilter !== 'ALL') {
+        params.status = statusFilter;
+      }
+      const res = await getMyServices(params);
+      if (res.success && res.data?.items) {
+        setServices(res.data.items);
+        if (res.data.counts) {
+          setServiceCounts(res.data.counts);
+        }
+      } else {
+        const svcs = await getStoredServices();
+        setServices(svcs);
+      }
+    } catch (_) {
+      const svcs = await getStoredServices();
+      setServices(svcs);
+    } finally {
+      setApiLoading(false);
+    }
+
     const cOrders = await getClientOrders();
     const cProds = await getClientProducts();
     const pOrders = await getProviderOrders();
 
-    setServices(svcs);
     setClientOrders(cOrders);
     setClientProducts(cProds);
     setProviderOrders(pOrders);
-  }, []);
+  }, [serviceFilter, statusFilter]);
 
   useEffect(() => {
     loadAllData();
@@ -83,23 +126,66 @@ export default function ManageServicesView({
     } catch (_) {}
   };
 
-  const handleToggleActive = async serviceId => {
-    const updated = services.map(s => {
-      if (s.id === serviceId) {
-        return { ...s, status: s.status === 'active' ? 'paused' : 'active' };
+  const handleToggleActive = async item => {
+    try {
+      const currentStatus = (item.status || '').toUpperCase();
+      if (currentStatus === 'ACTIVE') {
+        const res = await pauseService(item.id);
+        if (res.success) {
+          loadAllData();
+        } else {
+          Alert.alert('Error', res.message || 'Failed to pause service');
+        }
+      } else {
+        const res = await publishService(item.id);
+        if (res.success) {
+          loadAllData();
+        } else {
+          Alert.alert('Cannot Publish', res.message || 'Failed to activate service');
+        }
       }
-      return s;
-    });
-    setServices(updated);
-    const target = updated.find(s => s.id === serviceId);
-    if (target) {
-      await saveService(target);
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to update service status');
     }
+  };
+
+  const handleDeleteService = item => {
+    Alert.alert(
+      'Archive Service',
+      `Are you sure you want to archive "${item.title}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Archive',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await deleteService(item.id);
+              if (res.success) {
+                loadAllData();
+              } else {
+                Alert.alert('Error', res.message || 'Failed to delete service');
+              }
+            } catch (err) {
+              Alert.alert('Error', err.message || 'Failed to delete service');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const filteredServices = services.filter(s => {
     if (serviceFilter === 'all') return true;
-    return s.type === serviceFilter;
+    const typeUpper = (s.type || '').toUpperCase();
+    const map = {
+      mentorship: 'MENTORSHIP',
+      consultation: 'CONSULTATION',
+      appointment: 'APPOINTMENT',
+      event: 'EVENT',
+      monthly_package: 'MONTHLY_PACKAGE',
+    };
+    return typeUpper === map[serviceFilter] || s.type === serviceFilter;
   });
 
   return (
@@ -252,6 +338,47 @@ export default function ManageServicesView({
           {/* SUB-TAB 1: SERVICES PRODUCT LIST */}
           {proTab === 'products' && (
             <View style={styles.tabContentWrap}>
+              {/* Status Filter Row */}
+              <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 10 }}>
+                {[
+                  { id: 'ALL', label: 'All' },
+                  { id: 'ACTIVE', label: `Active (${serviceCounts.ACTIVE || 0})` },
+                  { id: 'DRAFT', label: `Drafts (${serviceCounts.DRAFT || 0})` },
+                  { id: 'PAUSED', label: `Paused (${serviceCounts.PAUSED || 0})` },
+                ].map(st => {
+                  const isActive = statusFilter === st.id;
+                  return (
+                    <TouchableOpacity
+                      key={st.id}
+                      onPress={() => setStatusFilter(st.id)}
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        marginRight: 6,
+                        borderColor: isActive ? colors.accent : colors.cardBorder,
+                        backgroundColor: isActive
+                          ? isDarkMode
+                            ? 'rgba(124, 58, 237, 0.2)'
+                            : 'rgba(124, 58, 237, 0.08)'
+                          : colors.surface,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: isActive ? colors.accent : colors.muted,
+                          fontSize: 11,
+                          fontWeight: '700',
+                        }}
+                      >
+                        {st.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
               {/* Category Filter Pills & Add Button */}
               <View style={[styles.filterAndActionRow, { width: availableWidth }]}>
                 <View
@@ -323,128 +450,155 @@ export default function ManageServicesView({
                 </TouchableOpacity>
               </View>
 
-              {/* Services Cards */}
-              {filteredServices.map(item => (
-                <View
-                  key={item.id}
-                  style={[styles.serviceProCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
-                >
-                  <View style={styles.serviceProCardHeader}>
-                    <View style={styles.serviceProIconWrap}>
-                      <LinearGradient
-                        colors={colors.btnGradient}
-                        style={styles.serviceProIconGrad}
-                      >
-                        <Ionicons name={item.icon || 'star'} size={20} color="#FFFFFF" />
-                      </LinearGradient>
-                    </View>
+              {apiLoading && (
+                <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                  <ActivityIndicator color={colors.accent} />
+                </View>
+              )}
 
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <View style={styles.titleRow}>
-                        <Text style={[styles.serviceProTitle, { color: colors.title }]} numberOfLines={1}>
-                          {item.title}
-                        </Text>
-                      </View>
-                      <Text style={[styles.serviceProSubtitle, { color: colors.muted }]} numberOfLines={1}>
-                        {item.subtitle || `${item.category} • ${item.duration || 'Flexible'}`}
-                      </Text>
-                      <View style={styles.priceRow}>
-                        <Text style={[styles.serviceProPrice, { color: colors.accent }]}>
-                          ${item.price}
-                          {item.type === 'monthly_package' ? '/month' : ''}
-                        </Text>
-                        <View
-                          style={[
-                            styles.statusBadge,
-                            {
-                              backgroundColor:
-                                item.status === 'active' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)',
-                            },
-                          ]}
+              {/* Services Cards */}
+              {filteredServices.map(item => {
+                const isAct = (item.status || '').toLowerCase() === 'active';
+                const formattedPrice = formatPriceWithUnit(item.price, item.priceUnit, item.currency);
+                return (
+                  <View
+                    key={item.id}
+                    style={[styles.serviceProCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
+                  >
+                    <View style={styles.serviceProCardHeader}>
+                      <View style={styles.serviceProIconWrap}>
+                        <LinearGradient
+                          colors={colors.btnGradient}
+                          style={styles.serviceProIconGrad}
                         >
+                          <Ionicons name={item.icon || 'star'} size={20} color="#FFFFFF" />
+                        </LinearGradient>
+                      </View>
+
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <View style={styles.titleRow}>
+                          <Text style={[styles.serviceProTitle, { color: colors.title }]} numberOfLines={1}>
+                            {item.title}
+                          </Text>
+                        </View>
+                        <Text style={[styles.serviceProSubtitle, { color: colors.muted }]} numberOfLines={1}>
+                          {item.subtitle || `${item.category || item.type} • ${item.duration || 'Flexible'}`}
+                        </Text>
+                        <View style={styles.priceRow}>
+                          <Text style={[styles.serviceProPrice, { color: colors.accent }]}>
+                            {formattedPrice || `$${item.price}`}
+                          </Text>
                           <View
                             style={[
-                              styles.statusDot,
-                              { backgroundColor: item.status === 'active' ? '#22C55E' : '#EAB308' },
-                            ]}
-                          />
-                          <Text
-                            style={[
-                              styles.statusText,
-                              { color: item.status === 'active' ? '#16A34A' : '#CA8A04' },
+                              styles.statusBadge,
+                              {
+                                backgroundColor: isAct
+                                  ? 'rgba(34, 197, 94, 0.15)'
+                                  : 'rgba(234, 179, 8, 0.15)',
+                              },
                             ]}
                           >
-                            {item.status === 'active' ? 'Active' : 'Paused'}
-                          </Text>
+                            <View
+                              style={[
+                                styles.statusDot,
+                                { backgroundColor: isAct ? '#22C55E' : '#EAB308' },
+                              ]}
+                            />
+                            <Text
+                              style={[
+                                styles.statusText,
+                                { color: isAct ? '#16A34A' : '#CA8A04' },
+                              ]}
+                            >
+                              {item.status || 'Draft'}
+                            </Text>
+                          </View>
                         </View>
                       </View>
                     </View>
-                  </View>
 
-                  {/* Highlights / Inclusions */}
-                  {item.included && item.included.length > 0 && (
-                    <View style={[styles.inclusionsSnippet, { backgroundColor: colors.cardInner }]}>
-                      <Text style={[styles.inclusionsTitle, { color: colors.muted }]}>What's included:</Text>
-                      <Text style={[styles.inclusionsBody, { color: colors.title }]} numberOfLines={2}>
-                        ✓ {item.included.slice(0, 3).join('   ✓ ')}
-                      </Text>
-                    </View>
-                  )}
+                    {/* Highlights / Inclusions */}
+                    {item.included && item.included.length > 0 && (
+                      <View style={[styles.inclusionsSnippet, { backgroundColor: colors.cardInner }]}>
+                        <Text style={[styles.inclusionsTitle, { color: colors.muted }]}>What's included:</Text>
+                        <Text style={[styles.inclusionsBody, { color: colors.title }]} numberOfLines={2}>
+                          ✓ {item.included.slice(0, 3).join('   ✓ ')}
+                        </Text>
+                      </View>
+                    )}
 
-                  {/* Footer Meta & Actions */}
-                  <View style={[styles.serviceProFooter, { borderTopColor: colors.divider }]}>
-                    <View style={styles.footerInfoCol}>
-                      <Text style={[styles.footerMetaLabel, { color: colors.muted }]}>
-                        {item.type === 'event'
-                          ? `${item.totalSold || 280} Tickets Sold`
-                          : item.type === 'monthly_package'
-                          ? `${item.subscribersCount || 18}/${item.maxSubscribers || 25} Subscribers`
-                          : `${item.bookingsCount || 12} Bookings completed`}
-                      </Text>
-                    </View>
+                    {/* Footer Meta & Actions */}
+                    <View style={[styles.serviceProFooter, { borderTopColor: colors.divider }]}>
+                      <View style={styles.footerInfoCol}>
+                        <Text style={[styles.footerMetaLabel, { color: colors.muted }]}>
+                          {item.type === 'event' || item.type === 'EVENT'
+                            ? `${item.totalSold || 0} Tickets Sold`
+                            : item.type === 'monthly_package' || item.type === 'MONTHLY_PACKAGE'
+                            ? `${item.subscribersCount || 0}/${item.maxSubscribers || 25} Subscribers`
+                            : `${item.bookingCount ?? item.bookingsCount ?? 0} Bookings completed`}
+                        </Text>
+                      </View>
 
-                    <View style={styles.footerActionsRow}>
-                      <TouchableOpacity
-                        onPress={() => handleShare(item)}
-                        style={[styles.actionIconBtn, { backgroundColor: colors.iconBg }]}
-                      >
-                        <Ionicons name="share-social-outline" size={17} color={colors.accent} />
-                      </TouchableOpacity>
+                      <View style={styles.footerActionsRow}>
+                        <TouchableOpacity
+                          onPress={() => handleShare(item)}
+                          style={[styles.actionIconBtn, { backgroundColor: colors.iconBg }]}
+                        >
+                          <Ionicons name="share-social-outline" size={17} color={colors.accent} />
+                        </TouchableOpacity>
 
-                      <TouchableOpacity
-                        onPress={() => handleToggleActive(item.id)}
-                        style={[
-                          styles.actionPillBtn,
-                          {
-                            backgroundColor: item.status === 'active' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
-                          },
-                        ]}
-                      >
-                        <Text
+                        {onEditService && (
+                          <TouchableOpacity
+                            onPress={() => onEditService(item)}
+                            style={[styles.actionIconBtn, { backgroundColor: colors.iconBg, marginLeft: 4 }]}
+                          >
+                            <Ionicons name="create-outline" size={17} color={colors.accent} />
+                          </TouchableOpacity>
+                        )}
+
+                        <TouchableOpacity
+                          onPress={() => handleToggleActive(item)}
                           style={[
-                            styles.actionPillText,
-                            { color: item.status === 'active' ? '#EF4444' : '#22C55E' },
+                            styles.actionPillBtn,
+                            {
+                              backgroundColor: isAct ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+                              marginLeft: 4,
+                            },
                           ]}
                         >
-                          {item.status === 'active' ? 'Pause' : 'Activate'}
-                        </Text>
-                      </TouchableOpacity>
+                          <Text
+                            style={[
+                              styles.actionPillText,
+                              { color: isAct ? '#EF4444' : '#22C55E' },
+                            ]}
+                          >
+                            {isAct ? 'Pause' : 'Activate'}
+                          </Text>
+                        </TouchableOpacity>
 
-                      <TouchableOpacity
-                        onPress={() => {
-                          setSelectedItem(item);
-                          setDetailModalVisible(true);
-                        }}
-                        style={[styles.actionPillBtn, { backgroundColor: colors.accent }]}
-                      >
-                        <Text style={[styles.actionPillText, { color: '#FFFFFF', fontWeight: '700' }]}>
-                          Manage
-                        </Text>
-                      </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleDeleteService(item)}
+                          style={[styles.actionIconBtn, { backgroundColor: 'rgba(239, 68, 68, 0.1)', marginLeft: 4 }]}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => {
+                            setSelectedItem(item);
+                            setDetailModalVisible(true);
+                          }}
+                          style={[styles.actionPillBtn, { backgroundColor: colors.accent, marginLeft: 4 }]}
+                        >
+                          <Text style={[styles.actionPillText, { color: '#FFFFFF', fontWeight: '700' }]}>
+                            Manage
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           )}
 

@@ -201,18 +201,22 @@ const numberFromPrice = value => {
 
 const imageUri = image => {
   if (!image) return null;
-  if (typeof image === 'string') return image;
-  return image?.uri || image?.url || image?.path || null;
+  if (typeof image === 'string') return image.replace(/["'\s]+$/, '');
+  const uri = image?.uri || image?.url || image?.path || null;
+  if (!uri || typeof uri !== 'string') return null;
+  return uri.replace(/["'\s]+$/, '');
 };
 
-const fastImageSource = uri =>
-  uri
+const fastImageSource = uri => {
+  const resolved = imageUri(uri);
+  return resolved
     ? {
-      uri,
+      uri: resolved,
       priority: FastImage.priority.high,
       cache: FastImage.cacheControl.immutable,
     }
     : null;
+};
 
 const itemImages = item => {
   const images = Array.isArray(item?.images)
@@ -242,13 +246,14 @@ const prefetchImageUrls = async items => {
 const CachedImageBox = ({ uri, style, placeholderStyle, iconName, iconSize = 26 }) => {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const resolvedUri = imageUri(uri);
 
   useEffect(() => {
     setLoaded(false);
     setFailed(false);
   }, [uri]);
 
-  if (!uri || failed) {
+  if (!resolvedUri || failed) {
     return (
       <View style={[style, placeholderStyle]}>
         <Ionicons name={iconName} size={iconSize} color="#9b8c7a" />
@@ -264,7 +269,7 @@ const CachedImageBox = ({ uri, style, placeholderStyle, iconName, iconSize = 26 
         </View>
       )}
       <FastImage
-        source={fastImageSource(uri)}
+        source={fastImageSource(resolvedUri)}
         style={StyleSheet.absoluteFill}
         resizeMode={FastImage.resizeMode.cover}
         fadeDuration={0}
@@ -300,10 +305,14 @@ const thumb = item => {
 const mapParticipant = (participant = {}, closet) => {
   const product = participant.product ?? {};
   return {
-    participantId: participant.id,
+    id: String(participant.productId || product?.id || product?._id || participant.id || participant._id || ''),
+    participantId: String(participant.id || participant._id || ''),
+    productId: String(product?.id || product?._id || participant.productId || ''),
     name: product.name || '',
     price: fmt(product.price),
-    image: thumb(product),
+    image: imageUri(thumb(product)),
+    shopName: closet?.shopName || closet?.shopUsername || '',
+    userName: closet?.shopUsername || closet?.shopName || '',
     user: closet?.shopName || closet?.shopUsername || '',
     pct: Number(participant.votePercentage ?? 0),
     isWinner: !!participant.isWinner,
@@ -317,10 +326,11 @@ const mapBattle = (battle, index) => {
   const [p1, p2] = sorted;
 
   return {
-    id: String(battle?.id ?? index),
+    id: String(battle?.id || battle?._id || index),
+    battleId: String(battle?.id || battle?._id || index),
     title: battle?.title,
     left: mapParticipant(p1, battle?.closet),
-    right: mapParticipant(p2, battle?.closet),
+    right: mapParticipant(p2, battle?.opponentCloset || battle?.closet),
     status: battle?.status,
     outcome: battle?.outcome,
     startedAt: battle?.createdAt || battle?.startDate || battle?.startedAt,
@@ -1953,10 +1963,26 @@ const MyClosetBattlesScreen = ({ navigation, route }) => {
     }
   }, [closetId, isOwnProfile]);
 
+  const isNavigatingRef = useRef(false);
+  const initialLoadedRef = useRef(false);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      isNavigatingRef.current = false;
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   const openBattle = useCallback((battle) => {
+    if (isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 800);
+
     const { returnTo: _parentReturnTo, ...parentParams } = route?.params || {};
     navigateToBattleLive(navigation, withClosetNavParams({ params: parentParams }, {
-      battleId: battle?.id,
+      battleId: battle?.battleId || battle?.id,
       initialBattle: battle?.raw || battle,
       selectedItems: [battle?.left, battle?.right].filter(Boolean),
       userProfile: userProfile,
@@ -1980,9 +2006,14 @@ const MyClosetBattlesScreen = ({ navigation, route }) => {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      setPage(1);
-      loadPage(1, true).finally(() => setLoading(false));
+      if (!initialLoadedRef.current) {
+        initialLoadedRef.current = true;
+        setLoading(true);
+        setPage(1);
+        loadPage(1, true).finally(() => setLoading(false));
+      } else {
+        loadPage(1, true);
+      }
     }, [loadPage]),
   );
 

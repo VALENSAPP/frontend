@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,28 @@ import {
   Switch,
   Share,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { saveService } from './servicesStorage';
+import {
+  createServiceDraft,
+  updateService,
+  setServiceAvailability,
+  getServiceAvailability,
+  uploadServiceAttachments,
+  deleteServiceAttachment,
+  getServiceDetails,
+  publishService,
+} from '../../../services/proServices';
+import {
+  formatDaysPayload,
+  formatPriceWithUnit,
+  getDeviceTimezone,
+  mapReadinessToStep,
+  DAYS_MAP,
+} from '../../../services/proServices/helpers';
 
 export default function MonthlyPackageFlow({
   colors,
@@ -22,855 +40,736 @@ export default function MonthlyPackageFlow({
   onBack,
   onFinish,
   userProfilePic,
+  initialServiceId = null,
 }) {
-  // Step: 1 = Create Package, 2 = Package Details, 3 = Set Availability & Capacity, 4 = Review, 5 = Checkout Demo, 6 = All Set
+  // Step: 1 = Create Package, 2 = Package Details, 3 = Availability & Capacity, 4 = Review, 5 = All Set
   const [step, setStep] = useState(1);
+  const [serviceId, setServiceId] = useState(initialServiceId);
+  const [loading, setLoading] = useState(false);
+  const [publishLoading, setPublishLoading] = useState(false);
 
-  // Form State
+  // Theme accents
+  const brandAccent = colors?.primary?.[0] || '#7C3AED';
+  const textColor = colors?.text || (isDarkMode ? '#FFFFFF' : '#111827');
+  const mutedColor = colors?.textMuted || (isDarkMode ? '#9CA3AF' : '#6B7280');
+  const cardBg = isDarkMode ? '#1E1B2E' : '#FFFFFF';
+  const border = colors?.border || (isDarkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)');
+  const inputBg = isDarkMode ? '#252033' : '#F9FAFB';
+
+  // Step 1: Basic Info
   const [packageTitle, setPackageTitle] = useState('Beauty Set');
   const [description, setDescription] = useState(
     'Monthly beauty package with everything you need to look and feel amazing. Self-care made easy!',
   );
-  const [price, setPrice] = useState('199.00');
-  const [inclusions, setInclusions] = useState([
-    { id: '1', text: 'Hair brush', checked: true },
-    { id: '2', text: '2x Nails', checked: true },
-    { id: '3', text: '1x Eyebrows', checked: true },
-    { id: '4', text: '1x Massage', checked: true },
-    { id: '5', text: 'Exclusive content', checked: true },
-    { id: '6', text: 'Priority booking', checked: true },
+  const [price, setPrice] = useState('199');
+  const [includedItems, setIncludedItems] = useState([
+    'Hair brush',
+    '2x Nails',
+    '1x Eyebrows',
+    '1x Massage',
+    'Exclusive content',
+    'Priority booking',
   ]);
   const [newInclusion, setNewInclusion] = useState('');
+  const [attachments, setAttachments] = useState([]);
 
-  // Extras
-  const [hasPdf, setHasPdf] = useState(true);
-  const [hasVideo, setHasVideo] = useState(true);
-  const [agreedTerms, setAgreedTerms] = useState(true);
+  // Step 2: Package Details (Private Circle)
+  const [includesPrivateCircle, setIncludesPrivateCircle] = useState(true);
 
-  // Availability & Capacity
-  const [workingHours, setWorkingHours] = useState('09:00 AM – 06:00 PM');
-  const [timeZone, setTimeZone] = useState('America/New York (EST)');
-  const [sessionDuration, setSessionDuration] = useState('60 min');
+  // Step 3: Availability & Booking Rules
+  const [durationMinutes, setDurationMinutes] = useState(60);
+  const [sessionsPerMonth, setSessionsPerMonth] = useState(2);
   const [maxSubscribers, setMaxSubscribers] = useState(25);
-  const [sessionsPerSub, setSessionsPerSub] = useState(2);
-  const [selectedDays, setSelectedDays] = useState(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+  const [minNoticeHours, setMinNoticeHours] = useState(24);
+  const [cancelNoticeHours, setCancelNoticeHours] = useState(12);
+  const [bufferMinutes, setBufferMinutes] = useState(15);
+  const [autoHideUnavailable, setAutoHideUnavailable] = useState(true);
 
-  // Toggles
-  const [hideUnavailable, setHideUnavailable] = useState(true);
-  const [preventDoubleBooking, setPreventDoubleBooking] = useState(true);
-  const [syncCalendar, setSyncCalendar] = useState(true);
+  const [selectedDays, setSelectedDays] = useState([1, 2, 4, 5, 6]); // Mon, Tue, Thu, Fri, Sat
+  const [dayStart, setDayStart] = useState('09:00');
+  const [dayEnd, setDayEnd] = useState('18:00');
 
-  const toggleDay = day => {
+  // Step 4: Review
+  const [serviceDetails, setServiceDetails] = useState(null);
+  const [readinessProblems, setReadinessProblems] = useState([]);
+
+  const toggleDay = dayNum => {
     setSelectedDays(prev =>
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day],
+      prev.includes(dayNum) ? prev.filter(d => d !== dayNum) : [...prev, dayNum].sort(),
     );
   };
 
-  const handleConfirm = async () => {
-    const serviceData = {
-      id: `svc_package_${Date.now()}`,
-      type: 'monthly_package',
-      title: packageTitle.trim() || 'Beauty Set',
-      subtitle: `Monthly Package • $${price}/mo`,
-      category: 'Monthly Package',
-      billing: 'Monthly',
-      price: price || '199.00',
-      duration: sessionDuration,
-      maxSubscribers,
-      subscribersCount: 0,
-      sessionsPerMonth: sessionsPerSub,
-      availability: `${selectedDays.join(', ')} ${workingHours}`,
-      included: inclusions.filter(i => i.checked).map(i => i.text),
-      extras: [
-        ...(hasPdf ? [{ name: 'Beauty Set Guide', size: 'PDF • 2.4 MB' }] : []),
-        ...(hasVideo ? [{ name: 'Welcome Video', size: 'MP4 • 5:32' }] : []),
-      ],
-      status: 'active',
-      createdAt: new Date().toISOString(),
-      icon: 'gift-outline',
-    };
+  const addInclusion = () => {
+    const trimmed = newInclusion.trim();
+    if (trimmed && includedItems.length < 20) {
+      setIncludedItems([...includedItems, trimmed]);
+      setNewInclusion('');
+    }
+  };
 
-    await saveService(serviceData);
-    setStep(6);
+  const removeInclusion = index => {
+    setIncludedItems(includedItems.filter((_, i) => i !== index));
+  };
+
+  // STEP 1 -> STEP 2 (Create / update package draft)
+  const handleStep1Continue = async () => {
+    if (!packageTitle.trim()) {
+      Alert.alert('Required', 'Please enter a package title.');
+      return;
+    }
+    const numPrice = parseFloat(price);
+    if (isNaN(numPrice) || numPrice < 0) {
+      Alert.alert('Required', 'Please enter a valid monthly price.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        type: 'MONTHLY_PACKAGE',
+        title: packageTitle.trim(),
+        description: description.trim(),
+        price: numPrice,
+        includedItems: includedItems.filter(Boolean),
+      };
+
+      if (!serviceId) {
+        const res = await createServiceDraft(payload);
+        if (res.success && res.data?.id) {
+          setServiceId(res.data.id);
+          setStep(2);
+        } else {
+          Alert.alert('Error', res.message || 'Failed to create package draft.');
+        }
+      } else {
+        const res = await updateService(serviceId, payload);
+        if (res.success) {
+          setStep(2);
+        } else {
+          Alert.alert('Error', res.message || 'Failed to update package draft.');
+        }
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to save monthly package.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // STEP 2 -> STEP 3 (Save package details)
+  const handleStep2Continue = async () => {
+    if (!serviceId) return;
+    setLoading(true);
+    try {
+      const res = await updateService(serviceId, {
+        package: {
+          includesPrivateCircle,
+        },
+      });
+      if (res.success) {
+        setStep(3);
+      } else {
+        Alert.alert('Error', res.message || 'Failed to update package details.');
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to save package details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // STEP 3 -> STEP 4 (Set availability and booking rules)
+  const handleStep3Continue = async () => {
+    if (!serviceId) return;
+    if (selectedDays.length === 0) {
+      Alert.alert('Required', 'Please select at least one available day.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 1. Availability rules: repeat start/end for each selected day
+      const rules = selectedDays.map(dayNum => ({
+        dayOfWeek: dayNum,
+        start: dayStart,
+        end: dayEnd,
+      }));
+
+      const availRes = await setServiceAvailability(serviceId, {
+        timezone: getDeviceTimezone(),
+        rules,
+      });
+
+      if (!availRes.success) {
+        Alert.alert('Warning', availRes.message || 'Failed to save availability rules.');
+      }
+
+      // 2. Package rules
+      const pkgRulesRes = await updateService(serviceId, {
+        durationMinutes: Number(durationMinutes) || 60,
+        package: {
+          includesPrivateCircle,
+          sessionsPerMonth: Number(sessionsPerMonth) || 2,
+          maxSubscribers: Number(maxSubscribers) || 25,
+          minNoticeHours: Number(minNoticeHours) || 24,
+          cancelNoticeHours: Number(cancelNoticeHours) || 12,
+          bufferMinutes: Number(bufferMinutes) || 15,
+          autoHideUnavailable,
+        },
+      });
+
+      if (!pkgRulesRes.success) {
+        Alert.alert('Error', pkgRulesRes.message || 'Failed to save package booking rules.');
+        setLoading(false);
+        return;
+      }
+
+      // 3. Load full service details & check readiness
+      const reviewRes = await getServiceDetails(serviceId);
+      if (reviewRes.success && reviewRes.data) {
+        setServiceDetails(reviewRes.data);
+        setReadinessProblems(reviewRes.data.readiness?.problems || []);
+      }
+
+      setStep(4);
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to save availability and rules.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // STEP 4 -> PUBLISH
+  const handlePublish = async () => {
+    if (!serviceId) return;
+    setPublishLoading(true);
+    try {
+      const res = await publishService(serviceId);
+      if (res.success) {
+        setStep(5);
+      } else {
+        Alert.alert(
+          'Cannot Publish Package',
+          res.message || 'Please complete all required fields before publishing.',
+        );
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to publish package.');
+    } finally {
+      setPublishLoading(false);
+    }
   };
 
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Subscribe to my monthly package: ${packageTitle} on Valens! https://valens.app/packages/beauty`,
-        title: packageTitle,
+        message: `Subscribe to my monthly package: ${packageTitle} on Valens!`,
       });
     } catch (_) {}
   };
 
-  const renderProgressBar = (curr, total = 5) => (
-    <View style={styles.progressWrap}>
-      <Text style={[styles.stepIndicatorText, { color: colors.muted }]}>
-        Step {curr} of {total}
-      </Text>
-      <View style={styles.progressBarTrack}>
-        {Array.from({ length: total }).map((_, i) => (
-          <View
-            key={`step-${i}`}
-            style={[
-              styles.progressBarSegment,
-              {
-                backgroundColor: i < curr ? colors.accent : (isDarkMode ? colors.cardBorder : (colors.divider || (colors.isBusiness ? '#F0E2C8' : '#E9D7FD'))),
-              },
-            ]}
-          />
-        ))}
-      </View>
-    </View>
-  );
+  // Calculated sessions available
+  const totalSessionsAvailable = (Number(sessionsPerMonth) || 0) * (Number(maxSubscribers) || 0);
 
-  // STEP 1: CREATE MONTHLY PACKAGE
+  // ─────────────────────────────────────────────────────────────────────────
+  // STEP 1: CREATE PACKAGE
+  // ─────────────────────────────────────────────────────────────────────────
   if (step === 1) {
     return (
-      <View style={styles.flex}>
+      <View style={[styles.root, { backgroundColor: cardBg }]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={onBack} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
-            <Ionicons name="chevron-back" size={22} color={colors.title} />
+          <TouchableOpacity onPress={onBack} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="arrow-back" size={24} color={textColor} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.title }]}>Create Monthly Package</Text>
-          <View style={{ width: 40 }} />
+          <Text style={[styles.headerTitle, { color: textColor }]}>Create Monthly Package</Text>
+          <View style={{ width: 24 }} />
         </View>
 
-        <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          {renderProgressBar(1, 5)}
-
-          {/* Any type of package Highlight Card */}
-          <View style={[styles.highlightCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <View style={[styles.highlightIconCircle, { backgroundColor: colors.iconBg }]}>
-              <Ionicons name="sparkles" size={18} color={colors.accent} />
-            </View>
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={[styles.highlightTitle, { color: colors.title }]}>Any type of package</Text>
-              <Text style={[styles.highlightBody, { color: colors.body }]}>
-                Create any kind of monthly package you want! From mentorships to beauty sets, fitness, coaching, and much more.
-              </Text>
-            </View>
-          </View>
-
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 14 }]}>Package Title</Text>
-          <TextInput
-            value={packageTitle}
-            onChangeText={setPackageTitle}
-            placeholder="e.g. Beauty Set, Executive Coaching"
-            placeholderTextColor={colors.muted}
-            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.cardBorder, color: colors.title }]}
-          />
-
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
-            <Text style={[styles.fieldLabel, { color: colors.title }]}>Description</Text>
-            <Text style={[styles.counterText, { color: colors.muted }]}>{description.length}/250</Text>
-          </View>
-          <TextInput
-            value={description}
-            onChangeText={setDescription}
-            placeholder="What makes this package special..."
-            placeholderTextColor={colors.muted}
-            multiline
-            numberOfLines={3}
-            maxLength={250}
-            style={[styles.input, styles.textArea, { backgroundColor: colors.card, borderColor: colors.cardBorder, color: colors.title }]}
-          />
-
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 16 }]}>Billing</Text>
-          <View style={[styles.readOnlyField, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <Ionicons name="calendar-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-            <Text style={[styles.readOnlyText, { color: colors.title }]}>Monthly</Text>
-            <Ionicons name="chevron-down" size={18} color={colors.muted} style={{ marginLeft: 'auto' }} />
-          </View>
-
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 16 }]}>Monthly Price (USD)</Text>
-          <View style={[styles.priceInputWrap, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <Text style={[styles.currencyPrefix, { color: colors.muted }]}>$</Text>
-            <TextInput
-              value={price}
-              onChangeText={setPrice}
-              keyboardType="decimal-pad"
-              style={[styles.priceInput, { color: colors.title }]}
-            />
-            <Text style={[styles.monthSuffix, { color: colors.muted }]}>/ month</Text>
-          </View>
-
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 18, marginBottom: 8 }]}>
-            What's Included
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <Text style={[styles.stepIndicator, { color: brandAccent }]}>STEP 1 OF 4</Text>
+          <Text style={[styles.screenTitle, { color: textColor }]}>Package Overview</Text>
+          <Text style={[styles.screenSub, { color: mutedColor }]}>
+            Package is a recurring monthly subscription with bundled sessions and perks.
           </Text>
-          {inclusions.map(item => (
-            <TouchableOpacity
-              key={item.id}
-              onPress={() => {
-                setInclusions(prev =>
-                  prev.map(i => (i.id === item.id ? { ...i, checked: !i.checked } : i)),
-                );
-              }}
-              style={[styles.checkItemRow, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
-            >
-              <View
-                style={[
-                  styles.checkCircle,
-                  item.checked ? { backgroundColor: colors.accent } : { borderColor: colors.cardBorder, borderWidth: 1 },
-                ]}
-              >
-                {item.checked && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-              </View>
-              <Text style={[styles.checkItemText, { color: colors.title }]}>{item.text}</Text>
-            </TouchableOpacity>
-          ))}
 
-          <View style={styles.addInclusionRow}>
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: textColor }]}>Package Name *</Text>
             <TextInput
-              value={newInclusion}
-              onChangeText={setNewInclusion}
-              placeholder="+ Add item to package"
-              placeholderTextColor={colors.muted}
-              style={[styles.addInput, { backgroundColor: colors.card, borderColor: colors.cardBorder, color: colors.title }]}
+              value={packageTitle}
+              onChangeText={setPackageTitle}
+              placeholder="e.g. Beauty Set"
+              placeholderTextColor={mutedColor}
+              maxLength={120}
+              style={[styles.input, { color: textColor, borderColor: border, backgroundColor: inputBg }]}
             />
-            {newInclusion.length > 0 && (
-              <TouchableOpacity
-                onPress={() => {
-                  setInclusions(prev => [...prev, { id: String(Date.now()), text: newInclusion.trim(), checked: true }]);
-                  setNewInclusion('');
-                }}
-                style={[styles.addBtn, { backgroundColor: colors.accent }]}
-              >
-                <Ionicons name="add" size={18} color="#FFFFFF" />
-              </TouchableOpacity>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: textColor }]}>Description *</Text>
+            <TextInput
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Describe the monthly perks, items, and experience..."
+              placeholderTextColor={mutedColor}
+              multiline
+              numberOfLines={4}
+              maxLength={5000}
+              style={[styles.textArea, { color: textColor, borderColor: border, backgroundColor: inputBg }]}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: textColor }]}>Monthly Price ($) *</Text>
+            <View style={[styles.priceInputWrap, { borderColor: border, backgroundColor: inputBg }]}>
+              <Text style={[styles.currencyPrefix, { color: brandAccent }]}>$</Text>
+              <TextInput
+                value={price}
+                onChangeText={setPrice}
+                keyboardType="decimal-pad"
+                placeholder="199"
+                placeholderTextColor={mutedColor}
+                style={[styles.priceInput, { color: textColor }]}
+              />
+              <Text style={[styles.priceUnitTag, { color: mutedColor }]}>/ month</Text>
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={[styles.label, { color: textColor }]}>What's Included</Text>
+            {includedItems.map((item, index) => (
+              <View key={index} style={[styles.inclusionRow, { borderColor: border }]}>
+                <Ionicons name="checkmark-circle" size={18} color={brandAccent} style={{ marginRight: 8 }} />
+                <Text style={[styles.inclusionText, { color: textColor }]}>{item}</Text>
+                <TouchableOpacity onPress={() => removeInclusion(index)}>
+                  <Ionicons name="close-circle-outline" size={20} color={mutedColor} />
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            {includedItems.length < 20 && (
+              <View style={styles.addInclusionRow}>
+                <TextInput
+                  value={newInclusion}
+                  onChangeText={setNewInclusion}
+                  placeholder="Add item (e.g. 2x Nails)"
+                  placeholderTextColor={mutedColor}
+                  maxLength={160}
+                  style={[styles.input, { flex: 1, color: textColor, borderColor: border, backgroundColor: inputBg }]}
+                />
+                <TouchableOpacity
+                  onPress={addInclusion}
+                  style={[styles.addBtn, { backgroundColor: brandAccent }]}
+                >
+                  <Ionicons name="add" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
             )}
           </View>
 
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 18, marginBottom: 8 }]}>
-            Add Extras (Optional)
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <TouchableOpacity
-              onPress={() => setHasPdf(!hasPdf)}
-              style={[
-                styles.extraUploadCard,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: hasPdf ? colors.accent : colors.cardBorder,
-                  borderWidth: hasPdf ? 2 : 1,
-                },
-              ]}
-            >
-              <Ionicons name="document-text-outline" size={24} color={hasPdf ? colors.accent : colors.muted} />
-              <Text style={[styles.uploadText, { color: colors.title }]}>Upload PDF</Text>
-              <Text style={[styles.uploadSub, { color: colors.muted }]}>PDF, guides, manual</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setHasVideo(!hasVideo)}
-              style={[
-                styles.extraUploadCard,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: hasVideo ? colors.accent : colors.cardBorder,
-                  borderWidth: hasVideo ? 2 : 1,
-                },
-              ]}
-            >
-              <Ionicons name="videocam-outline" size={24} color={hasVideo ? colors.accent : colors.muted} />
-              <Text style={[styles.uploadText, { color: colors.title }]}>Upload Video</Text>
-              <Text style={[styles.uploadSub, { color: colors.muted }]}>MP4, MOV up to 1GB</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-
-        <View style={[styles.bottomBar, { backgroundColor: colors.surface }]}>
-          <TouchableOpacity onPress={() => setStep(2)} activeOpacity={0.85} style={styles.primaryContinueBtn}>
-            <LinearGradient
-              colors={colors.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.primaryContinueGradient}
-            >
-              <Text style={styles.primaryContinueText}>Continue</Text>
-            </LinearGradient>
+          <TouchableOpacity
+            activeOpacity={0.88}
+            disabled={loading}
+            onPress={handleStep1Continue}
+            style={[styles.continueBtn, { backgroundColor: brandAccent }]}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.continueBtnText}>Continue to Package Details</Text>
+            )}
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </View>
     );
   }
 
-  // STEP 2: PACKAGE DETAILS (Review inclusions, guide files, policies)
+  // ─────────────────────────────────────────────────────────────────────────
+  // STEP 2: PACKAGE DETAILS (COMMUNITY ACCESS)
+  // ─────────────────────────────────────────────────────────────────────────
   if (step === 2) {
     return (
-      <View style={styles.flex}>
+      <View style={[styles.root, { backgroundColor: cardBg }]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => setStep(1)} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
-            <Ionicons name="chevron-back" size={22} color={colors.title} />
+          <TouchableOpacity onPress={() => setStep(1)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="arrow-back" size={24} color={textColor} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.title }]}>Package Details</Text>
-          <View style={{ width: 40 }} />
+          <Text style={[styles.headerTitle, { color: textColor }]}>Package Details</Text>
+          <View style={{ width: 24 }} />
         </View>
 
-        <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          {renderProgressBar(2, 5)}
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <Text style={[styles.stepIndicator, { color: brandAccent }]}>STEP 2 OF 4</Text>
+          <Text style={[styles.screenTitle, { color: textColor }]}>Community & Perks</Text>
+          <Text style={[styles.screenSub, { color: mutedColor }]}>
+            Grant exclusive benefits and private community space to your subscribers.
+          </Text>
 
-          <View style={[styles.reviewHeroCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <View style={styles.reviewAvatarWrap}>
-              <LinearGradient colors={colors.btnGradient} style={styles.avatarImg}>
-                <Ionicons name="gift" size={24} color="#FFFFFF" />
-              </LinearGradient>
-            </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[styles.reviewTitle, { color: colors.title }]}>{packageTitle}</Text>
-              <Text style={[styles.reviewPrice, { color: colors.accent }]}>${price} / month</Text>
-              <Text style={[styles.reviewSub, { color: colors.muted }]} numberOfLines={2}>
-                {description}
+          <View style={[styles.toggleCard, { borderColor: border, backgroundColor: inputBg }]}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <View style={styles.row}>
+                <Ionicons name="people-circle-outline" size={22} color={brandAccent} style={{ marginRight: 8 }} />
+                <Text style={[styles.toggleTitle, { color: textColor }]}>Private Circle Access</Text>
+              </View>
+              <Text style={[styles.toggleDesc, { color: mutedColor }]}>
+                Automatically add active subscribers to your exclusive Valens Private Circle for direct discussions and updates.
               </Text>
             </View>
+            <Switch
+              value={includesPrivateCircle}
+              onValueChange={setIncludesPrivateCircle}
+              trackColor={{ false: '#D1D5DB', true: brandAccent }}
+              thumbColor="#FFFFFF"
+            />
           </View>
 
-          <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <Text style={[styles.summaryCardTitle, { color: colors.title }]}>What's Included</Text>
-            {inclusions.filter(i => i.checked).map((item, idx) => (
-              <View key={idx} style={styles.summaryItemRow}>
-                <Ionicons name="checkmark-circle" size={16} color={colors.accent} style={{ marginRight: 8 }} />
-                <Text style={[styles.summaryItemText, { color: colors.title }]}>{item.text}</Text>
-              </View>
-            ))}
-
-            <View style={[styles.summaryDivider, { backgroundColor: colors.divider }]} />
-
-            {hasPdf && (
-              <View style={[styles.fileDownloadItem, { backgroundColor: colors.surface }]}>
-                <Ionicons name="document-text" size={20} color={colors.accent} style={{ marginRight: 8 }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.fileName, { color: colors.title }]}>Beauty Set Guide</Text>
-                  <Text style={[styles.fileSize, { color: colors.muted }]}>PDF • 2.4 MB</Text>
-                </View>
-                <Ionicons name="download-outline" size={18} color={colors.accent} />
-              </View>
+          <TouchableOpacity
+            activeOpacity={0.88}
+            disabled={loading}
+            onPress={handleStep2Continue}
+            style={[styles.continueBtn, { backgroundColor: brandAccent, marginTop: 24 }]}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.continueBtnText}>Continue to Availability & Capacity</Text>
             )}
-
-            {hasVideo && (
-              <View style={[styles.fileDownloadItem, { backgroundColor: colors.surface, marginTop: 8 }]}>
-                <Ionicons name="play-circle" size={20} color={colors.accent} style={{ marginRight: 8 }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.fileName, { color: colors.title }]}>Welcome Video</Text>
-                  <Text style={[styles.fileSize, { color: colors.muted }]}>MP4 • 5:32</Text>
-                </View>
-                <Ionicons name="play-outline" size={18} color={colors.accent} />
-              </View>
-            )}
-
-            <View style={[styles.summaryDivider, { backgroundColor: colors.divider }]} />
-
-            <View style={styles.summaryMetaRow}>
-              <Ionicons name="repeat-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.metaLabel, { color: colors.title, fontWeight: '700' }]}>Recurring monthly billing</Text>
-                <Text style={[styles.metaSub, { color: colors.muted }]}>You'll be charged every month</Text>
-              </View>
-            </View>
-
-            <View style={[styles.summaryMetaRow, { marginTop: 10 }]}>
-              <Ionicons name="close-circle-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.metaLabel, { color: colors.title, fontWeight: '700' }]}>Cancel anytime</Text>
-                <Text style={[styles.metaSub, { color: colors.muted }]}>No commitments. Cancel anytime.</Text>
-              </View>
-            </View>
-
-            <View style={[styles.summaryMetaRow, { marginTop: 10 }]}>
-              <Ionicons name="people-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.metaLabel, { color: colors.title, fontWeight: '700' }]}>Community access</Text>
-                <Text style={[styles.metaSub, { color: colors.muted }]}>Access to Private Circle</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              onPress={() => setAgreedTerms(!agreedTerms)}
-              style={styles.termsAgreementRow}
-            >
-              <View style={[styles.checkCircle, agreedTerms ? { backgroundColor: colors.accent } : { borderColor: colors.cardBorder, borderWidth: 1 }]}>
-                {agreedTerms && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
-              </View>
-              <Text style={[styles.termsText, { color: colors.title }]}>
-                I agree to the Terms and Conditions
-              </Text>
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         </ScrollView>
-
-        <View style={[styles.bottomBar, { backgroundColor: colors.surface }]}>
-          <TouchableOpacity onPress={() => setStep(3)} activeOpacity={0.85} style={styles.primaryContinueBtn}>
-            <LinearGradient
-              colors={colors.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.primaryContinueGradient}
-            >
-              <Text style={styles.primaryContinueText}>Continue</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
       </View>
     );
   }
 
-  // STEP 3: SET YOUR AVAILABILITY & CAPACITY
+  // ─────────────────────────────────────────────────────────────────────────
+  // STEP 3: SET AVAILABILITY & CAPACITY
+  // ─────────────────────────────────────────────────────────────────────────
   if (step === 3) {
     return (
-      <View style={styles.flex}>
+      <View style={[styles.root, { backgroundColor: cardBg }]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => setStep(2)} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
-            <Ionicons name="chevron-back" size={22} color={colors.title} />
+          <TouchableOpacity onPress={() => setStep(2)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="arrow-back" size={24} color={textColor} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.title }]}>Set Your Availability</Text>
-          <View style={{ width: 40 }} />
+          <Text style={[styles.headerTitle, { color: textColor }]}>Availability & Capacity</Text>
+          <View style={{ width: 24 }} />
         </View>
 
-        <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          {renderProgressBar(3, 5)}
-
-          <Text style={[styles.sectionDescText, { color: colors.muted, marginVertical: 8 }]}>
-            Choose when subscribers can book sessions included in this package.
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <Text style={[styles.stepIndicator, { color: brandAccent }]}>STEP 3 OF 4</Text>
+          <Text style={[styles.screenTitle, { color: textColor }]}>Schedule & Rules</Text>
+          <Text style={[styles.screenSub, { color: mutedColor }]}>
+            Set your weekly working hours, session duration, and subscriber limits.
           </Text>
 
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 10 }]}>Available Days</Text>
-          <View style={styles.daysRow}>
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
-              const isSelected = selectedDays.includes(day);
-              return (
-                <TouchableOpacity
-                  key={day}
-                  onPress={() => toggleDay(day)}
-                  style={[
-                    styles.dayCircle,
-                    {
-                      backgroundColor: isSelected ? colors.accent : colors.surface,
-                      borderColor: isSelected ? colors.accent : colors.cardBorder,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.dayText, { color: isSelected ? '#FFFFFF' : colors.muted }]}>
-                    {day}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+          {/* Working Hours */}
+          <View style={styles.row}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={[styles.label, { color: textColor }]}>Start Time (24h)</Text>
+              <TextInput
+                value={dayStart}
+                onChangeText={setDayStart}
+                placeholder="09:00"
+                placeholderTextColor={mutedColor}
+                style={[styles.input, { color: textColor, borderColor: border, backgroundColor: inputBg }]}
+              />
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.label, { color: textColor }]}>End Time (24h)</Text>
+              <TextInput
+                value={dayEnd}
+                onChangeText={setDayEnd}
+                placeholder="18:00"
+                placeholderTextColor={mutedColor}
+                style={[styles.input, { color: textColor, borderColor: border, backgroundColor: inputBg }]}
+              />
+            </View>
           </View>
 
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 16 }]}>Working Hours</Text>
-          <View style={[styles.addressInputWrap, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <Ionicons name="time-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-            <TextInput
-              value={workingHours}
-              onChangeText={setWorkingHours}
-              style={[styles.addressInput, { color: colors.title }]}
-            />
+          {/* Days */}
+          <View style={[styles.formGroup, { marginTop: 14 }]}>
+            <Text style={[styles.label, { color: textColor }]}>Available Days</Text>
+            <View style={styles.row}>
+              {Object.keys(DAYS_MAP).map(dayKey => {
+                const dayNum = Number(dayKey);
+                const isSelected = selectedDays.includes(dayNum);
+                return (
+                  <TouchableOpacity
+                    key={dayNum}
+                    onPress={() => toggleDay(dayNum)}
+                    style={[
+                      styles.dayCircle,
+                      {
+                        borderColor: isSelected ? brandAccent : border,
+                        backgroundColor: isSelected ? brandAccent : inputBg,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: isSelected ? '#FFFFFF' : textColor,
+                        fontWeight: '700',
+                        fontSize: 12,
+                      }}
+                    >
+                      {DAYS_MAP[dayNum].slice(0, 3)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
 
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 14 }]}>Time Zone</Text>
-          <View style={[styles.readOnlyField, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <Ionicons name="globe-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-            <Text style={[styles.readOnlyText, { color: colors.title }]}>{timeZone}</Text>
+          {/* Capacity settings */}
+          <View style={styles.row}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={[styles.label, { color: textColor }]}>Sessions/Month</Text>
+              <TextInput
+                value={String(sessionsPerMonth)}
+                onChangeText={v => setSessionsPerMonth(v.replace(/[^0-9]/g, ''))}
+                keyboardType="numeric"
+                style={[styles.input, { color: textColor, borderColor: border, backgroundColor: inputBg, textAlign: 'center' }]}
+              />
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.label, { color: textColor }]}>Max Subscribers</Text>
+              <TextInput
+                value={String(maxSubscribers)}
+                onChangeText={v => setMaxSubscribers(v.replace(/[^0-9]/g, ''))}
+                keyboardType="numeric"
+                style={[styles.input, { color: textColor, borderColor: border, backgroundColor: inputBg, textAlign: 'center' }]}
+              />
+            </View>
           </View>
 
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 16 }]}>Session Duration</Text>
-          <View style={styles.pillsRow}>
-            {['30 min', '45 min', '60 min', '90 min'].map(d => (
-              <TouchableOpacity
-                key={d}
-                onPress={() => setSessionDuration(d)}
-                style={[
-                  styles.pillOption,
-                  {
-                    backgroundColor: sessionDuration === d ? colors.accent : colors.card,
-                    borderColor: sessionDuration === d ? colors.accent : colors.cardBorder,
-                  },
-                ]}
-              >
-                <Text style={[styles.pillOptionText, { color: sessionDuration === d ? '#FFFFFF' : colors.title }]}>
-                  {d}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Maximum Subscribers Card */}
-          <View style={[styles.subscribersCard, { backgroundColor: colors.card, borderColor: colors.cardBorder, marginTop: 18 }]}>
-            <Text style={[styles.fieldLabel, { color: colors.title }]}>Maximum Subscribers</Text>
-            <Text style={[styles.uploadSub, { color: colors.muted, marginBottom: 10 }]}>
-              How many active subscribers can purchase this package?
+          {/* Total sessions banner */}
+          <View style={[styles.sessionsBanner, { backgroundColor: isDarkMode ? '#28203E' : '#F5F3FF' }]}>
+            <Ionicons name="calendar-outline" size={20} color={brandAccent} style={{ marginRight: 8 }} />
+            <Text style={[styles.sessionsBannerText, { color: brandAccent }]}>
+              Total monthly sessions available: {totalSessionsAvailable}
             </Text>
+          </View>
 
-            <View style={styles.subscriberCounterRow}>
-              <TouchableOpacity
-                onPress={() => setMaxSubscribers(prev => Math.max(5, prev - 5))}
-                style={[styles.counterBtnSquare, { backgroundColor: colors.surface }]}
-              >
-                <Text style={[styles.counterBtnText, { color: colors.title }]}>−</Text>
-              </TouchableOpacity>
-
-              <Text style={[styles.subscriberCountNumber, { color: colors.title }]}>{maxSubscribers}</Text>
-
-              <TouchableOpacity
-                onPress={() => setMaxSubscribers(prev => prev + 5)}
-                style={[styles.counterBtnSquare, { backgroundColor: colors.surface }]}
-              >
-                <Text style={[styles.counterBtnText, { color: colors.title }]}>+</Text>
-              </TouchableOpacity>
+          {/* Notice & buffer rules */}
+          <View style={[styles.row, { marginTop: 14 }]}>
+            <View style={{ flex: 1, marginRight: 6 }}>
+              <Text style={[styles.subHint, { color: mutedColor }]}>Min Notice (hrs)</Text>
+              <TextInput
+                value={String(minNoticeHours)}
+                onChangeText={v => setMinNoticeHours(v.replace(/[^0-9]/g, ''))}
+                keyboardType="numeric"
+                style={[styles.input, { color: textColor, borderColor: border, backgroundColor: inputBg }]}
+              />
             </View>
 
-            <View style={[styles.capacitySummaryBox, { backgroundColor: colors.cardInner }]}>
-              <View style={styles.capLine}>
-                <Text style={[styles.capLabel, { color: colors.muted }]}>Sessions per subscriber:</Text>
-                <Text style={[styles.capVal, { color: colors.title }]}>{sessionsPerSub} / month</Text>
-              </View>
-              <View style={styles.capLine}>
-                <Text style={[styles.capLabel, { color: colors.muted }]}>Maximum subscribers:</Text>
-                <Text style={[styles.capVal, { color: colors.title }]}>{maxSubscribers}</Text>
-              </View>
-              <View style={styles.capLine}>
-                <Text style={[styles.capLabel, { color: colors.muted }]}>Total sessions available:</Text>
-                <Text style={[styles.capVal, { color: colors.title }]}>{maxSubscribers * sessionsPerSub} / month</Text>
-              </View>
-              <View style={[styles.capacityPill, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}>
-                <Text style={styles.capacityPillText}>✓ Capacity Available</Text>
-              </View>
+            <View style={{ flex: 1, marginHorizontal: 3 }}>
+              <Text style={[styles.subHint, { color: mutedColor }]}>Cancel Notice (hrs)</Text>
+              <TextInput
+                value={String(cancelNoticeHours)}
+                onChangeText={v => setCancelNoticeHours(v.replace(/[^0-9]/g, ''))}
+                keyboardType="numeric"
+                style={[styles.input, { color: textColor, borderColor: border, backgroundColor: inputBg }]}
+              />
+            </View>
+
+            <View style={{ flex: 1, marginLeft: 6 }}>
+              <Text style={[styles.subHint, { color: mutedColor }]}>Buffer (mins)</Text>
+              <TextInput
+                value={String(bufferMinutes)}
+                onChangeText={v => setBufferMinutes(v.replace(/[^0-9]/g, ''))}
+                keyboardType="numeric"
+                style={[styles.input, { color: textColor, borderColor: border, backgroundColor: inputBg }]}
+              />
             </View>
           </View>
 
-          {/* Booking Rules & Toggles */}
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 18, marginBottom: 10 }]}>
-            Booking Rules & Controls
-          </Text>
-
-          <View style={[styles.toggleSettingRow, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <View style={{ flex: 1, marginRight: 10 }}>
-              <Text style={[styles.toggleSettingTitle, { color: colors.title }]}>
-                Automatically hide unavailable slots
+          {/* Auto-hide toggle */}
+          <View style={[styles.toggleCard, { borderColor: border, backgroundColor: inputBg, marginTop: 14 }]}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={[styles.toggleTitle, { color: textColor }]}>Auto-hide When Full</Text>
+              <Text style={[styles.toggleDesc, { color: mutedColor }]}>
+                Automatically hide booking slots when all sessions are filled.
               </Text>
             </View>
             <Switch
-              value={hideUnavailable}
-              onValueChange={setHideUnavailable}
-              trackColor={{ false: '#767577', true: colors.accent }}
+              value={autoHideUnavailable}
+              onValueChange={setAutoHideUnavailable}
+              trackColor={{ false: '#D1D5DB', true: brandAccent }}
               thumbColor="#FFFFFF"
             />
           </View>
 
-          <View style={[styles.toggleSettingRow, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <View style={{ flex: 1, marginRight: 10 }}>
-              <Text style={[styles.toggleSettingTitle, { color: colors.title }]}>
-                Prevent double booking
-              </Text>
-            </View>
-            <Switch
-              value={preventDoubleBooking}
-              onValueChange={setPreventDoubleBooking}
-              trackColor={{ false: '#767577', true: colors.accent }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-
-          <View style={[styles.toggleSettingRow, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <View style={{ flex: 1, marginRight: 10 }}>
-              <Text style={[styles.toggleSettingTitle, { color: colors.title }]}>
-                Sync with Valens Calendar
-              </Text>
-            </View>
-            <Switch
-              value={syncCalendar}
-              onValueChange={setSyncCalendar}
-              trackColor={{ false: '#767577', true: colors.accent }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-        </ScrollView>
-
-        <View style={[styles.bottomBar, { backgroundColor: colors.surface }]}>
-          <TouchableOpacity onPress={() => setStep(4)} activeOpacity={0.85} style={styles.primaryContinueBtn}>
-            <LinearGradient
-              colors={colors.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.primaryContinueGradient}
-            >
-              <Text style={styles.primaryContinueText}>Continue</Text>
-            </LinearGradient>
+          <TouchableOpacity
+            activeOpacity={0.88}
+            disabled={loading}
+            onPress={handleStep3Continue}
+            style={[styles.continueBtn, { backgroundColor: brandAccent, marginTop: 24 }]}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.continueBtnText}>Review Package</Text>
+            )}
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </View>
     );
   }
 
-  // STEP 4: REVIEW PACKAGE (Confirm button!)
+  // ─────────────────────────────────────────────────────────────────────────
+  // STEP 4: REVIEW PACKAGE & READINESS
+  // ─────────────────────────────────────────────────────────────────────────
   if (step === 4) {
+    const canPublish = readinessProblems.length === 0;
+
     return (
-      <View style={styles.flex}>
+      <View style={[styles.root, { backgroundColor: cardBg }]}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => setStep(3)} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
-            <Ionicons name="chevron-back" size={22} color={colors.title} />
+          <TouchableOpacity onPress={() => setStep(3)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="arrow-back" size={24} color={textColor} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.title }]}>Review Package</Text>
-          <View style={{ width: 40 }} />
+          <Text style={[styles.headerTitle, { color: textColor }]}>Review Package</Text>
+          <View style={{ width: 24 }} />
         </View>
 
-        <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          {renderProgressBar(4, 5)}
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <Text style={[styles.stepIndicator, { color: brandAccent }]}>STEP 4 OF 4</Text>
+          <Text style={[styles.screenTitle, { color: textColor }]}>Ready to Publish?</Text>
+          <Text style={[styles.screenSub, { color: mutedColor }]}>
+            Review subscription pricing, capacity rules, and readiness before going live.
+          </Text>
 
-          <View style={[styles.reviewHeroCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <View style={styles.reviewAvatarWrap}>
-              <LinearGradient colors={colors.btnGradient} style={styles.avatarImg}>
-                <Ionicons name="gift" size={24} color="#FFFFFF" />
-              </LinearGradient>
+          {/* Readiness Problems Banner */}
+          {readinessProblems.length > 0 && (
+            <View style={styles.warningBanner}>
+              <Ionicons name="alert-circle" size={22} color="#EF4444" style={{ marginRight: 8 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.warningTitle}>Incomplete Information</Text>
+                {readinessProblems.map((prob, i) => (
+                  <TouchableOpacity
+                    key={i}
+                    onPress={() => {
+                      const targetStep = mapReadinessToStep(prob.field);
+                      setStep(targetStep);
+                    }}
+                  >
+                    <Text style={styles.warningItem}>• {prob.message} (Tap to fix)</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[styles.reviewTitle, { color: colors.title }]}>{packageTitle}</Text>
-              <Text style={[styles.reviewPrice, { color: colors.accent }]}>${price} / month</Text>
+          )}
+
+          {/* Package Summary Card */}
+          <View style={[styles.reviewCard, { borderColor: border, backgroundColor: inputBg }]}>
+            <View style={styles.reviewHeaderRow}>
+              <View style={[styles.typeBadge, { backgroundColor: brandAccent }]}>
+                <Text style={styles.typeBadgeText}>MONTHLY PACKAGE</Text>
+              </View>
+              <Text style={[styles.programLabelText, { color: brandAccent }]}>Subscription</Text>
+            </View>
+
+            <Text style={[styles.reviewTitle, { color: textColor }]}>{packageTitle}</Text>
+            <Text style={[styles.reviewDesc, { color: mutedColor }]}>{description}</Text>
+
+            <View style={[styles.divider, { backgroundColor: border }]} />
+
+            <View style={styles.rowBetween}>
+              <Text style={[styles.reviewMetricLabel, { color: mutedColor }]}>Monthly Fee</Text>
+              <Text style={[styles.reviewMetricVal, { color: textColor }]}>${price} / month</Text>
+            </View>
+
+            <View style={styles.rowBetween}>
+              <Text style={[styles.reviewMetricLabel, { color: mutedColor }]}>Sessions Included</Text>
+              <Text style={[styles.reviewMetricVal, { color: textColor }]}>
+                {sessionsPerMonth} sessions / month
+              </Text>
+            </View>
+
+            <View style={styles.rowBetween}>
+              <Text style={[styles.reviewMetricLabel, { color: mutedColor }]}>Capacity</Text>
+              <Text style={[styles.reviewMetricVal, { color: textColor }]}>
+                Max {maxSubscribers} subscribers ({totalSessionsAvailable} sessions total)
+              </Text>
+            </View>
+
+            <View style={styles.rowBetween}>
+              <Text style={[styles.reviewMetricLabel, { color: mutedColor }]}>Private Circle</Text>
+              <Text style={[styles.reviewMetricVal, { color: textColor }]}>
+                {includesPrivateCircle ? 'Included' : 'Not Included'}
+              </Text>
             </View>
           </View>
 
-          <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <Text style={[styles.summaryCardTitle, { color: colors.title }]}>What's Included</Text>
-            {inclusions.filter(i => i.checked).map((item, idx) => (
-              <View key={idx} style={styles.summaryItemRow}>
-                <Ionicons name="checkmark-circle" size={16} color={colors.accent} style={{ marginRight: 8 }} />
-                <Text style={[styles.summaryItemText, { color: colors.title }]}>{item.text}</Text>
+          {/* Included Deliverables */}
+          <View style={[styles.reviewCard, { borderColor: border, backgroundColor: inputBg, marginTop: 14 }]}>
+            <Text style={[styles.label, { color: textColor, marginBottom: 8 }]}>What's Included</Text>
+            {includedItems.map((item, idx) => (
+              <View key={idx} style={styles.deliverableRow}>
+                <Ionicons name="checkmark-circle" size={16} color={brandAccent} style={{ marginRight: 6 }} />
+                <Text style={[styles.deliverableText, { color: textColor }]}>{item}</Text>
               </View>
             ))}
-
-            <View style={[styles.summaryDivider, { backgroundColor: colors.divider }]} />
-
-            <View style={styles.summaryMetaRow}>
-              <Ionicons name="calendar-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.metaLabel, { color: colors.muted }]}>Availability:</Text>
-                <Text style={[styles.metaVal, { color: colors.title }]}>
-                  {selectedDays.join(', ')}{'\n'}{workingHours} ({timeZone})
-                </Text>
-              </View>
-            </View>
-
-            <View style={[styles.summaryMetaRow, { marginTop: 8 }]}>
-              <Ionicons name="people-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.metaLabel, { color: colors.muted }]}>Subscribers Limit:</Text>
-                <Text style={[styles.metaVal, { color: colors.title }]}>
-                  {maxSubscribers} Max ({sessionsPerSub} sessions / month)
-                </Text>
-              </View>
-            </View>
-
-            <View style={[styles.summaryMetaRow, { marginTop: 8 }]}>
-              <Ionicons name="refresh-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.metaLabel, { color: colors.muted }]}>Billing:</Text>
-                <Text style={[styles.metaVal, { color: colors.title }]}>
-                  Recurring monthly • Cancel anytime
-                </Text>
-              </View>
-            </View>
           </View>
-        </ScrollView>
 
-        <View style={[styles.bottomBar, { backgroundColor: colors.surface }]}>
-          {/* USER REQUIREMENT: Changed from "Continue" to "Confirm" */}
-          <TouchableOpacity onPress={() => setStep(5)} activeOpacity={0.85} style={styles.primaryContinueBtn}>
-            <LinearGradient
-              colors={colors.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.primaryContinueGradient}
-            >
-              <Text style={styles.primaryContinueText}>Confirm</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  // STEP 5: SUBSCRIBER CHECKOUT DEMO (Image 6 Step 6)
-  if (step === 5) {
-    const subtotal = parseFloat(price) || 199.00;
-    const platformFee = 9.95;
-    const total = (subtotal + platformFee).toFixed(2);
-
-    return (
-      <View style={styles.flex}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => setStep(4)} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
-            <Ionicons name="chevron-back" size={22} color={colors.title} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.title }]}>Checkout Preview</Text>
-          <View style={{ width: 40 }} />
-        </View>
-
-        <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          <Text style={[styles.sectionDescText, { color: colors.muted, marginVertical: 8 }]}>
-            Preview of what clients see when purchasing your monthly package.
-          </Text>
-
-          <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <Text style={[styles.summaryCardTitle, { color: colors.title }]}>Order Summary</Text>
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <LinearGradient colors={colors.btnGradient} style={{ width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-                <Ionicons name="gift" size={20} color="#FFFFFF" />
-              </LinearGradient>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.reviewTitle, { color: colors.title, fontSize: 14 }]}>{packageTitle}</Text>
-                <Text style={[styles.reviewSub, { color: colors.muted }]}>${price} / month • Monthly subscription</Text>
-              </View>
-            </View>
-
-            <View style={styles.checkoutLine}>
-              <Text style={[styles.metaLabel, { color: colors.muted }]}>Subtotal</Text>
-              <Text style={[styles.metaVal, { color: colors.title }]}>${price}</Text>
-            </View>
-
-            <View style={styles.checkoutLine}>
-              <Text style={[styles.metaLabel, { color: colors.muted }]}>Platform Fee</Text>
-              <Text style={[styles.metaVal, { color: colors.title }]}>${platformFee.toFixed(2)}</Text>
-            </View>
-
-            <View style={[styles.summaryDivider, { backgroundColor: colors.divider }]} />
-
-            <View style={styles.checkoutLine}>
-              <Text style={[styles.summaryCardTitle, { color: colors.title }]}>Total</Text>
-              <Text style={[styles.summaryCardTitle, { color: colors.accent, fontSize: 18 }]}>
-                ${total} / month
+          <TouchableOpacity
+            activeOpacity={0.88}
+            disabled={publishLoading}
+            onPress={handlePublish}
+            style={[
+              styles.continueBtn,
+              {
+                backgroundColor: canPublish ? brandAccent : '#9CA3AF',
+                marginTop: 24,
+              },
+            ]}
+          >
+            {publishLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.continueBtnText}>
+                {canPublish ? 'Publish Package' : 'Publish (Resolve Issues First)'}
               </Text>
-            </View>
-          </View>
-
-          <Text style={[styles.fieldLabel, { color: colors.title, marginTop: 12 }]}>Payment Method</Text>
-          <View style={[styles.paymentMethodCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-            <Ionicons name="card" size={24} color="#3B82F6" style={{ marginRight: 10 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.cardTitle, { color: colors.title }]}>Visa ending in 4242</Text>
-              <Text style={[styles.cardSub, { color: colors.muted }]}>Expires 04/27</Text>
-            </View>
-            <TouchableOpacity>
-              <Text style={{ color: colors.accent, fontWeight: '700', fontSize: 13 }}>Change</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={[styles.lockRow, { marginTop: 16 }]}>
-            <Ionicons name="lock-closed" size={14} color="#22C55E" />
-            <Text style={[styles.lockText, { color: colors.muted }]}>
-              Secure and encrypted payment
-            </Text>
-          </View>
-        </ScrollView>
-
-        <View style={[styles.bottomBar, { backgroundColor: colors.surface }]}>
-          <TouchableOpacity onPress={handleConfirm} activeOpacity={0.85} style={styles.primaryContinueBtn}>
-            <LinearGradient
-              colors={colors.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.primaryContinueGradient}
-            >
-              <Text style={styles.primaryContinueText}>Publish Package & Launch</Text>
-            </LinearGradient>
+            )}
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </View>
     );
   }
 
-  // STEP 6: YOU'RE ALL SET! LIVE CONFIRMATION
+  // ─────────────────────────────────────────────────────────────────────────
+  // STEP 5: ALL SET
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <View style={styles.flex}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={[styles.headerBtn, { backgroundColor: colors.surface }]}>
-          <Ionicons name="chevron-back" size={22} color={colors.title} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.title }]}>Monthly Package is Live</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={[styles.root, { backgroundColor: cardBg, justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
+      <Ionicons name="checkmark-circle" size={80} color="#10B981" />
+      <Text style={[styles.successTitle, { color: textColor }]}>Package Published!</Text>
+      <Text style={[styles.successSub, { color: mutedColor }]}>
+        Your monthly subscription package is now live and can be subscribed to from your profile.
+      </Text>
 
-      <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.celebrationCenter}>
-          <View style={styles.confettiWrap}>
-            <LinearGradient colors={colors.btnGradient} style={[styles.bigCheckCircle, { shadowColor: colors.accent }]}>
-              <Ionicons name="checkmark" size={44} color="#FFFFFF" />
-            </LinearGradient>
-            <Ionicons name="star" size={14} color={colors.isBusiness ? '#F3E2B8' : '#C084FC'} style={{ position: 'absolute', top: 4, left: 24 }} />
-            <Ionicons name="sparkles" size={18} color={colors.accent} style={{ position: 'absolute', top: 10, right: 28 }} />
-            <Ionicons name="sparkles" size={14} color={colors.isBusiness ? '#C9A15A' : '#C4B5FD'} style={{ position: 'absolute', bottom: 16, right: 20 }} />
-          </View>
+      <TouchableOpacity
+        activeOpacity={0.88}
+        onPress={handleShare}
+        style={[styles.shareBtn, { borderColor: brandAccent }]}
+      >
+        <Ionicons name="share-outline" size={18} color={brandAccent} style={{ marginRight: 6 }} />
+        <Text style={[styles.shareBtnText, { color: brandAccent }]}>Share Package Link</Text>
+      </TouchableOpacity>
 
-          <Text style={[styles.allSetTitle, { color: colors.title }]}>You're All Set!</Text>
-          <Text style={[styles.allSetSubtitle, { color: colors.muted }]}>
-            Your Monthly Package is live. You can start getting subscribers and growing your business.
-          </Text>
-        </View>
-
-        <View style={[styles.livePreviewCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-          <View style={styles.liveCardHeaderRow}>
-            <LinearGradient colors={colors.btnGradient} style={styles.avatarImg}>
-              <Ionicons name="gift" size={24} color="#FFFFFF" />
-            </LinearGradient>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={[styles.liveCardTitle, { color: colors.title }]}>{packageTitle}</Text>
-              <Text style={[styles.liveCardPrice, { color: colors.accent }]}>${price} / month</Text>
-              <Text style={[styles.liveCardSubtitle, { color: colors.muted }]}>Active • Renews every month</Text>
-            </View>
-          </View>
-
-          <View style={[styles.liveInfoRow, { borderColor: colors.divider }]}>
-            <Ionicons name="calendar-outline" size={18} color={colors.accent} style={{ marginRight: 10 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.liveInfoLabel, { color: colors.muted }]}>Your Calendar</Text>
-              <Text style={[styles.liveInfoValue, { color: colors.title }]}>
-                {selectedDays.join(', ')}{'\n'}{workingHours}
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.liveInfoRow, { borderColor: colors.divider }]}>
-            <Ionicons name="people-outline" size={18} color={colors.accent} style={{ marginRight: 10 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.liveInfoLabel, { color: colors.muted }]}>Capacity</Text>
-              <Text style={[styles.liveInfoValue, { color: colors.title }]}>
-                {maxSubscribers} Subscribers ({sessionsPerSub} Sessions per Month)
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.liveActionsWrap}>
-          <TouchableOpacity onPress={onFinish} activeOpacity={0.85} style={styles.viewMyServicesBtn}>
-            <LinearGradient
-              colors={colors.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.viewMyServicesGradient}
-            >
-              <Text style={styles.viewMyServicesText}>View Package</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={handleShare} activeOpacity={0.85} style={[styles.shareServiceBtn, { borderColor: colors.cardBorder }]}>
-            <Ionicons name="share-social-outline" size={18} color={colors.accent} style={{ marginRight: 8 }} />
-            <Text style={[styles.shareServiceText, { color: colors.accent }]}>Share Package</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.lockRow}>
-          <Ionicons name="help-circle-outline" size={14} color={colors.muted} />
-          <Text style={[styles.lockText, { color: colors.muted }]}>
-            Need help? We're here for you 24/7.
-          </Text>
-        </View>
-      </ScrollView>
+      <TouchableOpacity
+        activeOpacity={0.88}
+        onPress={onFinish}
+        style={[styles.continueBtn, { backgroundColor: brandAccent, width: '100%', marginTop: 12 }]}
+      >
+        <Text style={styles.continueBtnText}>Go to Manage Services</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  root: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -878,543 +777,133 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingBottom: 36,
-  },
-  progressWrap: {
-    marginBottom: 16,
-  },
-  stepIndicatorText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  progressBarTrack: {
-    flexDirection: 'row',
-    height: 4,
-    borderRadius: 2,
-    gap: 6,
-  },
-  progressBarSegment: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-  },
-  highlightCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  highlightIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  highlightTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  highlightBody: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  counterText: {
-    fontSize: 12,
-  },
+  headerTitle: { fontSize: 18, fontWeight: '800' },
+  scrollContent: { padding: 16, paddingBottom: 40 },
+  stepIndicator: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5, marginBottom: 4 },
+  screenTitle: { fontSize: 20, fontWeight: '800', marginBottom: 4 },
+  screenSub: { fontSize: 13, lineHeight: 18, marginBottom: 18 },
+  formGroup: { marginBottom: 16 },
+  label: { fontSize: 13, fontWeight: '700', marginBottom: 6 },
+  subHint: { fontSize: 11, marginBottom: 4 },
   input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  readOnlyField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  readOnlyText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  priceInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-  },
-  currencyPrefix: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginRight: 6,
-  },
-  priceInput: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '700',
-    paddingVertical: 8,
-  },
-  monthSuffix: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  checkItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  checkCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  checkItemText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  addInclusionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  addInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 13,
-  },
-  addBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 8,
-  },
-  extraUploadCard: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 14,
-    borderRadius: 14,
-  },
-  uploadText: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: 6,
-  },
-  uploadSub: {
-    fontSize: 11,
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  bottomBar: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 14 : 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
-  },
-  primaryContinueBtn: {
-    width: '100%',
-    height: 52,
-    minHeight: 52,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  primaryContinueGradient: {
-    width: '100%',
-    height: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryContinueText: {
-    color: '#FFFFFF',
-    fontSize: 15.5,
-    fontWeight: '700',
-  },
-  reviewHeroCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 16,
-  },
-  reviewAvatarWrap: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  avatarImg: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reviewTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  reviewPrice: {
-    fontSize: 16,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  reviewSub: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  summaryCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 16,
-  },
-  summaryCardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  summaryItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 4,
-  },
-  summaryItemText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  summaryDivider: {
-    height: 1,
-    marginVertical: 12,
-  },
-  fileDownloadItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    borderRadius: 10,
-  },
-  fileName: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  fileSize: {
-    fontSize: 11,
-  },
-  summaryMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginVertical: 4,
-  },
-  metaLabel: {
-    fontSize: 13,
-  },
-  metaSub: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  metaVal: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  termsAgreementRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 14,
-    paddingTop: 10,
-  },
-  termsText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  sectionDescText: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  daysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  dayCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  dayText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  addressInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    height: 46,
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 12,
-  },
-  addressInput: {
-    flex: 1,
     fontSize: 14,
-    paddingVertical: 10,
   },
-  pillsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  pillOption: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+  textArea: {
+    minHeight: 88,
+    borderWidth: 1,
     borderRadius: 12,
-    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    textAlignVertical: 'top',
   },
-  pillOptionText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  subscribersCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 14,
-  },
-  subscriberCounterRow: {
+  inclusionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 10,
-  },
-  counterBtnSquare: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  counterBtnText: {
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  subscriberCountNumber: {
-    fontSize: 28,
-    fontWeight: '800',
-    marginHorizontal: 24,
-  },
-  capacitySummaryBox: {
+    borderWidth: 1,
     borderRadius: 10,
-    padding: 12,
-    marginTop: 10,
-  },
-  capLine: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginVertical: 3,
-  },
-  capLabel: {
-    fontSize: 12,
-  },
-  capVal: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  capacityPill: {
-    alignSelf: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  capacityPillText: {
-    color: '#16A34A',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  toggleSettingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  toggleSettingTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  checkoutLine: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginVertical: 4,
-  },
-  paymentMethodCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  cardSub: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  celebrationCenter: {
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  confettiWrap: {
-    width: 90,
-    height: 90,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  bigCheckCircle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  allSetTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     marginBottom: 6,
   },
-  allSetSubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    paddingHorizontal: 20,
+  inclusionText: { flex: 1, fontSize: 13 },
+  addInclusionRow: { flexDirection: 'row', alignItems: 'center' },
+  addBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
   },
-  livePreviewCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    marginBottom: 20,
-  },
-  liveCardHeaderRow: {
+  row: { flexDirection: 'row', alignItems: 'center' },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 4 },
+  priceInputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
   },
-  liveCardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  liveCardPrice: {
-    fontSize: 15,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  liveCardSubtitle: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  liveInfoRow: {
+  currencyPrefix: { fontSize: 18, fontWeight: '800', marginRight: 4 },
+  priceInput: { flex: 1, fontSize: 16, fontWeight: '700' },
+  priceUnitTag: { fontSize: 13, fontWeight: '600' },
+  toggleCard: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 10,
-    borderTopWidth: 1,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
   },
-  liveInfoLabel: {
-    fontSize: 12,
-    marginBottom: 2,
+  toggleTitle: { fontSize: 14, fontWeight: '700' },
+  toggleDesc: { fontSize: 11, lineHeight: 16, marginTop: 4 },
+  dayCircle: {
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 2,
   },
-  liveInfoValue: {
-    fontSize: 13,
-    fontWeight: '600',
+  sessionsBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 12,
   },
-  liveActionsWrap: {
-    gap: 10,
+  sessionsBannerText: { fontSize: 13, fontWeight: '700' },
+  continueBtn: {
+    height: 50,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  continueBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  warningBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#FEE2E2',
+    borderRadius: 12,
+    padding: 12,
     marginBottom: 16,
-  },
-  viewMyServicesBtn: {
-    width: '100%',
-    height: 52,
-    minHeight: 52,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  viewMyServicesGradient: {
-    width: '100%',
-    height: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  viewMyServicesText: {
-    color: '#FFFFFF',
-    fontSize: 15.5,
-    fontWeight: '700',
-  },
-  shareServiceBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 16,
     borderWidth: 1,
+    borderColor: '#F87171',
   },
-  shareServiceText: {
-    fontSize: 14,
-    fontWeight: '700',
+  warningTitle: { color: '#B91C1C', fontSize: 13, fontWeight: '800', marginBottom: 2 },
+  warningItem: { color: '#B91C1C', fontSize: 11, marginTop: 2 },
+  reviewCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
   },
-  lockRow: {
+  reviewHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  typeBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  typeBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
+  programLabelText: { fontSize: 12, fontWeight: '800' },
+  reviewTitle: { fontSize: 16, fontWeight: '800', marginBottom: 4 },
+  reviewDesc: { fontSize: 12, lineHeight: 16 },
+  divider: { height: 1, marginVertical: 12 },
+  reviewMetricLabel: { fontSize: 12 },
+  reviewMetricVal: { fontSize: 12, fontWeight: '700' },
+  deliverableRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 3 },
+  deliverableText: { fontSize: 12 },
+  successTitle: { fontSize: 22, fontWeight: '800', marginTop: 16, marginBottom: 6 },
+  successSub: { fontSize: 13, textAlign: 'center', lineHeight: 18, marginBottom: 24 },
+  shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    width: '100%',
+    marginBottom: 8,
   },
-  lockText: {
-    fontSize: 12,
-  },
+  shareBtnText: { fontSize: 14, fontWeight: '700' },
 });

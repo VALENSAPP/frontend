@@ -34,8 +34,8 @@ const CreditPurchaseModal = ({ visible, onClose, onPurchaseComplete, currentCred
   );
   const brandColor = isBusinessProfile ? '#CBA257' : (accent || '#402090');
   const rocketImage = isBusinessProfile
-    ? require('../../assets/Valens Stickers/Valens Stickers/PNG/rocket_gold.png')
-    : require('../../assets/Valens Stickers/Valens Stickers/PNG/rocket.png');
+    ? require('../../assets/Valens Stickers/Valens Stickers/PNG/launchG.png')
+    : require('../../assets/Valens Stickers/Valens Stickers/PNG/launchnew.png');
   const { t } = useLanguage();
   const stripeErrorMessages = getStripeErrorMessages(t);
 

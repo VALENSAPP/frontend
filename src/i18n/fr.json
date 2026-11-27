@@ -4119,7 +4119,8 @@
     "services": "Services",
     "soon": "bientôt",
     "manageSubscribers": "Gérer mes abonnés",
-    "darkMode": "Mode sombre"
+    "darkMode": "Mode sombre",
+    "dralensAi": "Dralens AI"
   },
   "walletStack": {
     "buyMissionCredits": "Acheter des Crédits de Mission",

@@ -2120,7 +2120,7 @@ export const WalletDashboardScreen = ({ navigation }) => {
                 >
                   <HexAvatar
                     uri={profileImage || userProfile.image || FALLBACK_AVATAR}
-                    size={Math.min(Math.max(width * 0.15, 62), 126)}
+                    size={Math.min(Math.max(width * 0.185, 70), 80)}
                     borderWidth={3}
                     borderColor="#FFFFFF"
                     pointyTop
@@ -2135,10 +2135,24 @@ export const WalletDashboardScreen = ({ navigation }) => {
                     style={styles.headerName}
                     numberOfLines={1}
                     ellipsizeMode="tail"
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
                   >
                     {headerNameLabel}
                   </Text>
-                  <Ionicons name="checkmark-circle" size={16} color="#DDD6FE" style={styles.headerCheckmark} />
+                  <View style={styles.headerCheckmarkBadge}>
+                    <Svg width={18} height={18} viewBox="0 0 18 18">
+                      <Circle cx={9} cy={9} r={9} fill="#C084FC" />
+                      <Path
+                        d="M5.2 9.2 L7.8 11.8 L12.8 6.5"
+                        stroke="#FFFFFF"
+                        strokeWidth={2.2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
+                    </Svg>
+                  </View>
                 </View>
 
                 <Text style={styles.headerStatusText}>
@@ -3142,20 +3156,21 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 16,
     paddingTop: Platform.OS === 'android' ? 10 : 4,
     paddingBottom: 4,
     marginBottom: 12,
   },
 
   headerCard: {
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    minHeight: 120,
+    borderRadius: 22,
+    // paddingHorizontal: 5,
+    // paddingVertical: 5,
+    minHeight: 110,
     justifyContent: 'center',
     overflow: 'hidden',
     position: 'relative',
+    // marginTop:10
   },
 
   headerGlow: {
@@ -3173,20 +3188,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 76,
     position: 'relative',
+    paddingHorizontal:15
   },
 
   headerAvatarWrap: {
-    width: 64,
-    height: 64,
+    width: 72,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
 
   headerText: {
     flex: 1,
     minWidth: 0,
-    paddingRight: 64,
+    paddingRight: 84,
     justifyContent: 'center',
   },
 
@@ -3197,10 +3213,20 @@ const styles = StyleSheet.create({
 
   headerName: {
     color: '#FFFFFF',
-    fontSize: 16.5,
+    fontSize: 20,
     fontWeight: '700',
-    lineHeight: 22,
-    maxWidth: '85%',
+    lineHeight: 25,
+    letterSpacing: -0.3,
+    flexShrink: 1,
+  },
+
+  headerCheckmarkBadge: {
+    width: 18,
+    height: 18,
+    marginLeft: 6,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   headerCheckmark: {
@@ -3208,18 +3234,19 @@ const styles = StyleSheet.create({
   },
 
   headerStatusText: {
-    color: 'rgba(255, 255, 255, 0.75)',
-    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.92)',
+    fontSize: 14.5,
     fontWeight: '400',
-    marginTop: 2,
+    marginTop: 4,
+    letterSpacing: 0.1,
   },
 
   headerButterfly: {
     position: 'absolute',
-    right: 4,
-    bottom: -2,
-    width: 86,
-    height: 86,
+    right: 2,
+    bottom: -4,
+    width: 96,
+    height: 96,
   },
 
   headerBadge: {

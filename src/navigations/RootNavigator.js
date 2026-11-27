@@ -191,12 +191,26 @@ const CustomDrawerContent = (props) => {
   };
 
   const navigateToWalletScreen = (screen, params) => {
+    let originTab;
+    let originScreen;
+    try {
+      const state = props.state;
+      const focused = findFocusedRoute(state);
+      const mainAppState = state?.routes?.[0]?.state;
+      originTab = mainAppState?.routes?.[mainAppState?.index ?? 0]?.name;
+      originScreen = focused?.name;
+    } catch (_e) {}
+
     props.navigation.closeDrawer();
     props.navigation.navigate('MainApp', {
       screen: 'wallet',
       params: {
         screen,
-        params,
+        params: {
+          originTab,
+          originScreen,
+          ...params,
+        },
         initial: false,
       },
     });
@@ -741,10 +755,27 @@ const GlobalDrawerNavigator = () => {
         listeners={({ navigation }) => ({
           drawerItemPress: (e) => {
             e.preventDefault();
+            let originTab;
+            let originScreen;
+            try {
+              const state = navigation.getState();
+              const focused = findFocusedRoute(state);
+              const mainAppState = state?.routes?.[0]?.state;
+              originTab = mainAppState?.routes?.[mainAppState?.index ?? 0]?.name;
+              originScreen = focused?.name;
+            } catch (_e) {}
+
             navigation.closeDrawer();
             navigation.navigate('MainApp', {
               screen: 'wallet',
-              params: { screen: 'BillingPayments' }
+              params: {
+                screen: 'BillingPayments',
+                params: {
+                  originTab,
+                  originScreen,
+                },
+                initial: false,
+              },
             });
           },
         })}
