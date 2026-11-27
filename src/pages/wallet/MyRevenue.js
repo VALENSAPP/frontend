@@ -361,17 +361,25 @@ export default function RevenueFromSubscriptions({ navigation, route }) {
             isDarkMode ? styles.shadowDark : styles.shadowLight,
           ]}
         >
-          <LinearGradient
-            colors={heroGradientColors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroCard}
-          >
+          {/* A plain View sizes and clips the card; the gradient is only a
+              background layer. When LinearGradient (a legacy native view on
+              the New Architecture) was the container, its native frame could
+              end up shorter than its content and clip the text/mascot. */}
+          <View style={[styles.heroCard, { minHeight: Math.max(138, mascotHeight + 8) }]}>
+            <LinearGradient
+              colors={heroGradientColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
             <HeroCardWaves />
 
             <View style={[styles.heroTextCol, { paddingRight: mascotWidth + 6 }]}>
               <View style={styles.heroLabelRow}>
-                <Text style={styles.heroLabel}>{t('revenue.totalRevenue')}</Text>
+                <Text style={styles.heroLabel} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+                  {t('revenue.totalRevenue')}
+                </Text>
                 <TouchableOpacity
                   onPress={handleToggleAmountHidden}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -391,6 +399,7 @@ export default function RevenueFromSubscriptions({ navigation, route }) {
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.68}
+                maxFontSizeMultiplier={1.2}
               >
                 {revenueLoading
                   ? '…'
@@ -400,8 +409,8 @@ export default function RevenueFromSubscriptions({ navigation, route }) {
               </Text>
 
               <View style={styles.stripeRow}>
-                <Text style={styles.poweredBy}>{t('revenue.poweredBy')} </Text>
-                <Text style={styles.stripeBrand}>stripe</Text>
+                <Text style={styles.poweredBy} maxFontSizeMultiplier={1.3}>{t('revenue.poweredBy')} </Text>
+                <Text style={styles.stripeBrand} maxFontSizeMultiplier={1.3}>stripe</Text>
               </View>
             </View>
 
@@ -413,7 +422,7 @@ export default function RevenueFromSubscriptions({ navigation, route }) {
               ]}
               resizeMode="contain"
             />
-          </LinearGradient>
+          </View>
         </View>
 
         {/* How it works Card */}
@@ -683,7 +692,7 @@ const styles = StyleSheet.create({
   heroCard: {
     width: '100%',
     borderRadius: 20,
-    paddingVertical: 18,
+    paddingVertical: 20,
     paddingLeft: 18,
     paddingRight: 12,
     minHeight: 138,
@@ -701,6 +710,7 @@ const styles = StyleSheet.create({
   },
   heroTextCol: {
     zIndex: 2,
+    flexShrink: 1,
   },
   heroLabelRow: {
     flexDirection: 'row',
@@ -723,6 +733,7 @@ const styles = StyleSheet.create({
   stripeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
   },
   poweredBy: {
     fontSize: 11.5,
