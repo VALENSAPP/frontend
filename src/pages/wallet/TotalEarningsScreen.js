@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useLanguage } from '../../i18n';
 import EarningsSourceCard from '../../components/wallet/EarningsSourceCard';
@@ -38,6 +39,8 @@ import {
 const H_PADDING = 16;
 const CARD_GAP = 12;
 const SOURCE_KEYS = ['mission', 'tip', 'wallet', 'fans', 'shop'];
+const PERSONAL_MASCOT_ASPECT_RATIO = 367 / 508;
+const BUSINESS_MASCOT_ASPECT_RATIO = 363 / 540;
 
 const emptyCardState = (overrides = {}) => ({
   points: [],
@@ -90,11 +93,76 @@ const resolveSettledCard = settledItem => {
   }
 };
 
+const HeroBottomWaves = ({ isBusinessProfile, isDarkMode }) => {
+  const backFill = isBusinessProfile
+    ? isDarkMode
+      ? 'rgba(203, 162, 87, 0.14)'
+      : 'rgba(243, 224, 181, 0.7)'
+    : isDarkMode
+      ? 'rgba(124, 77, 255, 0.16)'
+      : 'rgba(221, 214, 254, 0.65)';
+
+  const frontTop = isBusinessProfile
+    ? isDarkMode
+      ? '#CBA257'
+      : '#E8C57B'
+    : isDarkMode
+      ? '#7C4DFF'
+      : '#C4B5FD';
+
+  const frontBottom = isBusinessProfile
+    ? isDarkMode
+      ? '#8C6D32'
+      : '#D8AD5A'
+    : isDarkMode
+      ? '#5B21B6'
+      : '#A78BFA';
+
+  const frontOpacity = isDarkMode ? 0.28 : 0.75;
+
+  return (
+    <View style={styles.heroWavesWrap} pointerEvents="none">
+      <Svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 360 64"
+        preserveAspectRatio="none"
+      >
+        <Defs>
+          <LinearGradient id="heroWaveFront" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={frontTop} stopOpacity={frontOpacity} />
+            <Stop offset="1" stopColor={frontBottom} stopOpacity={frontOpacity} />
+          </LinearGradient>
+        </Defs>
+        {/* Soft upper back wave */}
+        <Path
+          d="M0 30 C68 8, 128 48, 204 34 C272 22, 318 8, 360 22 L360 64 L0 64 Z"
+          fill={backFill}
+        />
+        {/* Foreground wave */}
+        <Path
+          d="M0 44 C56 18, 118 56, 188 42 C258 28, 310 18, 360 36 L360 64 L0 64 Z"
+          fill="url(#heroWaveFront)"
+        />
+      </Svg>
+    </View>
+  );
+};
+
 const TotalEarningsScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { t } = useLanguage();
-  const { bgStyle, textStyle, text, cardStyle } = useAppTheme();
+  const {
+    bgStyle,
+    textStyle,
+    text,
+    cardStyle,
+    borderColor,
+    textSecondary,
+    isDarkMode,
+    isBusinessProfile: themeBusinessProfile,
+  } = useAppTheme();
   const { width: screenWidth } = useWindowDimensions();
 
   const paramTotal = parseTotalAmountParam(route?.params?.totalAmount);
@@ -109,14 +177,22 @@ const TotalEarningsScreen = () => {
     shop: emptyCardState(),
   });
 
-  const isBusinessProfile = String(route?.params?.profileType || '').toLowerCase() === 'company';
-  const walletIcon = isBusinessProfile
-    ? require('../../assets/icons/pngicons/goldenWallet-removebg.png')
-    : require('../../assets/icons/pngicons/newWallet.png');
+  const rawProfileParam = String(route?.params?.profileType || '').trim().toLowerCase();
+  const isBusinessProfile = rawProfileParam
+    ? rawProfileParam === 'company' || rawProfileParam === 'business'
+    : themeBusinessProfile;
+  const mascotSource = isBusinessProfile
+    ? require('../../assets/icons/pngicons/goldearning.png')
+    : require('../../assets/icons/pngicons/Earning.png');
 
   const contentWidth = screenWidth - H_PADDING * 2;
   const cardWidth = (contentWidth - CARD_GAP) / 2;
-  const walletImageSize = clamp(Math.round(screenWidth * 0.28), 88, 120);
+  const mascotWidth = clamp(Math.round(contentWidth * 0.43), 136, 174);
+  const mascotHeight = Math.round(
+    mascotWidth * (isBusinessProfile ? BUSINESS_MASCOT_ASPECT_RATIO : PERSONAL_MASCOT_ASPECT_RATIO),
+  );
+  const mutedText = textSecondary || '#7A7289';
+  const cardBorderColor = borderColor || '#EAE4F5';
 
   const sourceConfig = useMemo(
     () => [
@@ -125,7 +201,7 @@ const TotalEarningsScreen = () => {
         title: t('totalEarnings.missionPost') || 'Mission Post',
         icon: 'ribbon-outline',
         accentColor: '#7C3AED',
-        chartType: 'bars',
+        chartType: 'area',
         footerFallback: t('totalEarnings.campaigns') || 'Campaigns',
       },
       {
@@ -133,7 +209,7 @@ const TotalEarningsScreen = () => {
         title: t('totalEarnings.tip') || 'Tip',
         icon: 'heart-circle-outline',
         accentColor: '#DB2777',
-        chartType: 'line',
+        chartType: 'area',
         footerFallback: t('totalEarnings.tips') || 'Tips',
       },
       {
@@ -149,15 +225,15 @@ const TotalEarningsScreen = () => {
         title: t('totalEarnings.subscribedFans') || 'Subscribed Fans',
         icon: 'people-outline',
         accentColor: '#059669',
-        chartType: 'bars',
+        chartType: 'area',
         footerFallback: t('totalEarnings.subscribers') || 'Subscribers',
       },
       {
         key: 'shop',
         title: t('totalEarnings.shop') || 'Shop',
         icon: 'bag-handle-outline',
-        accentColor: '#6D28D9',
-        chartType: 'bars',
+        accentColor: '#7C3AED',
+        chartType: 'area',
         footerFallback: t('totalEarnings.sales') || 'Sales',
       },
     ],
@@ -263,36 +339,29 @@ const TotalEarningsScreen = () => {
     navigation.navigate('wallet', { screen: 'Dashboard' });
   }, [navigation]);
 
-  const handleWithdrawPress = useCallback(() => {
-    // Placeholder — wiring later
-  }, []);
-
-  const buildFooterLabel = (config, data) => {
-    if (data?.countLabel) return data.countLabel;
-    if (data?.count > 0) return `${data.count} ${config.footerFallback}`;
-    return '';
-  };
-
   return (
     <SafeAreaView style={[styles.safe, bgStyle]} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <TouchableOpacity
           onPress={handleBack}
-          style={styles.headerBtn}
+          style={[
+            styles.backCircleBtn,
+            cardStyle,
+            isDarkMode ? styles.shadowDark : styles.shadowLight,
+            {
+              borderColor: cardBorderColor,
+            },
+          ]}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
         >
-          <Ionicons name="arrow-back" size={22} color={text} />
+          <Ionicons name="chevron-back" size={20} color={text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, textStyle]}>
           {t('totalEarnings.title') || 'Earnings'}
         </Text>
-        <TouchableOpacity
-          style={styles.headerBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          onPress={() => {}}
-        >
-          {/* <Ionicons name="information-circle-outline" size={22} color={text} /> */}
-        </TouchableOpacity>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
@@ -303,10 +372,29 @@ const TotalEarningsScreen = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={text} />
         }
       >
-        <View style={[styles.heroCard, cardStyle]}>
-          <View style={[styles.heroTextCol, { paddingRight: walletImageSize * 0.55 }]}>
+        <View
+          style={[
+            styles.heroCard,
+            cardStyle,
+            isDarkMode ? styles.shadowDark : styles.shadowLight,
+            {
+              borderColor: cardBorderColor,
+            },
+          ]}
+        >
+          <HeroBottomWaves
+            isBusinessProfile={isBusinessProfile}
+            isDarkMode={isDarkMode}
+          />
+
+          <View
+            style={[
+              styles.heroTextCol,
+              { paddingRight: mascotWidth + 6 },
+            ]}
+          >
             <View style={styles.heroLabelRow}>
-              <Text style={styles.heroLabel}>
+              <Text style={[styles.heroLabel, { color: mutedText }]}>
                 {t('totalEarnings.totalEarnings') || 'Total Earnings'}
               </Text>
               <TouchableOpacity
@@ -318,25 +406,30 @@ const TotalEarningsScreen = () => {
                 <Ionicons
                   name={amountHidden ? 'eye-off-outline' : 'eye-outline'}
                   size={16}
-                  color="#6B7280"
+                  color={mutedText}
                 />
               </TouchableOpacity>
             </View>
-            <Text style={[styles.heroAmount, { color: text }]}>
+            <Text
+              style={[styles.heroAmount, { color: text }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.68}
+            >
               {amountHidden ? '••••••' : formatEarningsUsd(heroTotal)}
             </Text>
-            <Text style={styles.heroSub}>
+            <Text style={[styles.heroSub, { color: mutedText }]}>
               {t('totalEarnings.allTimeEarnings') || 'All time earnings'}
             </Text>
           </View>
+
           <Image
-            source={walletIcon}
+            source={mascotSource}
             style={[
-              styles.heroWalletImage,
+              styles.heroMascotImage,
               {
-                width: walletImageSize * 1.35,
-                height: walletImageSize * 1.35,
-                right: -8,
+                width: mascotWidth,
+                height: mascotHeight,
               },
             ]}
             resizeMode="contain"
@@ -362,23 +455,12 @@ const TotalEarningsScreen = () => {
                 amount={data.totalAmount}
                 percentage={data.percentage}
                 points={data.points}
-                footerLabel={buildFooterLabel(config, data)}
                 loading={data.loading}
                 width={cardWidth}
               />
             );
           })}
         </View>
-
-        {/* <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={handleWithdrawPress}
-          style={[styles.withdrawBtn, { backgroundColor: text }]}
-        >
-          <Text style={styles.withdrawText}>
-            {t('totalEarnings.withdrawEarnings') || 'Withdraw Earnings'}
-          </Text>
-        </TouchableOpacity> */}
       </ScrollView>
     </SafeAreaView>
   );
@@ -387,7 +469,7 @@ const TotalEarningsScreen = () => {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#F8F7FF',
+    backgroundColor: '#FAF5FE',
   },
   header: {
     height: 56,
@@ -395,12 +477,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 4,
   },
-  headerBtn: {
-    width: 44,
-    height: 44,
+  backCircleBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  headerSpacer: {
+    width: 38,
+    height: 38,
   },
   headerTitle: {
     fontSize: 18,
@@ -411,27 +504,43 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: H_PADDING,
+    paddingTop: 6,
     paddingBottom: 28,
   },
   heroCard: {
     borderRadius: 20,
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-    minHeight: 128,
+    paddingVertical: 20,
+    paddingLeft: 18,
+    paddingRight: 12,
+    minHeight: 146,
+    justifyContent: 'center',
     overflow: 'hidden',
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#EDE9FE',
-    marginBottom: 20,
+    borderColor: '#EAE4F5',
+    marginBottom: 22,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  heroWavesWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 58,
+    zIndex: 1,
   },
   heroTextCol: {
     zIndex: 2,
+    paddingBottom: 8,
   },
   heroLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   heroLabel: {
     fontSize: 13,
@@ -439,8 +548,9 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   heroAmount: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '800',
+    letterSpacing: -0.6,
     marginBottom: 4,
   },
   heroSub: {
@@ -448,19 +558,26 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontWeight: '500',
   },
-  heroWalletImage: {
+  heroMascotImage: {
     position: 'absolute',
-    bottom: -10,
-    opacity: 0.95,
+    right: 6,
+    bottom: 4,
+    zIndex: 3,
+  },
+  shadowLight: {
+    shadowColor: '#402090',
+  },
+  shadowDark: {
+    shadowColor: '#000',
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
   },
   grid: {
@@ -469,20 +586,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     rowGap: CARD_GAP,
     marginBottom: 24,
-  },
-  withdrawBtn: {
-    minHeight: 52,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: '15%',
-  },
-  withdrawText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '800',
   },
 });
 
