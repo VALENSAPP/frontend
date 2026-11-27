@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAppTheme } from '../../theme/useApptheme';
 import { useLanguage } from '../../i18n';
@@ -32,6 +32,7 @@ export default function GoogleImageSearchModal({
 }) {
   const { bg, card, text, border, mutedText, accent, isDarkMode } = useAppTheme();
   const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
 
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [images, setImages] = useState([]);
@@ -237,9 +238,18 @@ export default function GoogleImageSearchModal({
 
         {/* Bottom Action Bar */}
         {selectedImage && (
-          <SafeAreaView
-            edges={['bottom']}
-            style={[styles.bottomBar, { backgroundColor: card, borderTopColor: border }]}
+          // Plain View with explicit bottom padding: a bottom-edge SafeAreaView
+          // inside an iOS pageSheet modal doesn't pick up the home-indicator
+          // inset, which cropped the "Use This Image" button.
+          <View
+            style={[
+              styles.bottomBar,
+              {
+                backgroundColor: card,
+                borderTopColor: border,
+                paddingBottom: Math.max(insets.bottom, 12) + 8,
+              },
+            ]}
           >
             <View style={styles.previewContainer}>
               <Image
@@ -274,7 +284,7 @@ export default function GoogleImageSearchModal({
                 {t('openBattle.useImage', 'Use This Image')}
               </Text>
             </TouchableOpacity>
-          </SafeAreaView>
+          </View>
         )}
       </SafeAreaView>
     </Modal>

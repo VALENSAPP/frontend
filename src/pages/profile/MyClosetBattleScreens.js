@@ -13,6 +13,7 @@ import {
   Platform,
   Modal,
   BackHandler,
+  InteractionManager,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -225,10 +226,13 @@ const CachedImageBox = ({ uri, style, placeholderStyle, iconName, iconSize = 26 
           <ActivityIndicator size="small" color={iconColor} />
         </View>
       )}
-      <FastImage
-        source={fastImageSource(resolvedUri)}
+      {/* React Native's own Image instead of react-native-fast-image 8.x,
+          which predates the New Architecture this app runs on and only works
+          through the legacy interop layer (crash/hang risk on iOS). */}
+      <Image
+        source={{ uri: resolvedUri, cache: 'force-cache' }}
         style={StyleSheet.absoluteFill}
-        resizeMode={FastImage.resizeMode.cover}
+        resizeMode="cover"
         fadeDuration={0}
         onLoad={() => setLoaded(true)}
         onError={() => {
@@ -564,6 +568,61 @@ export const PhoneFrame = ({ children }) => {
   );
 };
 
+// Module-level so React keeps the same component between renders. Defined
+// inside BattleCard it was a new component type on every render, which
+// unmounted and remounted both product images each time the battle updated.
+const BattleProductTile = ({ item, onPress, iconName, inHeroCard, textColor, isDarkMode, isWinner }) => {
+  const { t } = useLanguage();
+  if (!item) return <View style={styles.itemTile} />;
+  const itemName = typeof item?.name === 'string' ? item.name : '';
+  const itemPrice = typeof item?.price === 'string' || typeof item?.price === 'number'
+    ? String(item.price)
+    : (item?.price?.amount ? `$${item.price.amount}` : '');
+  const itemSeller = typeof item?.shopName === 'string'
+    ? item.shopName
+    : typeof item?.userName === 'string'
+      ? item.userName
+      : typeof item?.sellerName === 'string'
+        ? item.sellerName
+        : '';
+  const content = (
+    <>
+      <View style={[styles.itemThumbWrap, inHeroCard && styles.itemThumbWrapInHero]}>
+        <CachedImageBox
+          uri={item?.image}
+          style={styles.itemThumb}
+          placeholderStyle={styles.itemThumbPlaceholder}
+          iconName={iconName}
+        />
+      </View>
+      <Text style={[styles.itemName, { color: inHeroCard ? '#FFFFFF' : textColor }]} numberOfLines={1}>{itemName}</Text>
+      {Boolean(itemPrice) && (
+        <View style={styles.yellowPricePill}>
+          <Text style={styles.yellowPriceText}>{itemPrice}</Text>
+        </View>
+      )}
+      {Boolean(itemSeller) ? (
+        <Text style={[styles.itemSeller, { color: inHeroCard ? 'rgba(255,255,255,0.75)' : (isDarkMode ? '#AAAAAA' : '#666666'), fontSize: 11, marginTop: 2, textAlign: 'center' }]} numberOfLines={1}>
+          {itemSeller}
+        </Text>
+      ) : null}
+      {isWinner &&
+        <View style={{
+          backgroundColor: '#fbbf24', borderRadius: 999, paddingHorizontal: 10,
+          paddingVertical: 5, marginTop: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Text style={{ fontSize: 10, fontWeight: '900', color: '#111827', letterSpacing: 0.2, textAlign: 'center' }}>🏆 {t('battle.winner', 'Winner')}</Text>
+        </View>}
+    </>
+  );
+
+  return onPress ? (
+    <TouchableOpacity style={styles.itemTile} activeOpacity={0.75} onPress={onPress} accessibilityRole="button" accessibilityLabel={`View ${itemName || 'product'}`}>
+      {content}
+    </TouchableOpacity>
+  ) : <View style={styles.itemTile}>{content}</View>;
+};
+
 export const BattleCard = ({
   left,
   right,
@@ -591,56 +650,6 @@ export const BattleCard = ({
   const winnerBorderColor = isDarkMode
     ? (isBusinessProfile ? '#664614' : '#4C1D95')
     : (isBusinessProfile ? '#E8D9BD' : '#E9D5FF');
-  const ProductTile = ({ item, onPress, iconName }) => {
-    if (!item) return <View style={styles.itemTile} />;
-    const itemName = typeof item?.name === 'string' ? item.name : '';
-    const itemPrice = typeof item?.price === 'string' || typeof item?.price === 'number'
-      ? String(item.price)
-      : (item?.price?.amount ? `$${item.price.amount}` : '');
-    const itemSeller = typeof item?.shopName === 'string'
-      ? item.shopName
-      : typeof item?.userName === 'string'
-        ? item.userName
-        : typeof item?.sellerName === 'string'
-          ? item.sellerName
-          : '';
-    const content = (
-      <>
-        <View style={[styles.itemThumbWrap, inHeroCard && styles.itemThumbWrapInHero]}>
-          <CachedImageBox
-            uri={item?.image}
-            style={styles.itemThumb}
-            placeholderStyle={styles.itemThumbPlaceholder}
-            iconName={iconName}
-          />
-        </View>
-        <Text style={[styles.itemName, { color: inHeroCard ? '#FFFFFF' : textColor }]} numberOfLines={1}>{itemName}</Text>
-        {Boolean(itemPrice) && (
-          <View style={styles.yellowPricePill}>
-            <Text style={styles.yellowPriceText}>{itemPrice}</Text>
-          </View>
-        )}
-        {Boolean(itemSeller) ? (
-          <Text style={[styles.itemSeller, { color: inHeroCard ? 'rgba(255,255,255,0.75)' : (isDarkMode ? '#AAAAAA' : '#666666'), fontSize: 11, marginTop: 2, textAlign: 'center' }]} numberOfLines={1}>
-            {itemSeller}
-          </Text>
-        ) : null}
-        {showWinner && item === left &&
-          <View style={{
-            backgroundColor: '#fbbf24', borderRadius: 999, paddingHorizontal: 10,
-            paddingVertical: 5, marginTop: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Text style={{ fontSize: 10, fontWeight: '900', color: '#111827', letterSpacing: 0.2, textAlign: 'center' }}>🏆 {t('battle.winner', 'Winner')}</Text>
-          </View>}
-      </>
-    );
-
-    return onPress ? (
-      <TouchableOpacity style={styles.itemTile} activeOpacity={0.75} onPress={onPress} accessibilityRole="button" accessibilityLabel={`View ${itemName || 'product'}`}>
-        {content}
-      </TouchableOpacity>
-    ) : <View style={styles.itemTile}>{content}</View>;
-  };
   const winnerTitle = typeof left?.name === 'string' ? left.name : '';
   const winnerPrice = typeof left?.price === 'string' || typeof left?.price === 'number'
     ? String(left.price)
@@ -696,11 +705,11 @@ export const BattleCard = ({
         </View>
       ) : null}
       <View style={styles.vsGrid}>
-        <ProductTile item={left} onPress={onLeftPress} iconName="bag-outline" />
+        <BattleProductTile item={left} onPress={onLeftPress} iconName="bag-outline" inHeroCard={inHeroCard} textColor={textColor} isDarkMode={isDarkMode} isWinner={showWinner} />
         <View style={[styles.vsBubble, { backgroundColor: inHeroCard ? (isBusinessProfile ? '#5C3E10' : '#3B1768') : accent, borderColor: inHeroCard ? 'rgba(255,255,255,0.4)' : '#ede8fb', borderWidth: 1.5 }]}>
           <Text style={styles.vsText}>{t('battle.vs')}</Text>
         </View>
-        <ProductTile item={right} onPress={onRightPress} iconName="bag-handle-outline" />
+        <BattleProductTile item={right} onPress={onRightPress} iconName="bag-handle-outline" inHeroCard={inHeroCard} textColor={textColor} isDarkMode={isDarkMode} isWinner={false} />
       </View>
     </View>
   );
@@ -2399,28 +2408,44 @@ export function BattleLiveScreen({ navigation, route }) {
     }
   }, [battleId, currentUserId]);
 
+  // Read the latest battle through a ref so `loadBattle` stays stable.
+  // Depending on `battle` directly re-created `loadBattle` on every setBattle,
+  // which re-ran the load effect below in an endless fetch/render loop (UI freeze).
+  const battleRef = useRef(battle);
+  battleRef.current = battle;
+
   const loadBattle = useCallback(async () => {
     if (!battleId) return;
     if (isMountedRef.current) {
-      setLoading(!initialBattle && !battle);
+      setLoading(!initialBattle && !battleRef.current);
       setLoadError(null);
     }
     try {
       const response = await getMarketplaceBattleDetails(battleId);
       if (!isMountedRef.current) return;
-      const data = response?.data?.data ?? response?.data ?? response;
+      // API errors resolve (not reject) with the error body, so only accept a
+      // real battle payload; otherwise keep the data passed from the card.
+      const failed =
+        !response ||
+        response?.error ||
+        response?.success === false ||
+        Number(response?.statusCode ?? 200) >= 400;
+      const data = failed ? null : (response?.data?.data ?? response?.data ?? response);
       const raw = data?.battle ?? data?.battles?.[0] ?? data;
-      if (raw) {
+      const isValidBattle = Boolean(raw && (raw.id || raw._id) && Array.isArray(raw.participants));
+      if (isValidBattle) {
         setBattle(normalizeBattle(raw));
+      } else if (!initialBattle && !battleRef.current) {
+        setLoadError(t('battle.errors.battleLoadFailed') || 'Could not load this battle.');
       }
     } catch {
-      if (isMountedRef.current && !initialBattle && !battle) {
+      if (isMountedRef.current && !initialBattle && !battleRef.current) {
         setLoadError(t('battle.errors.battleLoadFailed') || 'Could not load this battle.');
       }
     } finally {
       if (isMountedRef.current) setLoading(false);
     }
-  }, [battleId, initialBattle, battle, t]);
+  }, [battleId, initialBattle, t]);
 
   // GET /marketplace-battles/{battleId}/comments
   const loadComments = useCallback(async (isSilent = false) => {
@@ -2717,7 +2742,16 @@ export function BattleLiveScreen({ navigation, route }) {
       } catch (_e) {}
       setLoadError(null);
     }
+    // When the card already gave us the battle, refresh it after the push
+    // animation so the network/state work doesn't stall the transition.
+    if (initialBattle && !refreshParam) {
+      const task = InteractionManager.runAfterInteractions(() => {
+        loadBattle();
+      });
+      return () => task?.cancel?.();
+    }
     loadBattle();
+    return undefined;
   }, [initialBattle, loadBattle, refreshParam]);
 
   useEffect(() => {
@@ -2733,7 +2767,7 @@ export function BattleLiveScreen({ navigation, route }) {
 
     const fetchBattleViews = async () => {
       try {
-        const response = await getMarketplaceBattleViews(battleId);
+        await getMarketplaceBattleViews(battleId);
       } catch (error) {
         console.error('Error fetching battle views:', error);
       }
@@ -2756,6 +2790,7 @@ export function BattleLiveScreen({ navigation, route }) {
       return () => subscription.remove();
     }, [trackBattleView, route?.params?.refresh, loadBattle, handleBack])
   );
+
 
   // Early returns come AFTER every hook above — nothing hook-related below this point
   if (loading) {
@@ -3979,7 +4014,28 @@ export function BattleCreatedSuccessScreen({ navigation, route }) {
   const primaryText = text || TEXT;
   const subtleMuted = mutedText || surfaces.mutedColor;
   const targetScreen = useTargetClosetScreen();
-  const handleBack = () => navigateToTargetClosetScreen(navigation, targetScreen);
+  // A challenge started from "Insights & Actions" (including its Promotion
+  // Expired view) returns there; every other flow returns to the closet.
+  const startedFromInsights =
+    ['BattleInsightsActions', 'BattleInsights', 'PromotionExpired'].includes(route?.params?.fromRoute) ||
+    Boolean(route?.params?.fromInsights);
+  const handleBack = () => {
+    if (startedFromInsights) {
+      const insightsParams = {
+        winnerItem: route?.params?.winnerItem,
+        battleId: route?.params?.battleId,
+      };
+      // popTo returns to the Insights screen already in the stack (dropping the
+      // challenge screens above it); it opens a fresh one if none is there.
+      if (typeof navigation.popTo === 'function') {
+        navigation.popTo('BattleInsightsActions', insightsParams);
+      } else {
+        navigation.navigate('BattleInsightsActions', insightsParams);
+      }
+      return;
+    }
+    navigateToTargetClosetScreen(navigation, targetScreen);
+  };
 
   const selectedItems = route?.params?.selectedItems || [];
   const leftItem = selectedItems?.[0] || {};
@@ -4103,9 +4159,13 @@ export function BattleCreatedSuccessScreen({ navigation, route }) {
           </View>
         </View>
 
-        <TouchableOpacity activeOpacity={0.9} onPress={() => navigateToTargetClosetScreen(navigation, targetScreen)}>
+        <TouchableOpacity activeOpacity={0.9} onPress={handleBack}>
           <LinearGradient colors={themeGradient(accent)} style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>{t('battle.backToCloset', 'Back To Closet')}</Text>
+            <Text style={styles.primaryButtonText}>
+              {startedFromInsights
+                ? t('battle.backToInsights', 'Back to Insights')
+                : t('battle.backToCloset', 'Back To Closet')}
+            </Text>
           </LinearGradient>
         </TouchableOpacity>
 

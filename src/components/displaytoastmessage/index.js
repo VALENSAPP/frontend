@@ -1,46 +1,20 @@
-import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
-
+// Shows a toast. Its look (purple pill with an icon for success, red for
+// errors, and so on) comes from AppToast, set as renderToast on the
+// ToastProvider in App.js, so every toast in the app looks the same.
 export const showToastMessage = async (toast, type, text, duration = 2500) => {
     try {
         if (!toast || typeof toast.show !== 'function') {
             console.warn('Toast object is not available or toast.show is not a function');
             return;
         }
-        toast.show(
-            <View style={styles.toastContent}>
-                <Text style={styles.text}>{text}</Text>
-            </View>,
-            {
-                type: type,
-                placement: 'top',
-                animationType: 'zoom-in',
-                swipeEnabled: true,
-                duration: duration, 
-                style: styles.toastContainer,
-                onPress: () => {
-                    toast.hide();
-                },
-            }
-        );
+        toast.show(typeof text === 'string' ? text : String(text ?? ''), {
+            type,
+            placement: 'top',
+            animationType: 'slide-in',
+            swipeEnabled: true,
+            duration,
+        });
     } catch (error) {
         console.error('Error in toaster:', error);
     }
 };
-
-const styles = StyleSheet.create({
-    text: {
-        color: 'white',
-        fontSize: 16,
-        marginLeft: 8,
-    },
-    toastContainer: {
-        alignSelf: 'flex-end',
-        marginRight: 20,
-    },
-    toastContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        // padding: 20,
-    },
-});

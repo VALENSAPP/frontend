@@ -77,6 +77,10 @@ const Usersprofile = () => {
   const [userDashboard, setUserDashboard] = useState();
   const [userData, setUserData] = useState(passedUserData);
   const [initialLoading, setInitialLoading] = useState(!passedUserData);
+  // While nothing is shown yet, the screen draws its own spinner in the viewed
+  // profile's colors. Showing the app-wide overlay too stacked two spinners
+  // (viewer's theme + profile's theme) into one mixed-color loader.
+  const initialLoadingRef = useRef(!passedUserData);
   const [refreshing, setRefreshing] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followsMe, setFollowsMe] = useState(false);
@@ -216,7 +220,8 @@ const Usersprofile = () => {
       return;
     }
 
-    dispatch(showLoader());
+    const useGlobalLoader = !initialLoadingRef.current;
+    if (useGlobalLoader) dispatch(showLoader());
 
     try {
       const currentUserId = await fetchLoggedInUserId();
@@ -275,8 +280,9 @@ const Usersprofile = () => {
       console.error('Error fetching profile screen data:', error);
       showToastMessage(toast, 'danger', t('usersProfile.networkError'));
     } finally {
+      initialLoadingRef.current = false;
       setInitialLoading(false);
-      dispatch(hideLoader());
+      if (useGlobalLoader) dispatch(hideLoader());
     }
   }, [targetUserId, toast, dispatch, fetchProfile, fetchLoggedInUserId, checkSubscriptionStatus, checkFollowsMe, t]);
 
@@ -471,7 +477,9 @@ const Usersprofile = () => {
     const loaderBg = isCompanyCandidate
       ? bgStyle?.backgroundColor || (isDarkMode ? '#1E1B16' : '#FAF7F0')
       : (isDarkMode ? '#121212' : '#FFFFFF');
-    const loaderColor = isCompanyCandidate ? accent : (isDarkMode ? '#CBA257' : '#402090');
+    // Viewed profile's own accent: purple for regular profiles (light and
+    // dark mode), gold for business profiles.
+    const loaderColor = accent;
 
     return (
       <SafeAreaView style={[styles.container, styles.loaderCenter, { backgroundColor: loaderBg }]}>

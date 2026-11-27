@@ -109,6 +109,17 @@ let activeLanguage = 'en';
 
 export const getActiveLanguage = () => activeLanguage;
 
+// Off by default so missing translations don't flood the console / LogBox.
+const I18N_DEBUG_MISSING_KEYS = false;
+const reportedMissingKeys = new Set();
+const reportMissingKey = (key, where) => {
+  if (!I18N_DEBUG_MISSING_KEYS || typeof __DEV__ === 'undefined' || !__DEV__) return;
+  const id = `${where}:${key}`;
+  if (reportedMissingKeys.has(id)) return;
+  reportedMissingKeys.add(id);
+  console.log(`[i18n] Missing "${key}" in ${where}`);
+};
+
 export const LanguageProvider = ({ children }) => {
   const [currentLanguage, setCurrentLanguage] = useState('en');
   const [translations, setTranslations] = useState(en);
@@ -203,13 +214,16 @@ export const LanguageProvider = ({ children }) => {
     // 2. Fallback to English
     const fallbackValue = getTranslationValue(en, key, options);
 
+    // Missing keys fall back silently (English, then the default text passed
+    // in code). Set I18N_DEBUG_MISSING_KEYS to true to list missing keys once
+    // each in development.
     if (fallbackValue !== undefined && fallbackValue !== null) {
-      console.warn(`Missing "${key}" in ${currentLanguage}, using EN fallback`);
+      reportMissingKey(key, currentLanguage);
       return interpolate(fallbackValue, options);
     }
 
     // 3. Final fallback
-    console.warn(`Missing "${key}" in ALL languages`);
+    reportMissingKey(key, 'ALL languages');
 
     return interpolate(resolvedDefaultValue || key, options);
   };

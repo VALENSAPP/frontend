@@ -5370,7 +5370,8 @@
     "challengeStatusPrefix": "El desafío está {{status}}",
     "noLongerAvailable": "ya no está disponible",
     "view": "Ver",
-    "itemsCount": "artículos"
+    "itemsCount": "artículos",
+    "backToInsights": "Volver a Estadísticas"
   },
   "shopSettings": {
     "title": "Configuración de la tienda",
@@ -6003,6 +6004,8 @@
     "profile": "Perfil"
   },
   "marketplace": {
+    "sold": "vendidos",
+    "soldOut": "AGOTADO",
     "title": "Marketplace",
     "subtitle": "Explora productos de nuestros creadores",
     "searchPlaceholder": "Buscar productos, marcas o tiendas...",
@@ -6048,7 +6051,10 @@
     "descSub": "Mayor a Menor",
     "ascSub": "Menor a Mayor",
     "smartRank": "Rango Inteligente",
-    "dateAdded": "Más Recientes"
+    "dateAdded": "Más Recientes",
+    "outOfStock": "Agotado",
+    "onlyLeft": "Solo quedan {{count}}",
+    "available": "{{count}} disponibles"
   },
   "profileVerificationReminder": {
     "title": "Verifica tu perfil",

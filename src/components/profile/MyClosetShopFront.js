@@ -177,10 +177,12 @@ const CachedImageBox = ({ uri, style, placeholderStyle, iconName, iconSize = 28,
           <ActivityIndicator size="small" color={mutedColor} />
         </View>
       )}
-      <FastImage
-        source={imageSource(uri)}
+      {/* React Native's own Image: react-native-fast-image 8.x predates the
+          New Architecture and froze/crashed the battle screens on iOS. */}
+      <Image
+        source={{ uri, cache: 'force-cache' }}
         style={StyleSheet.absoluteFill}
-        resizeMode={FastImage.resizeMode.cover}
+        resizeMode="cover"
         onLoad={() => setLoaded(true)}
         onError={() => {
           setFailed(true);
@@ -896,14 +898,16 @@ const MyClosetShopFront = ({ navigation, userData, shopDraft, isOwnProfile = tru
   }, [battles]);
 
   useEffect(() => {
-    const urls = [
-      ...tiles.map(t => t.image),
-      ...displayBattles.flatMap(b => [b.left?.image, b.right?.image]),
-    ].filter(Boolean);
+    const tileUrls = tiles.map(t => t.image).filter(Boolean);
+    const battleUrls = displayBattles.flatMap(b => [b.left?.image, b.right?.image]).filter(Boolean);
 
-    if (urls.length) {
-      FastImage.preload([...new Set(urls)].map(uri => imageSource(uri)));
+    // Tiles still render with FastImage; battle slides use React Native's Image.
+    if (tileUrls.length) {
+      FastImage.preload([...new Set(tileUrls)].map(uri => imageSource(uri)));
     }
+    [...new Set(battleUrls)].forEach(uri => {
+      Image.prefetch(uri).catch(() => {});
+    });
   }, [displayBattles, tiles]);
 
   const seller = useMemo(() => ({

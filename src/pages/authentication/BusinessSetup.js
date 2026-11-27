@@ -39,6 +39,7 @@ import CountryPicker, { getAllCountries } from 'react-native-country-picker-moda
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loggedIn } from '../../redux/actions/LoginAction';
 import { setIsAddAccount } from '../../redux/actions/AddAccountAction';
+import { ensureCurrentAccountSaved } from '../../utils/accountSession';
 import { useLanguage } from '../../i18n';
 import { clearSignupFormData } from '../../redux/actions/SignupFormAction';
 
@@ -203,6 +204,8 @@ const BusinessProfileForm = () => {
 
   const proceedToKyc = async () => {
     await saveUserProfile();
+    // Saves the new account locally and adds it to this device on the server.
+    await ensureCurrentAccountSaved();
     await AsyncStorage.setItem('isLoggedIn', 'true');
     dispatch(loggedIn());
     dispatch(clearSignupFormData());

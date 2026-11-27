@@ -2170,7 +2170,6 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
     || item.raw?.seller?.id
     || '',
   ).trim();
-  const isOutOfStock = Number(item.quantityAvailable) <= 0;
   const productId = item.raw?.id || item.raw?._id || item.id;
   const offersShipping = item.shippingOption === 'ship_items' || item.shippingOption === 'both';
   const offersPickup = item.shippingOption === 'local_pick' || item.shippingOption === 'both';
@@ -2254,6 +2253,7 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
   };
 
   const goOptions = () => {
+    if (Number(fetchedDetails?.quantityAvailable ?? item.quantityAvailable) <= 0) return;
     navigation.navigate('MyClosetBuyerOptions', withClosetNavParams(route, {
       item: item.raw,
       seller,
@@ -2307,6 +2307,9 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
   const displayBrand = fetchedDetails?.brand || item.brand;
   const displayCategory = fetchedDetails?.category || item.category;
   const displayQuantity = fetchedDetails?.quantityAvailable ?? item.quantityAvailable;
+  // Use the freshly fetched stock when available, so an item that sold out
+  // after the list loaded can't be bought from here either.
+  const isOutOfStock = Number(displayQuantity) <= 0;
   const displayTitle = fetchedDetails?.name || item.name;
   const displayPrice = fetchedDetails?.price != null ? `$${Number(fetchedDetails.price).toFixed(2)}` : item.price;
   const displayDescription = fetchedDetails?.description || item.description;
@@ -2600,7 +2603,7 @@ const MyClosetBuyerItemDetailScreen = ({ navigation, route }) => {
       {!isOwnProfile && (
         <BottomBar>
           <BottomButton
-            label={isOutOfStock ? 'Out of stock' : t('myClosetBuyer.buyNow')}
+            label={isOutOfStock ? t('marketplace.outOfStock', 'Out of stock') : t('myClosetBuyer.buyNow')}
             onPress={goOptions}
             accentColor={accent}
             disabled={isOutOfStock}

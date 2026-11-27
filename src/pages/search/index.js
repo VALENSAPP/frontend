@@ -1336,6 +1336,41 @@ const SearchScreen = () => {
           });
         }
         console.log('📊 [SearchScreen Normalized Battles]:', normalizedBattles);
+        if (__DEV__) {
+          // [PredictionDebug] What each carousel card shows, and the API fields behind it.
+          console.log(`[PredictionDebug] CAROUSEL: ${normalizedBattles.length} card(s) from battle/explore`);
+          normalizedBattles.forEach((card, index) => {
+            const raw = card?.raw || {};
+            try {
+              console.log(`[PredictionDebug] CAROUSEL card ${index + 1}:\n${JSON.stringify({
+                id: card.id,
+                type: card.typeByBattle || raw.battleType,
+                format: card.format,
+                status: card.status,
+                isLive: card.isLive,
+                title: card.title,
+                options: card.options,
+                optionImages: card.optionImages,
+                voteCounts: card.voteCounts,
+                predictionCounts: card.predictionCounts,
+                stakeAmount: card.stakeAmount,
+                totalParticipants: card.totalParticipants,
+                totalComments: card.totalComments,
+                totalVotes: card.totalVotes,
+                endTime: card.endTime,
+                creator: card.creator?.userName || card.creator?.name,
+                api: {
+                  battleType: raw.battleType,
+                  predictionProvider: raw.predictionProvider,
+                  predictionCategory: raw.predictionCategory,
+                  predictionQuestionId: raw.predictionQuestionId ?? raw.externalQuestionId,
+                  endAt: raw.endAt ?? raw.endTime ?? raw.endDate,
+                  rawKeys: Object.keys(raw),
+                },
+              }, null, 2)}`);
+            } catch (_e) {}
+          });
+        }
         setLiveBattles(normalizedBattles);
       } else {
         setLiveBattles([]);

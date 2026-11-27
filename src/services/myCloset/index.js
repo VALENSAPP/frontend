@@ -499,12 +499,39 @@ export const createMarketplaceBattle = async ({
   });
 };
 
+// The axios response interceptor never rejects: API errors resolve with the
+// error body (e.g. { statusCode: 404, success: false }). So a try/catch alone
+// never reached the public endpoint for battles the viewer doesn't own, and
+// callers rendered the error body as the battle. Check the payload instead.
+const isBattleDetailsSuccess = (res) => {
+  if (!res || res.error) return false;
+  const code = Number(res.statusCode ?? res.status ?? 200);
+  if (res.success === false || code >= 400 || code === 0) return false;
+  const data = res?.data?.data ?? res?.data;
+  return Boolean(data && typeof data === 'object');
+};
+
 export const getMarketplaceBattleDetails = async (battleId) => {
   try {
-    return await axiosInstance.get(`marketplace-battles/me/${battleId}`);
-  } catch (_err) {
-    return axiosInstance.get(`marketplace-battles/${battleId}`);
-  }
+    const own = await axiosInstance.get(`marketplace-battles/me/${battleId}`);
+    if (isBattleDetailsSuccess(own)) return own;
+  } catch (_err) {}
+  return axiosInstance.get(`marketplace-battles/${battleId}`);
+};
+
+/**
+ * Explore public LIVE marketplace battles.
+ * GET /marketplace-battles/explore?page=&limit=&category=&search=&sortBy=&sortOrder=
+ * Response: { statusCode, success, data: { battles: [...], total, page, limit, totalPages } }
+ */
+export const exploreMarketplaceBattles = async (params = {}) => {
+  const { page = 1, limit = 10, category, search, sortBy, sortOrder } = params;
+  const query = { page, limit };
+  if (category) query.category = category;
+  if (search) query.search = search;
+  if (sortBy) query.sortBy = sortBy;
+  if (sortOrder) query.sortOrder = sortOrder;
+  return axiosInstance.get('marketplace-battles/explore', { params: query });
 };
 
 export const deleteMarketplaceBattle = async battleId => {

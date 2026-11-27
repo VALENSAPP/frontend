@@ -3,6 +3,7 @@ import Main from './src';
 import store from './src/redux/store/store';
 import { Provider } from 'react-redux';
 import { ToastProvider } from 'react-native-toast-notifications';
+import AppToast from './src/components/displaytoastmessage/AppToast';
 import Loader from './src/utils/loader';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StripeProvider } from '@stripe/stripe-react-native';
@@ -83,10 +84,7 @@ const App = () => {
           duration={3000}
           animationType="slide-in"
           offsetTop={10}
-          textStyle={{ fontSize: 16 }}
-          successColor="green"
-          dangerColor="red"
-          warningColor="orange"
+          renderToast={(toastOptions) => <AppToast toast={toastOptions} />}
         >
           <AppKitProvider instance={appKit}>
             <WagmiProvider config={wagmiAdapter.wagmiConfig}>

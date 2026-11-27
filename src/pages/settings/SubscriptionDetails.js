@@ -380,10 +380,10 @@ const SubscriptionDetails = ({ route }) => {
 
       const checkoutPlan = getMembershipPlan(selectedPlan, documentCountry);
       const response = await createCheckoutSession({
-        plan: selectedPlan,
-        interval: selectedPlan === 'annual' ? 'yearly' : 'month',
-        amount: checkoutPlan.price,
-        currency: checkoutPlan.currency,
+        // plan: selectedPlan,
+        interval: selectedPlan === 'annual' ? 'yearly' : 'monthly',
+        // amount: checkoutPlan.price,
+        // currency: checkoutPlan.currency,
       });
       const checkoutUrl = response?.data?.url || (typeof response?.url === 'string' ? response.url : null);
       if (!checkoutUrl || response?.success === false) {

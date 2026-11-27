@@ -27,8 +27,15 @@ import {
   addWishlistItem,
   deleteWishlistItem,
   toggleMyClosetItemLike,
+  exploreMarketplaceBattles,
 } from '../../services/myCloset';
-import { withClosetNavParams } from '../../utils/closetNavigation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  withClosetNavParams,
+  navigateToBattleLive,
+} from '../../utils/closetNavigation';
+import { BattleSlide, mapBattle } from '../../components/profile/MyClosetShopFront';
+import { AutoScrollBattleRow } from '../../components/search/Battlecard';
 import {
   getActivePromotions,
   calculatePromotionDeliveryRank,
@@ -143,6 +150,10 @@ export default function MarketplaceScreen() {
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
 
+  // ─── Marketplace Battles (GET /marketplace-battles/explore) ──────────────
+  const [marketplaceBattles, setMarketplaceBattles] = useState([]);
+  const [battlesLoading, setBattlesLoading] = useState(false);
+
   const filtersRef = useRef({
     search: '',
     category: 'all',
@@ -213,8 +224,11 @@ export default function MarketplaceScreen() {
 
     const shippingFee = Number(item.pricing?.currentShippingFee ?? item.shippingFee ?? 0) || 0;
     const isFreeShipping = Boolean(effectivePromo.hasFreeShipping || shippingFee === 0);
-    const quantity = Number(item.quantity != null ? item.quantity : 1);
-    const isOutOfStock = quantity <= 0;
+    // Unknown quantity (null/missing) stays null: treated as in stock, with no
+    // stock line shown, instead of inventing a count.
+    const parsedQuantity = item.quantity != null && item.quantity !== '' ? Number(item.quantity) : NaN;
+    const quantity = Number.isFinite(parsedQuantity) ? Math.max(0, parsedQuantity) : null;
+    const isOutOfStock = quantity === 0;
 
     return {
       id: itemId,
@@ -391,13 +405,139 @@ export default function MarketplaceScreen() {
   const fetchWishlistStateRef = useRef(fetchWishlistState);
   fetchWishlistStateRef.current = fetchWishlistState;
 
+  // ─── Marketplace Battles ────────────────────────────────────────────────────
+  const battlesSearchRef = useRef('');
+  const fetchMarketplaceBattles = useCallback(async (search = battlesSearchRef.current) => {
+    setBattlesLoading(true);
+    try {
+      const response = await exploreMarketplaceBattles({
+        page: 1,
+        limit: 10,
+        search: search?.trim?.() || undefined,
+      });
+      const payload = response?.data ?? {};
+      const rawBattles = Array.isArray(payload?.battles)
+        ? payload.battles
+        : Array.isArray(payload?.data?.battles)
+          ? payload.data.battles
+          : [];
+      const seen = new Set();
+      const normalized = [];
+      rawBattles.forEach((battle, index) => {
+        if (!battle || !Array.isArray(battle.participants) || battle.participants.length < 2) return;
+        const mapped = mapBattle(battle, index);
+        if (!mapped?.id || seen.has(mapped.id)) return;
+        seen.add(mapped.id);
+        normalized.push(mapped);
+      });
+      setMarketplaceBattles(normalized);
+    } catch (_error) {
+      setMarketplaceBattles([]);
+    } finally {
+      setBattlesLoading(false);
+    }
+  }, []);
+
+  const fetchMarketplaceBattlesRef = useRef(fetchMarketplaceBattles);
+  fetchMarketplaceBattlesRef.current = fetchMarketplaceBattles;
+
+  // Keep battles in sync with the marketplace search box (debounced)
+  const isFirstBattleSearchRef = useRef(true);
+  useEffect(() => {
+    if (isFirstBattleSearchRef.current) {
+      isFirstBattleSearchRef.current = false;
+      return undefined;
+    }
+    battlesSearchRef.current = searchQuery;
+    const timer = setTimeout(() => {
+      fetchMarketplaceBattlesRef.current?.(searchQuery);
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleMarketplaceBattlePress = useCallback(async (mappedBattle) => {
+    const raw = mappedBattle?.raw || mappedBattle;
+    const battleId = String(raw?.id || raw?._id || mappedBattle?.id || '');
+    if (!battleId) return;
+    const battleProfileType = raw?.profileType || raw?.seller?.profileType || raw?.seller?.profile;
+    let isOwnProfile = false;
+    try {
+      const storedUserId = String((await AsyncStorage.getItem('userId')) ?? '').trim();
+      const sellerId = String(raw?.seller?.id ?? '').trim();
+      isOwnProfile = storedUserId !== '' && storedUserId === sellerId;
+    } catch (_e) {}
+
+    navigateToBattleLive(navigation, {
+      battleId,
+      initialBattle: raw,
+      entryPoint: 'marketplace',
+      profileType: battleProfileType,
+      returnTo: { tab: 'Marketplace', screen: 'MarketplaceHome', params: {} },
+      selectedItems: [mappedBattle?.left, mappedBattle?.right].filter(Boolean),
+      isOwnProfile,
+    });
+  }, [navigation]);
+
+  const renderMarketplaceBattles = () => {
+    if (!battlesLoading && marketplaceBattles.length === 0) return null;
+    const battleCardWidth = SCREEN_WIDTH - (HORIZONTAL_PADDING * 2) - (marketplaceBattles.length > 1 ? 24 : 0);
+    return (
+      <View style={styles.battlesSection}>
+        <View style={styles.battlesHeaderRow}>
+          <Ionicons name="flash-outline" size={16} color={accent} style={{ marginRight: 6 }} />
+          <Text style={[styles.battlesHeaderTitle, textStyle]}>
+            {t('marketplace.liveBattles', 'Live Battles')}
+          </Text>
+        </View>
+        {battlesLoading && marketplaceBattles.length === 0 ? (
+          <View style={styles.battlesLoader}>
+            <ActivityIndicator size="small" color={accent} />
+          </View>
+        ) : (
+          // Same auto-scrolling, infinite carousel as Search's Battle Explore row
+          // and the closet shop front. Pauses while touched; with one battle it
+          // just shows the card without scrolling.
+          <AutoScrollBattleRow
+            cardWidth={battleCardWidth}
+            cardGap={COLUMN_GAP}
+            rowPaddingLeft={HORIZONTAL_PADDING}
+            autoScroll
+          >
+            {marketplaceBattles.map((battle) => (
+              <View key={battle.id} style={{ width: battleCardWidth }}>
+                <BattleSlide
+                  battle={battle}
+                  accent={accent}
+                  t={t}
+                  onPress={() => handleMarketplaceBattlePress(battle)}
+                  card={card}
+                  border={border}
+                  textColor={text}
+                  mutedText={mutedText}
+                  isDark={isDarkMode}
+                  thumbSurface={isDarkMode ? '#333' : '#f5f3ef'}
+                  mutedColor={mutedText}
+                  loadingOverlayColor={isDarkMode ? 'rgba(0,0,0,0.5)' : 'rgba(245,243,238,0.72)'}
+                  customWidth={'100%'}
+                  imageSize={70}
+                />
+              </View>
+            ))}
+          </AutoScrollBattleRow>
+        )}
+      </View>
+    );
+  };
+
   useFocusEffect(
     useCallback(() => {
       fetchProductsRef.current?.(false, 1);
       fetchCartCountRef.current?.();
       fetchWishlistStateRef.current?.();
+      fetchMarketplaceBattlesRef.current?.();
     }, [])
   );
+
 
   // ─── Filter & Search Handlers ───────────────────────────────────────────────
   const activeFiltersCount = useMemo(() => {
@@ -677,14 +817,21 @@ export default function MarketplaceScreen() {
         ]}
         activeOpacity={0.85}
         onPress={() => handleProductPress(item)}
+        disabled={item.isOutOfStock}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !!item.isOutOfStock }}
+        accessibilityLabel={item.isOutOfStock
+          ? `${item.name}, ${t('marketplace.outOfStock', 'Out of stock')}`
+          : item.name}
       >
         {/* Product Image */}
         <View style={[styles.imageContainer, { backgroundColor: isDarkMode ? '#252525' : '#F6F3F9' }]}>
           {item.image ? (
             <Image
               source={{ uri: item.image }}
-              style={styles.productImage}
+              style={[styles.productImage, item.isOutOfStock && styles.outOfStockFaded]}
               resizeMode="cover"
+              blurRadius={item.isOutOfStock ? 3 : 0}
             />
           ) : (
             <View style={styles.imagePlaceholder}>
@@ -696,12 +843,21 @@ export default function MarketplaceScreen() {
             </View>
           )}
 
-          {/* Sold out overlay */}
+          {/* Out of stock: frosted layer + label over the photo */}
           {item.isOutOfStock && (
-            <View style={styles.soldOutOverlay}>
-              <Text style={styles.soldOutText}>
-                {t('marketplace.soldOut', 'SOLD OUT')}
-              </Text>
+            <View
+              style={[
+                styles.soldOutOverlay,
+                { backgroundColor: isDarkMode ? 'rgba(18,18,18,0.45)' : 'rgba(255,255,255,0.45)' },
+              ]}
+              pointerEvents="none"
+            >
+              <View style={styles.outOfStockPill}>
+                <Ionicons name="close-circle" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
+                <Text style={styles.soldOutText}>
+                  {t('marketplace.outOfStock', 'Out of stock')}
+                </Text>
+              </View>
             </View>
           )}
 
@@ -755,7 +911,7 @@ export default function MarketplaceScreen() {
         </View>
 
         {/* Product Info */}
-        <View style={styles.cardInfo}>
+        <View style={[styles.cardInfo, item.isOutOfStock && styles.outOfStockFaded]}>
           {isPromoted && (
             <View style={styles.promotedLabelRow}>
               <Ionicons
@@ -821,9 +977,19 @@ export default function MarketplaceScreen() {
               </View>
             ) : null}
 
-            {item.soldCount > 0 ? (
+            {/* Stock instead of sold count: grey when plenty, amber when
+                3 or fewer remain, red when none. No line if unknown. */}
+            {item.quantity === 0 ? (
+              <Text style={[styles.soldCountText, styles.stockOutText]}>
+                {t('marketplace.outOfStock', 'Out of stock')}
+              </Text>
+            ) : item.quantity != null && item.quantity <= 3 ? (
+              <Text style={[styles.soldCountText, styles.stockLowText]}>
+                {t('marketplace.onlyLeft', { count: item.quantity, defaultValue: `Only ${item.quantity} left` })}
+              </Text>
+            ) : item.quantity != null ? (
               <Text style={[styles.soldCountText, mutedTextStyle]}>
-                {`${item.soldCount} ${t('marketplace.sold', 'sold')}`}
+                {t('marketplace.available', { count: item.quantity, defaultValue: `${item.quantity} available` })}
               </Text>
             ) : null}
           </View>
@@ -1068,6 +1234,7 @@ export default function MarketplaceScreen() {
           showsVerticalScrollIndicator={false}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.4}
+          ListHeaderComponent={renderMarketplaceBattles()}
           ListFooterComponent={
             loadingMore ? (
               <View style={styles.footerLoader}>
@@ -1082,6 +1249,7 @@ export default function MarketplaceScreen() {
                 fetchProducts(true, 1);
                 fetchCartCount();
                 fetchWishlistState();
+                fetchMarketplaceBattles();
               }}
               tintColor={accent}
               colors={[accent]}
@@ -1598,6 +1766,26 @@ const styles = StyleSheet.create({
   gridContent: {
     paddingTop: 4,
   },
+  battlesSection: {
+    marginBottom: 14,
+  },
+  battlesHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: HORIZONTAL_PADDING,
+    marginBottom: 10,
+  },
+  battlesHeaderTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  battlesListContent: {
+    paddingHorizontal: HORIZONTAL_PADDING,
+  },
+  battlesLoader: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
   card: {
     width: CARD_WIDTH,
     borderRadius: 16,
@@ -1668,20 +1856,34 @@ const styles = StyleSheet.create({
   },
   soldOutOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
+  },
+  outOfStockPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(17,17,17,0.78)',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  outOfStockFaded: {
+    opacity: 0.5,
+  },
+  stockLowText: {
+    color: '#D97706',
+    fontWeight: '700',
+  },
+  stockOutText: {
+    color: '#DC2626',
+    fontWeight: '700',
   },
   soldOutText: {
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '800',
-    letterSpacing: 0.5,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    letterSpacing: 0.3,
   },
   heartButton: {
     position: 'absolute',

@@ -65,8 +65,33 @@ const normalizeBattlePayload = (data = {}) => {
     return payload;
 };
 
+// [PredictionDebug] Dev-only, readable logs. Long strings (e.g. image data)
+// are shortened so the output stays readable.
+const predictionDebugJson = (value) => {
+    try {
+        return JSON.stringify(
+            value,
+            (_key, v) => (typeof v === 'string' && v.length > 300 ? `${v.slice(0, 300)}…(${v.length} chars)` : v),
+            2,
+        );
+    } catch (_e) {
+        return String(value);
+    }
+};
+
 export const createBattle = async (data = {}) => {
-    return axiosInstance.post('battle/create', normalizeBattlePayload(data));
+    const payload = normalizeBattlePayload(data);
+    if (__DEV__) {
+        // Input from the screen vs what is actually sent after normalization,
+        // so a field dropped by normalizeBattlePayload is easy to spot.
+        console.log(`[PredictionDebug] CREATE battle input from screen:\n${predictionDebugJson(data)}`);
+        console.log(`[PredictionDebug] CREATE battle (${payload?.battleType || data?.battleType || 'unknown type'}) request sent to battle/create:\n${predictionDebugJson(payload)}`);
+    }
+    const response = await axiosInstance.post('battle/create', payload);
+    if (__DEV__) {
+        console.log(`[PredictionDebug] CREATE battle response:\n${predictionDebugJson(response)}`);
+    }
+    return response;
 };
 
 export const inviteBattle = async (data ) => {

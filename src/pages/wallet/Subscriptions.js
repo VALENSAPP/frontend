@@ -904,9 +904,9 @@ const SubventionSetupScreen = () => {
                         }
                     }}
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                    accessibilityLabel="Open menu"
+                    accessibilityLabel={navigation.canGoBack() ? 'Back' : 'Open menu'}
                 >
-                    <Ionicons name="menu" size={28} color={isDarkMode ? '#FFFFFF' : '#3B0D66'} />
+                    <Ionicons name={navigation.canGoBack() ? 'arrow-back' : 'menu'} size={navigation.canGoBack() ? 26 : 28} color={isDarkMode ? '#FFFFFF' : '#3B0D66'} />
                 </TouchableOpacity>
 
                 <View style={styles.headerTitleContainer}>

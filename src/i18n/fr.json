@@ -5351,7 +5351,8 @@
     "challengeStatusPrefix": "Le défi est {{status}}",
     "noLongerAvailable": "n'est plus disponible",
     "view": "Voir",
-    "itemsCount": "articles"
+    "itemsCount": "articles",
+    "backToInsights": "Retour aux statistiques"
   },
   "shopSettings": {
     "title": "Paramètres de la boutique",
@@ -5984,6 +5985,8 @@
     "profile": "Profil"
   },
   "marketplace": {
+    "sold": "vendus",
+    "soldOut": "ÉPUISÉ",
     "title": "Marketplace",
     "subtitle": "Explorez les produits de nos créateurs",
     "searchPlaceholder": "Rechercher des produits, marques ou boutiques...",
@@ -6006,7 +6009,10 @@
     "noMatchesQuery": "Essayez d'autres mots-clés ou effacez la recherche",
     "noProductsInCategory": "Aucun produit listé dans cette catégorie pour le moment",
     "clearFilters": "Effacer les filtres",
-    "untitled": "Produit"
+    "untitled": "Produit",
+    "outOfStock": "Rupture de stock",
+    "onlyLeft": "Plus que {{count}}",
+    "available": "{{count}} disponibles"
   },
   "profileVerificationReminder": {
     "title": "Vérifiez votre profil",

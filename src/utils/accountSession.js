@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { addAccountToDevice } from '../services/authentication/deviceAccounts';
 
 export const SAVED_ACCOUNTS_KEY = 'savedAccounts';
 export const ADDING_ACCOUNT_FLAG_KEY = 'isAddingAccount';
@@ -84,6 +85,22 @@ export const ensureCurrentAccountSaved = async overrides => {
   const current = await getCurrentSessionFromStorage();
   if (!current) return;
   await saveOrUpdateAccount({ ...current, ...(overrides || {}) });
+
+  // Every login/register path (including "Add account") calls this once the
+  // new access token is stored. Login/register no longer add the account to
+  // the device on the server, so register it here. Safe to repeat: an account
+  // already on the device comes back with alreadyAdded: true. Never blocks
+  // login if it fails.
+  try {
+    // API errors come back as a resolved body (the axios interceptor never
+    // rejects), so check the result as well as catching network errors.
+    const result = await addAccountToDevice();
+    if (result?.success === false || Number(result?.statusCode) >= 400) {
+      console.warn('[accountSession] add account to device rejected:', result?.message || result?.statusCode);
+    }
+  } catch (error) {
+    console.warn('[accountSession] add account to device failed:', error?.message);
+  }
 };
 
 export const applyAccountSession = async account => {

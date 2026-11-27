@@ -301,7 +301,8 @@
     "logoutTitle": "Leave and logout?",
     "logoutMessage": "Your account will be logged out and you'll be returned to the signup screen.",
     "logoutCancel": "Cancel",
-    "logoutConfirm": "Logout"
+    "logoutConfirm": "Logout",
+    "saveError": "Failed to save profile"
   },
   "wallet": {
     "creatingTitle": "Creating Your Profile & Setup the Wallet",
@@ -631,7 +632,8 @@
     "aspectRatio43": "4:3",
     "aspectRatio169": "16:9",
     "cropInfo": "Info",
-    "cropErrorTitle": "Error"
+    "cropErrorTitle": "Error",
+    "openSystemPicker": "Open System Gallery"
   },
   "profile": {
     "fetchPostsError": "Failed to fetch posts",
@@ -902,7 +904,8 @@
     "gallery": "Gallery",
     "gallerySubtitle": "Choose from your photos",
     "camera": "Camera",
-    "cameraSubtitle": "Take a new photo"
+    "cameraSubtitle": "Take a new photo",
+    "title": "Edit Profile"
   },
   "flips": {
     "screenTitle": "Flips",
@@ -966,7 +969,8 @@
     "emptyTitle": "No battles found",
     "emptySubtitle": "Try a different search",
     "fetchFailed": "Failed to load battles",
-    "unableToOpenProfile": "Unable to open profile"
+    "unableToOpenProfile": "Unable to open profile",
+    "filtersNotice": "Filters"
   },
   "search": {
     "searchPlaceholder": "Search users...",
@@ -981,7 +985,10 @@
     "battleExplore": "Battle Explore",
     "collapseBattleCarousel": "Hide battle carousel",
     "expandBattleCarousel": "Show battle carousel",
-    "unableToOpenProfile": "Unable to open profile"
+    "unableToOpenProfile": "Unable to open profile",
+    "filter": "Filter",
+    "searchBattlesUsersPlaceholder": "Search battles, users or businesses...",
+    "searchUsersPlaceholder": "Search users..."
   },
   "archive": {
     "loading": "Loading archive drops...",
@@ -1157,7 +1164,10 @@
     "tapUserHint": "Tap a user to open profile.",
     "breakdownTitle": "Breakdown",
     "emptyTitle": "No data yet",
-    "emptySubtitle": "Come back later to check activity."
+    "emptySubtitle": "Come back later to check activity.",
+    "commentsTitle": "Comments",
+    "noCommentsForSide": "No comments for this side yet",
+    "untitledBattle": "Untitled battle"
   },
   "battleResults": {
     "headerTitle": "Battle Results",
@@ -1611,7 +1621,8 @@
       "bullet3": "Your privacy rights and controls",
       "bullet4": "Data sharing and security measures",
       "checkboxLabel": "I have read and accept the Privacy Policy",
-      "errorRequired": "You must accept the Privacy Policy"
+      "errorRequired": "You must accept the Privacy Policy",
+      "privacyErrorRequired": "Please accept the Privacy Policy to continue."
     },
     "notice": {
       "title": "Important Notice",
@@ -1631,7 +1642,9 @@
       "all": "All",
       "following": "Following",
       "unfollowing": "Unfollowing",
-      "pending": "Pending"
+      "pending": "Pending",
+      "drops": "Drops",
+      "flips": "Flips"
     },
     "followingActivity": "Following Activity",
     "unfollowingActivity": "Unfollowing Activity",
@@ -1653,7 +1666,8 @@
       "hourAgo": "{{count}} hour ago",
       "hoursAgo": "{{count}} hours ago",
       "dayAgo": "{{count}} day ago",
-      "daysAgo": "{{count}} days ago"
+      "daysAgo": "{{count}} days ago",
+      "justNow": "Just now"
     }
   },
   "changePassword": {
@@ -1871,7 +1885,8 @@
       "bullet4": "Your audience reflects trust, interest, and participation",
       "paragraph4": "The stronger your community grows, the more your Dralens evolves. This is not about fake reach or empty numbers. It’s about real people, real reputation, and real connection.",
       "gotIt": "Got it"
-    }
+    },
+    "walletBannerDesc": "Manage your balance, withdrawals and transactions."
   },
   "referralPointsScreen": {
     "title": "Valens Points",
@@ -1938,7 +1953,9 @@
     "done": "Done",
     "errorTitle": "Error",
     "subscribeOnWebTitle": "Subscribe on Web",
-    "subscribeOnWebDescription": "Please copy the link below and paste it in your web browser where you can complete the payment, then return to the app."
+    "subscribeOnWebDescription": "Please copy the link below and paste it in your web browser where you can complete the payment, then return to the app.",
+    "paymentNotCompleted": "Payment not completed",
+    "paymentNotCompletedBody": "You returned before the payment was finished. The price update is still pending."
   },
   "useYourPointsScreen": {
     "title": "Use Your Points",
@@ -2053,7 +2070,15 @@
     "providerNetwork": "{{provider}} NETWORK",
     "statusCompleted": "COMPLETED",
     "statusProcessing": "PROCESSING",
-    "statusDelivered": "DELIVERED"
+    "statusDelivered": "DELIVERED",
+    "cannotTransferTitle": "Cannot Transfer",
+    "customAmountPlaceholder": "e.g. 35 for $35 USD",
+    "exceedsBalanceMsg": "⚠️ Entered points exceed your available balance ({{total}} Pts).",
+    "insufficientMinPointsMsg": "⚠️ Minimum {{pts}} available points required to transfer.",
+    "minAvailableRequired": "Minimum {{pts}} available points required to transfer.",
+    "minTransferMsg": "⚠️ Minimum {{pts}} points can be transferred.",
+    "minTransferRequired": "Minimum {{pts}} points can be transferred.",
+    "orCustomCardAmount": "Or Enter Custom Card Amount ($ USD):"
   },
   "sendPointsScreen": {
     "title": "Send Points",
@@ -2638,7 +2663,11 @@
     "exportExcelTitle": "Excel Spreadsheet (.csv)",
     "exportExcelDesc": "Compatible with Microsoft Excel, Numbers & Google Sheets",
     "exporting": "Generating document...",
-    "exportSuccess": "Statement exported successfully"
+    "exportSuccess": "Statement exported successfully",
+    "recordsAndSummary": "Records & Summary",
+    "recordsAndSummarySubtitle": "Your transaction history and financial summary on Valens.",
+    "statements": "Statements",
+    "transactionHistory": "Transaction History"
   },
   "viewMissionPost": {
     "missionCampaigns": "Mission Campaigns",
@@ -2792,7 +2821,8 @@
     "moderationBlockTitle": "Cannot publish",
     "moderationBlockReason": "Cannot publish comment. Your content violates community rules (Reason: {{reason}}). Please edit your text.",
     "moderationBlock": "Cannot publish. Your content violates community rules.",
-    "moderationCheckFailed": "Unable to check this comment right now. Please try again."
+    "moderationCheckFailed": "Unable to check this comment right now. Please try again.",
+    "editCommentTitle": "Editing comment"
   },
   "followCard": {
     "follow": "Follow",
@@ -2989,7 +3019,9 @@
     "videoLoadMessage": "This drop is taking too long to load. You can retry it or move to the next one.",
     "videoSkipLabel": "Skip",
     "videoRetryLabel": "Retry",
-    "videoCloseViewer": "Close Viewer"
+    "videoCloseViewer": "Close Viewer",
+    "camera": "Camera",
+    "videoSkip": "Skip"
   },
   "storyComposer": {
     "topBarTitle": "Add Drops",
@@ -3998,7 +4030,8 @@
     "waiting": "Waiting...",
     "openSlot": "Open slot",
     "stakes": "Stakes:",
-    "acceptChallenge": "Accept Challenge"
+    "acceptChallenge": "Accept Challenge",
+    "creator": "Creator"
   },
   "searchScreen": {
     "title": "Search"
@@ -4345,7 +4378,11 @@
       "accepted": "Accepted",
       "canceled": "Canceled",
       "viewDetails": "View Details",
-      "responseBreakdown": "Subscriber responses"
+      "responseBreakdown": "Subscriber responses",
+      "friendlyMessage": "Hi! Thanks for being part of my community. I wanted to reach out and see if you have any questions about my subscription update.",
+      "noSubscribers": "No subscribers found.",
+      "sendFriendlyMessage": "Send a friendly message",
+      "subscriber": "Subscriber"
     },
     "updateSubscriptionPrice": {
       "title": "Update Subscription Price",
@@ -4752,7 +4789,8 @@
     "searchPlaceholder": "Search {{label}}...",
     "noMatchesFound": "No matches found",
     "enabled": "Enabled",
-    "disabled": "Disabled"
+    "disabled": "Disabled",
+    "cameraPermissionRationale": "Valens needs access to your camera to take photos of your items."
   },
   "myClosetSteps": {
     "createShop": {
@@ -5136,7 +5174,11 @@
       "delivered": "Delivered",
       "cancelled": "Cancelled",
       "localpickup": "Localpickup"
-    }
+    },
+    "addEbook": "Add E-book",
+    "addItem": "Add Item",
+    "manage": "Manage",
+    "manageItems": "Manage Items"
   },
   "marketplaceAnalytics": {
     "title": "Analytics",
@@ -5436,7 +5478,15 @@
     "challengeStatusPrefix": "Challenge is {{status}}",
     "noLongerAvailable": "no longer available",
     "view": "View",
-    "itemsCount": "items"
+    "itemsCount": "items",
+    "challengeSelectOneMsg": "Please select only 1 winner product to challenge another shop.",
+    "challengeSelectOneTitle": "Select 1 Item",
+    "onlyWinnerCanChallengeNotice": "Only battle winner products can challenge another shop",
+    "selectOneItemTitle": "Select Item",
+    "selectWinnerItemPrompt": "Please select your battle winner product to challenge another shop.",
+    "winnerRequiredMsg": "Only battle winner products can challenge other shops. Please select a product with a 🏆 Winner badge to challenge another shop.",
+    "winnerRequiredTitle": "Winner Product Required 🏆",
+    "backToInsights": "Back to Insights"
   },
   "shopSettings": {
     "title": "Shop Settings",
@@ -5546,7 +5596,11 @@
       "message": "This will permanently delete your closet and its settings. This action cannot be undone."
     },
     "toasts": {
-      "noChanges": "No changes to save"
+      "noChanges": "No changes to save",
+      "loadFailed": "Failed to load settings",
+      "photoLibraryUnavailable": "Photo library unavailable",
+      "saveFailed": "Failed to save changes",
+      "saveSuccess": "Changes saved successfully"
     },
     "bannerHeading": "Small details.\nBig shop energy.",
     "bannerDescription": "Give your shop a name, add your logo, and tell shoppers what makes it special. These are the details they'll see when they visit.",
@@ -5651,7 +5705,8 @@
     "endsValue": "After {{duration}}",
     "launch": "Launch Promotion",
     "liveTitle": "Promotion Live 🎉",
-    "liveMessage": "Your promotion is now live on the product."
+    "liveMessage": "Your promotion is now live on the product.",
+    "viewExplore": "View on Explore"
   },
   "buyMissionPost": {
     "title": "Buy Mission Post",
@@ -5810,7 +5865,8 @@
     "format": "Format",
     "pdfFormat": "PDF",
     "price": "Price",
-    "buyNow": "Buy Now"
+    "buyNow": "Buy Now",
+    "byAuthorPrefix": "by"
   },
   "ebookCheckout": {
     "headerTitle": "Checkout",
@@ -5862,7 +5918,8 @@
     "chapter1Fallback": "Build your personal brand",
     "chapter2Fallback": "Create content that connects",
     "chapter3Fallback": "Monetize your knowledge",
-    "chapter4Fallback": "Grow your audience"
+    "chapter4Fallback": "Grow your audience",
+    "unableToDeleteComment": "Unable to delete comment"
   },
   "servicesComingSoon": {
     "header": "Services",
@@ -6058,7 +6115,8 @@
     "meAsClient": "Me as a Client",
     "servicesProductList": "Services Product List",
     "clientOrders": "Client Orders",
-    "servicesOrders": "Services Orders"
+    "servicesOrders": "Services Orders",
+    "create": "Create"
   },
   "bottomTab": {
     "home": "Home",
@@ -6069,6 +6127,8 @@
     "profile": "Profile"
   },
   "marketplace": {
+    "sold": "sold",
+    "soldOut": "SOLD OUT",
     "title": "Marketplace",
     "subtitle": "Explore products from our creators",
     "searchPlaceholder": "Search products, brands, or shops...",
@@ -6118,7 +6178,15 @@
     "descSub": "High to Low",
     "ascSub": "Low to High",
     "smartRank": "Smart Rank",
-    "dateAdded": "Latest Added"
+    "dateAdded": "Latest Added",
+    "battleWinnerItem": "Battle Winner",
+    "freeShipping": "Free ship",
+    "liveBattles": "Live Battles",
+    "pickup": "Pickup",
+    "promoted": "Promoted",
+    "outOfStock": "Out of stock",
+    "onlyLeft": "Only {{count}} left",
+    "available": "{{count}} available"
   },
   "profileVerificationReminder": {
     "title": "Verify your profile",
@@ -6135,5 +6203,50 @@
     "deny": "Deny",
     "doKyc": "Do {{type}}",
     "goBack": "Go back"
+  },
+  "common": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "clear": "Clear",
+    "delete": "Delete",
+    "error": "Error"
+  },
+  "services": {
+    "aboutLabel": "About You & Your Services",
+    "activateBtn": "Activate Services Now",
+    "activateHeroSub": "Offer consultations, mentorships, appointments, events, and monthly packages to your followers.",
+    "activateHeroTitle": "Turn your expertise into client bookings",
+    "activateTitle": "Activate Your Services",
+    "activatedSuccessMsg": "Your professional services account is ready.",
+    "activatedSuccessTitle": "Services Activated!",
+    "activeServices": "Active Services",
+    "backToDashboard": "Services Dashboard",
+    "chooseTypeSub": "Select the format of the service you want to offer",
+    "chooseTypeTitle": "Choose Service Type",
+    "clientDashboard": "Client Dashboard",
+    "clientSubtitle": "Manage your bookings, packages and favorite services.",
+    "createNewService": "Create New Service or Package",
+    "headlineLabel": "Professional Headline",
+    "imClient": "I'm Client",
+    "imProfessional": "I'm Professional",
+    "monthlyRevenue": "Monthly Revenue",
+    "myPackages": "My Packages",
+    "newClients": "New Clients",
+    "overview": "Overview",
+    "proDashboard": "Professional Dashboard",
+    "proSubtitle": "Manage your services, packages and clients.",
+    "providerDetails": "Provider Details",
+    "publishError": "Could Not Publish",
+    "recommendedForYou": "Recommended for You",
+    "revenue": "Revenue",
+    "reviews": "Reviews",
+    "sessions": "Sessions",
+    "timezoneHint": "Used to coordinate your booking availability and calendar.",
+    "timezoneLabel": "Timezone",
+    "totalClients": "Total Clients",
+    "upcomingSessions": "Upcoming Sessions",
+    "upcomingSessionsTitle": "Upcoming Sessions",
+    "viewAll": "View all",
+    "yourServices": "Your Services"
   }
 }

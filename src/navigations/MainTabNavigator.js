@@ -198,6 +198,10 @@ const VIEWED_PROFILE_THEME_EVENT = 'VIEWED_PROFILE_THEME';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
+
+// Wallet screens that keep the drawer menu button in the header. All other
+// wallet stack screens show a back arrow that returns through history.
+const WALLET_DRAWER_ROOT_ROUTES = ['Dashboard', 'WalletMain'];
 const MyClosetScreen = props => {
   const [storedProfile, setStoredProfile] = React.useState('user');
   const [hasCreatedShop, setHasCreatedShop] = React.useState(false);
@@ -901,7 +905,7 @@ export default function MainTabNavigator() {
       return (
         <Stack.Navigator
           initialRouteName={initialScreen}
-          screenOptions={({ navigation }) => ({
+          screenOptions={({ navigation, route: screenRoute }) => ({
             headerShown: true,
             contentStyle: { backgroundColor: bg },
             headerStyle: {
@@ -914,7 +918,10 @@ export default function MainTabNavigator() {
               color: isBusinessProfile ? '#CBA257' : headerTitleColor,
             },
             headerTintColor: headerMenuColor,
-            headerLeft: () => (
+            // Root wallet screens keep the drawer menu. Every other screen gets a
+            // back arrow that returns to the page the user came from (history),
+            // falling back to the Dashboard when there is no history.
+            headerLeft: () => (WALLET_DRAWER_ROOT_ROUTES.includes(screenRoute?.name) ? (
               <TouchableOpacity
                 onPress={() => {
                   try {
@@ -927,7 +934,23 @@ export default function MainTabNavigator() {
               >
                 <Ionicons name="menu" size={28} color={headerMenuColor} />
               </TouchableOpacity>
-            ),
+            ) : (
+              <TouchableOpacity
+                onPress={() => {
+                  if (navigation.canGoBack()) {
+                    navigation.goBack();
+                    return;
+                  }
+                  navigation.navigate('Dashboard');
+                }}
+                style={{ marginLeft: 15 }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel="Back"
+              >
+                <Ionicons name="arrow-back" size={26} color={headerMenuColor} />
+              </TouchableOpacity>
+            )),
             headerTitle: () => (
               <TextGradient
                 style={{ fontWeight: 'bold', fontSize: 20 }}

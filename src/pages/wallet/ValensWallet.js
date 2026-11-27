@@ -479,13 +479,21 @@ const ValensWallet = ({ navigation }) => {
             {/* Header: Menu (left), Valens Statements (center), Download (right) */}
             <View style={styles.header}>
                 <TouchableOpacity
-                    onPress={() => navigation.openDrawer()}
+                    onPress={() => {
+                        // Return to the page the user came from; only open the
+                        // drawer when this screen is the first in history.
+                        if (navigation.canGoBack()) {
+                            navigation.goBack();
+                        } else {
+                            navigation.openDrawer?.();
+                        }
+                    }}
                     style={styles.headerBtn}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     accessibilityRole="button"
-                    accessibilityLabel="Open drawer menu"
+                    accessibilityLabel={navigation.canGoBack() ? 'Back' : 'Open drawer menu'}
                 >
-                    <Ionicons name="menu" size={28} color={primaryText} />
+                    <Ionicons name={navigation.canGoBack() ? 'arrow-back' : 'menu'} size={navigation.canGoBack() ? 26 : 28} color={primaryText} />
                 </TouchableOpacity>
 
                 <Text style={[styles.headerTitle, { color: primaryText }]}>

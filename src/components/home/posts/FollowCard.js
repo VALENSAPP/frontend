@@ -44,11 +44,15 @@ export default function FollowCard({
   const navigation = useNavigation();
   const { startSupportPayment } = useWalletConnectSupport();
   const { isDarkMode } = useThemeContext();
+  // The card surface follows the logged-in viewer's theme, but the suggested
+  // user's own colors (border, name, Follow button) follow *their* profile
+  // type: gold for business profiles, purple for regular ones.
   const { textStyle, text, card } = useAppTheme(isBusinessProfile ? 'company' : undefined);
   const { t } = useLanguage();
-  const profileAccent = type === 'company'
-    ? (isDarkMode ? '#C9A15A' : '#C9A15a')
-    : (isDarkMode ? '#5a2d82' : '#5a2d82');
+  const isTargetBusiness =
+    normalizeProfileType(targetProfileType || type || item?.profile) === 'company';
+  const { textStyle: targetTextStyle } = useAppTheme(isTargetBusiness ? 'company' : 'user');
+  const profileAccent = isTargetBusiness ? '#C9A15A' : '#5a2d82';
   const profileButtonColor = profileAccent;
 
   const handleUserProfile = targetId => {
@@ -235,7 +239,7 @@ export default function FollowCard({
           onPress={() => handleUserProfile(userId)}
           activeOpacity={0.7}
         >
-          <Text style={[styles.username, textStyle]} numberOfLines={1}>
+          <Text style={[styles.username, targetTextStyle]} numberOfLines={1}>
             {username}
           </Text>
         </TouchableOpacity>

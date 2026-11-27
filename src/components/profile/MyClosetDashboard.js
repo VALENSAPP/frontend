@@ -800,13 +800,21 @@ const MyClosetDashboard = ({ navigation, userData, shopDraft }) => {
       {/* ── Top Header ── */}
       <View style={styles.topHeader}>
         <TouchableOpacity
-          onPress={() => navigation.openDrawer()}
+          onPress={() => {
+            // Return to the page the user came from; only open the drawer
+            // when this screen is the first in history.
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              navigation.openDrawer?.();
+            }
+          }}
           style={styles.headerBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityRole="button"
-          accessibilityLabel="Open drawer"
+          accessibilityLabel={navigation.canGoBack() ? 'Back' : 'Open drawer'}
         >
-          <Ionicons name="menu" size={28} color={primaryText} />
+          <Ionicons name={navigation.canGoBack() ? 'arrow-back' : 'menu'} size={navigation.canGoBack() ? 26 : 28} color={primaryText} />
         </TouchableOpacity>
 
         <Text style={[styles.headerTitle, { color: primaryText }]}>

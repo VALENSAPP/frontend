@@ -35,6 +35,7 @@ import { loggedIn } from '../../../redux/actions/LoginAction';
 import { setUserProfile } from '../../../redux/actions/UserProfileAction';
 import SNSMobileSDK from '@sumsub/react-native-mobilesdk-module';
 import { setIsAddAccount } from '../../../redux/actions/AddAccountAction';
+import { ensureCurrentAccountSaved } from '../../../utils/accountSession';
 import { useLanguage } from '../../../i18n';
 import { clearSignupFormData } from '../../../redux/actions/SignupFormAction';
 
@@ -352,6 +353,8 @@ export default function KYCVerification({ route }) {
                         }
                         return;
                     }
+                    // Saves the new account locally and adds it to this device on the server.
+                    await ensureCurrentAccountSaved();
                     await AsyncStorage.setItem('isLoggedIn', 'true');
                     dispatch(loggedIn());
                     dispatch(clearSignupFormData());
@@ -404,6 +407,8 @@ export default function KYCVerification({ route }) {
                         }
                         return;
                     }
+                    // Saves the new account locally and adds it to this device on the server.
+                    await ensureCurrentAccountSaved();
                     await AsyncStorage.setItem('isLoggedIn', 'true');
                     dispatch(loggedIn());
                     dispatch(clearSignupFormData());
